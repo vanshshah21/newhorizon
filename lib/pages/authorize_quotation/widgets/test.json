@@ -1,0 +1,45 @@
+{
+    "data": {
+        "inquiryBaseList": {
+            "year": null,
+            "groupCode": null,
+            "siteCodeList": null,
+            "numberList": null
+        },
+        "quatationBaseList": {
+            "year": [],
+            "groupCode": [],
+            "siteCodeList": [],
+            "numberList": [
+                {
+                    "number": "000037",
+                    "date": "2025-01-29T00:00:00",
+                    "autoId": 220593,
+                    "salesManCode": ""
+                },
+                {
+                    "number": "000076",
+                    "date": "2024-10-05T00:00:00",
+                    "autoId": 190485,
+                    "salesManCode": ""
+                }
+            ]
+        },
+        "oafBaseList": {
+            "year": null,
+            "groupCode": null,
+            "siteCodeList": null,
+            "numberList": null
+        },
+        "invoiceBaseList": {
+            "year": null,
+            "groupCode": null,
+            "siteCodeList": null,
+            "numberList": null
+        }
+    },
+    "message": null,
+    "errors": null,
+    "success": true,
+    "errorMessage": null
+}
