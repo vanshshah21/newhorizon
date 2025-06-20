@@ -26,10 +26,9 @@ class NotificationService {
       "pageNumber": page,
       "pageSize": pageSize,
       "sortField": "",
-      "sortDirection": "",
+      "sortDirection": "asc",
       "searchValue": searchValue,
       "userId": userId,
-      "markasread": 0,
     };
 
     _dio.options.headers['Content-Type'] = 'application/json';
@@ -47,6 +46,7 @@ class NotificationService {
   }
 
   Future<bool> markAsRead({required int notificationId}) async {
+    debugPrint("Marking notification as read: $notificationId");
     final endpoint = '/api/Login/Markasreadnotification';
     final url = await StorageUtils.readValue('url');
     final companyDetails = await StorageUtils.readJson('selected_company');
@@ -70,6 +70,8 @@ class NotificationService {
         'NotificationId': notificationId,
       },
     );
+    debugPrint("Response: ${response.data.runtimeType}");
+    debugPrint("Success: ${response.data['success']}");
     return response.data['success'] == true;
   }
 

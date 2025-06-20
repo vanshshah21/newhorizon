@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:nhapp/pages/proforma_invoice/models/proforma_details.dart';
 import 'package:nhapp/pages/proforma_invoice/models/proforma_invoice_item.dart';
 import 'package:nhapp/utils/storage_utils.dart';
 
@@ -90,5 +91,43 @@ class ProformaInvoiceService {
       return response.data['data'] ?? '';
     }
     throw Exception('Failed to fetch Proforma Invoice PDF');
+  }
+
+  Future<ProformaInvoiceDetails> fetchProformaInvoiceDetails({
+    required int invSiteId,
+    required String invYear,
+    required String invGroup,
+    required String invNumber,
+    required String piOn,
+    required int fromLocationId,
+    required String custCode,
+    String search = "S",
+  }) async {
+    final url = await StorageUtils.readValue('url');
+    final endpoint =
+        "/api/Proforma/proformaInvoiceGetInvoiceDetails"
+        "?invSiteId=$invSiteId"
+        "&invYear=$invYear"
+        "&invGroup=$invGroup"
+        "&invNumber=$invNumber"
+        "&piOn=$piOn"
+        "&fromLoactionId=$fromLocationId"
+        "&custCode=$custCode"
+        "&search=$search";
+
+    final companyDetails = await StorageUtils.readJson('selected_company');
+    final tokenDetails = await StorageUtils.readJson('session_token');
+    final token = tokenDetails['token']['value'];
+
+    _dio.options.headers['Content-Type'] = 'application/json';
+    _dio.options.headers['Accept'] = 'application/json';
+    _dio.options.headers['companyid'] = companyDetails['id'].toString();
+    _dio.options.headers['Authorization'] = 'Bearer $token';
+
+    final response = await _dio.get('http://$url$endpoint');
+    if (response.statusCode == 200 && response.data['success'] == true) {
+      return ProformaInvoiceDetails.fromJson(response.data['data']);
+    }
+    throw Exception('Failed to fetch proforma invoice details');
   }
 }

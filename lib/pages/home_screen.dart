@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:nhapp/main.dart';
 import 'package:nhapp/utils/storage_utils.dart';
 import 'package:provider/provider.dart';
@@ -186,11 +187,31 @@ class _HomeScreenState extends State<HomeScreen> {
         child: ListView(
           padding: EdgeInsets.zero,
           children: <Widget>[
-            const DrawerHeader(
-              decoration: BoxDecoration(color: Colors.blue),
-              child: Text(
-                'Drawer Header',
-                style: TextStyle(color: Colors.white, fontSize: 24),
+            // const DrawerHeader(
+            //   decoration: BoxDecoration(color: Colors.blue),
+            //   child: Text(
+            //     'Drawer Header',
+            //     style: TextStyle(color: Colors.white, fontSize: 24),
+            //   ),
+            // ),
+            DrawerHeader(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SvgPicture.asset(
+                    'assets/img_new_horizon_logo.svg',
+                    height: 64,
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'New Horizon ERP',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
             ),
             ListTile(
@@ -339,7 +360,105 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   ),
-                  // … your favorites section can go in another SliverToBoxAdapter
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: Column(
+                        children: [
+                          const Text(
+                            'Favorite Pages:',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          favoritePages.favoriteRoutes.isEmpty
+                              ? Card(
+                                elevation: 0,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(24.0),
+                                  child: Column(
+                                    children: [
+                                      Icon(
+                                        Icons.favorite_outline,
+                                        size: 48,
+                                        color:
+                                            Theme.of(
+                                              context,
+                                            ).colorScheme.outline,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'No favorites yet.',
+                                        style: TextStyle(
+                                          color:
+                                              Theme.of(
+                                                context,
+                                              ).colorScheme.outline,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                              : Wrap(
+                                spacing: 8.0,
+                                runSpacing: 8.0,
+                                alignment: WrapAlignment.center,
+                                children:
+                                    favoritePages.favoriteRoutes.map((route) {
+                                      final pageName =
+                                          routeToPageName[route] ?? route;
+                                      return Card(
+                                        elevation: 0,
+                                        child: InkWell(
+                                          onTap: () {
+                                            Navigator.pushNamed(context, route);
+                                          },
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 16.0,
+                                              vertical: 12.0,
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  Icons.star_border_outlined,
+                                                  size: 16,
+                                                  color:
+                                                      Theme.of(
+                                                        context,
+                                                      ).colorScheme.primary,
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  pageName,
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w500,
+                                                    color:
+                                                        Theme.of(
+                                                          context,
+                                                        ).colorScheme.onSurface,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    }).toList(),
+                              ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
       // : SingleChildScrollView(
@@ -395,23 +514,23 @@ class _HomeScreenState extends State<HomeScreen> {
       //       ),
       //       const SizedBox(height: 20),
       //       const Text('Favorite Pages:'),
-      //       if (favoritePages.favoriteRoutes.isEmpty)
-      //         const Text('No favorites yet.')
-      //       else
-      //         Column(
-      //           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      //           crossAxisAlignment: CrossAxisAlignment.center,
-      //           children:
-      //               favoritePages.favoriteRoutes.map((route) {
-      //                 final pageName = routeToPageName[route] ?? route;
-      //                 return ActionChip(
-      //                   label: Text(pageName),
-      //                   onPressed: () {
-      //                     Navigator.pushNamed(context, route);
-      //                   },
-      //                 );
-      //               }).toList(),
-      //         ),
+      // if (favoritePages.favoriteRoutes.isEmpty)
+      //   const Text('No favorites yet.')
+      // else
+      //   Column(
+      //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      //     crossAxisAlignment: CrossAxisAlignment.center,
+      //     children:
+      //         favoritePages.favoriteRoutes.map((route) {
+      //           final pageName = routeToPageName[route] ?? route;
+      //           return ActionChip(
+      //             label: Text(pageName),
+      //             onPressed: () {
+      //               Navigator.pushNamed(context, route);
+      //             },
+      //           );
+      //         }).toList(),
+      //   ),
       //     ],
       //   ),
       // ),

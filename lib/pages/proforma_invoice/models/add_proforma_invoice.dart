@@ -782,24 +782,52 @@ class DefaultDocumentDetail {
 
 class QuotationDetails {
   final List<Map<String, dynamic>> itemDetail;
+  final List<Map<String, dynamic>>? rateStructDetail;
+  final List<Map<String, dynamic>>? discountDetail;
 
-  QuotationDetails({required this.itemDetail});
+  QuotationDetails({
+    required this.itemDetail,
+    this.rateStructDetail,
+    this.discountDetail,
+  });
 
   factory QuotationDetails.fromJson(Map<String, dynamic> json) {
     return QuotationDetails(
       itemDetail: List<Map<String, dynamic>>.from(json['itemDetail'] ?? []),
+      rateStructDetail:
+          json['rateStructDetail'] != null
+              ? List<Map<String, dynamic>>.from(json['rateStructDetail'])
+              : null,
+      discountDetail:
+          json['discountDetail'] != null
+              ? List<Map<String, dynamic>>.from(json['discountDetail'])
+              : null,
     );
   }
 }
 
 class SalesOrderDetails {
   final List<Map<String, dynamic>> itemDetail;
+  final List<Map<String, dynamic>>? rateStructDetail;
+  final List<Map<String, dynamic>>? discountDetail;
 
-  SalesOrderDetails({required this.itemDetail});
+  SalesOrderDetails({
+    required this.itemDetail,
+    this.rateStructDetail,
+    this.discountDetail,
+  });
 
   factory SalesOrderDetails.fromJson(Map<String, dynamic> json) {
     return SalesOrderDetails(
       itemDetail: List<Map<String, dynamic>>.from(json['itemDetail'] ?? []),
+      rateStructDetail:
+          json['rateStructDetail'] != null
+              ? List<Map<String, dynamic>>.from(json['rateStructDetail'])
+              : null,
+      discountDetail:
+          json['discountDetail'] != null
+              ? List<Map<String, dynamic>>.from(json['discountDetail'])
+              : null,
     );
   }
 }

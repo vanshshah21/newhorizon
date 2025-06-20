@@ -55,7 +55,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'NH Flutter App',
+      title: 'New Horizon ERP',
       theme: shadcnLightTheme,
       initialRoute: '/splash',
       routes: {

@@ -143,13 +143,10 @@ class _BarChart extends StatelessWidget {
 
     return SideTitleWidget(
       meta: meta,
-      space: 8, // space between the axis and the label
+      space: 0, // space between the axis and the label
       child:
           label != null
-              ? Transform.rotate(
-                angle: -(math.pi / 3),
-                child: Text(label, style: const TextStyle(fontSize: 12)),
-              )
+              ? Text(label, style: const TextStyle(fontSize: 12))
               : const SizedBox.shrink(),
     );
   }

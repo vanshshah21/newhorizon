@@ -181,8 +181,15 @@ class _POInfiniteListTabState extends State<POInfiniteListTab>
                 ),
               ),
               const SizedBox(width: 8),
+              // IconButton.filled(
+              //   onPressed: _onSearch,
+              //   icon: const Icon(Icons.search),
+              // ),
               IconButton.filled(
-                onPressed: _onSearch,
+                onPressed: () {
+                  _onSearch(); // Add parentheses to call the function
+                  FocusScope.of(context).unfocus();
+                },
                 icon: const Icon(Icons.search),
               ),
             ],

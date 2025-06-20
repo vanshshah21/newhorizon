@@ -41,6 +41,7 @@ class _ProformaInvoicePdfLoaderPageState
         setState(() => pdfUrl = url);
       }
     } catch (e) {
+      debugPrint('Error fetching PDF: $e');
       if (!mounted) return;
       setState(() => error = 'Error: $e');
     }

@@ -24,7 +24,7 @@ class ProformaInvoiceInfiniteList extends StatefulWidget {
 class _ProformaInvoiceInfiniteListState
     extends State<ProformaInvoiceInfiniteList>
     with AutomaticKeepAliveClientMixin<ProformaInvoiceInfiniteList> {
-  static const _pageSize = 10;
+  static const _pageSize = 50;
 
   late final PagingController<int, ProformaInvoice> _pagingController;
   final TextEditingController _searchController = TextEditingController();
@@ -108,6 +108,14 @@ class _ProformaInvoiceInfiniteListState
                         (context, invoice, index) => ProformaInvoiceCard(
                           invoice: invoice,
                           onPdfTap: () => widget.onPdfTap(invoice),
+                          onEditTap: () {
+                            // Your edit logic
+                            print('Edit tapped for PI: ${invoice.number}');
+                          },
+                          onDeleteTap: () {
+                            // Your delete logic
+                            print('Delete tapped for PI: ${invoice.number}');
+                          },
                         ),
                     noItemsFoundIndicatorBuilder:
                         (context) =>
