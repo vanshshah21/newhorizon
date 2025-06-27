@@ -186,7 +186,15 @@ class _ProformaInvoiceCardState extends State<ProformaInvoiceCard>
                                 borderRadius: BorderRadius.circular(16),
                               ),
                               child: Text(
-                                pi.rowStatus,
+                                pi.piOn == "O"
+                                    ? "Sales Order"
+                                    : pi.piOn == "Q"
+                                    ? "Quotation"
+                                    : pi.piOn == "A"
+                                    ? "OAF"
+                                    : pi.piOn == "T"
+                                    ? "Other"
+                                    : "Unknown",
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,

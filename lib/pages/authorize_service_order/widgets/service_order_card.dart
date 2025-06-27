@@ -200,7 +200,7 @@ class ServiceOrderCard extends StatelessWidget {
                       context,
                       'Amount',
                       FormatUtils.formatAmount(so.totalpovalue),
-                      Icons.attach_money,
+                      Icons.currency_rupee,
                       valueColor: theme.colorScheme.primary,
                       isAmount: true,
                     ),

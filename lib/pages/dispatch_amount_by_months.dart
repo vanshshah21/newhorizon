@@ -322,6 +322,7 @@ class _DispatchAmountByMonthsPageState
                 decoration: const InputDecoration(
                   labelText: 'Select Year Range',
                   border: OutlineInputBorder(),
+                  fillColor: Colors.white,
                 ),
                 items:
                     _dropdownOptions

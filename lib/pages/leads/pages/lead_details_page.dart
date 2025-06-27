@@ -516,6 +516,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:nhapp/pages/leads/pages/lead_pdf_loader_page.dart';
 import 'package:nhapp/utils/format_utils.dart';
 import '../models/lead_data.dart';
 import '../models/lead_detail_data.dart';
@@ -611,7 +612,15 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
                           ),
                           const SizedBox(width: 6),
                           IconButton.filledTonal(
-                            onPressed: () {},
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder:
+                                      (context) =>
+                                          LeadPdfLoaderPage(lead: widget.lead),
+                                ),
+                              );
+                            },
                             icon: SvgPicture.asset(
                               'assets/icons/pdf.svg', // Path to your SVG
                               height: 20, // Optional: Set size

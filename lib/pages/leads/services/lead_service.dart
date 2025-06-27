@@ -16,14 +16,18 @@ class LeadService {
     final companyDetails = await StorageUtils.readJson('selected_company');
     if (companyDetails == null) throw Exception("Company not set");
 
+    final locationDetails = await StorageUtils.readJson('selected_location');
+    if (locationDetails == null) throw Exception("Location not set");
+
     final tokenDetails = await StorageUtils.readJson('session_token');
     if (tokenDetails == null) throw Exception("Session token not found");
 
     final companyId = companyDetails['id'];
     final token = tokenDetails['token']['value'];
     final userId = tokenDetails['user']['id'];
+    final locationId = locationDetails['id'];
 
-    final endpoint = "/api/Lead/LeadEntryList";
+    final endpoint = "/api/Lead/inquiryEntryList";
 
     final body = {
       "PageNumber": page,
@@ -32,6 +36,7 @@ class LeadService {
       "SortDirection": "",
       "SearchValue": searchValue ?? "",
       "UserId": userId,
+      "locationIds": locationId.toString(),
       "restcoresalestrans": "false",
     };
 

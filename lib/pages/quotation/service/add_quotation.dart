@@ -123,6 +123,46 @@ class QuotationFormService {
     return {};
   }
 
+  Future<Map<String, dynamic>> fetchSalesPolicy({required String year}) async {
+    final baseUrl = await StorageUtils.readValue('url');
+    final companyDetails = await StorageUtils.readJson('selected_company');
+    if (companyDetails == null) throw Exception("Company not set");
+
+    final locationDetails = await StorageUtils.readJson('selected_location');
+    if (locationDetails == null) throw Exception("Location not set");
+
+    final tokenDetails = await StorageUtils.readJson('session_token');
+    if (tokenDetails == null) throw Exception("Session token not found");
+
+    final companyId = companyDetails['id'];
+    final companyCode = companyDetails['code'];
+    final locationId = locationDetails['id'];
+    final token = tokenDetails['token']['value'];
+
+    _dio.options.headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'companyid': companyId.toString(),
+      'Authorization': 'Bearer $token',
+    };
+
+    _dio.options.baseUrl = 'http://$baseUrl';
+
+    const endpoint = "/api/Lead/GetSalesPolicy";
+    final response = await _dio.get(
+      endpoint,
+      queryParameters: {"companyCode": companyCode},
+    );
+    if (response.statusCode == 200 && response.data['success'] == true) {
+      final data = response.data['data']["salesPolicyResultModel"][0];
+      if (data is Map<String, dynamic>) {
+        return data;
+      }
+    }
+    debugPrint('Error fetching default document detail: ${response.data}');
+    return {};
+  }
+
   Future<List<QuotationBase>> fetchQuotationBases() async {
     try {
       // await _setupHeaders();

@@ -80,7 +80,9 @@ class QuotationService {
       "QtnYear": qtn.qtnYear,
       "intCompId": companyId,
       "intSiteId": qtn.siteId,
+      "documentprint": "regular",
       "strDomCurrency": "INR",
+      "companyData": companyDetails,
     };
 
     _dio.options.headers['Content-Type'] = 'application/json';

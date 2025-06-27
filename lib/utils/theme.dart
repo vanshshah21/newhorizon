@@ -106,8 +106,7 @@ final shadcnLightTheme = ThemeData(
     onError: ShadcnColors.destructiveForeground.toColor,
   ),
   inputDecorationTheme: InputDecorationTheme(
-    fillColor: ShadcnColors.input.toColor,
-    filled: true,
+    fillColor: Colors.white,
     border: OutlineInputBorder(
       borderSide: BorderSide(color: ShadcnColors.border.toColor),
       borderRadius: BorderRadius.circular(8.0),

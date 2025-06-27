@@ -84,6 +84,14 @@ class SalesOrderListPageState extends State<SalesOrderListPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Sales Orders')),
       body: SalesOrderInfiniteListTab(service: service, onPdfTap: handlePdfTap),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          // Navigate to the add sales order page
+          Navigator.pushNamed(context, '/add_sales_order');
+        },
+        child: const Icon(Icons.add),
+        tooltip: 'Add Sales Order',
+      ),
     );
   }
 }

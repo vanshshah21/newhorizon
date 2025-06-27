@@ -718,7 +718,7 @@ class _DetailSection extends StatelessWidget {
             context,
             'Total Amount',
             FormatUtils.formatAmount(so.totalAmount),
-            Icons.attach_money,
+            Icons.currency_rupee,
           ),
         ],
       ),

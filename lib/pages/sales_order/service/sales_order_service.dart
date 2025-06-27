@@ -58,12 +58,14 @@ class SalesOrderService {
     };
 
     final endpoint = "/api/SalesOrder/SalesOrderGetList";
-
+    debugPrint('Fetching Sales Orders with body: $body');
     final response = await _dio.post('http://$url$endpoint', data: body);
+    debugPrint('Sales Order Response: ${response}');
     if (response.statusCode == 200 && response.data['success'] == true) {
       final List<dynamic> data = response.data['data']?['solist'] ?? [];
       return data.map((e) => SalesOrder.fromJson(e)).toList();
     } else {
+      debugPrint('Failed to fetch Sales Orders: ${response.data}');
       throw Exception('Failed to load Sales Orders');
     }
   }

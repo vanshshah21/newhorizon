@@ -149,4 +149,29 @@ class LabourPOData {
     'isAmendment': isAmendment,
     'itemDetail': itemDetail.map((e) => e.toJson()).toList(),
   };
+
+  Map<String, dynamic> toPdfJson() => {
+    'poBasis': poBasis,
+    'poType': poType,
+    'year': year,
+    'grp': grp,
+    'site': site,
+    'nmbr': nmbr,
+    'date': date.endsWith('Z') ? date : '${date.split('T')[0]}T00:00:00.000Z',
+    'id': id,
+    'isEdit': isEdit,
+    'isDelete': isDelete,
+    'isAuthorize': isAuthorize,
+    'rowstatus': rowstatus,
+    'pendingforauth': pendingforauth,
+    'siteid': siteid,
+    'sitename': sitename,
+    'docsubtype': docsubtype,
+    'doctype': doctype,
+    'pOStatus': pOStatus,
+    'vendor': vendor,
+    'pohremark': pohremark,
+    'pohremark1': pohremark1,
+    'autoId': id,
+  };
 }

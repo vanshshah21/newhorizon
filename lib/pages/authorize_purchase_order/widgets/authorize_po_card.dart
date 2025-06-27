@@ -283,7 +283,7 @@ class _AuthorizePOCardState extends State<AuthorizePOCard>
                           context,
                           'Amount',
                           FormatUtils.formatAmount(widget.po.pototalamt),
-                          Icons.attach_money,
+                          Icons.currency_rupee,
                           valueColor: theme.colorScheme.primary,
                           isAmount: true,
                         ),

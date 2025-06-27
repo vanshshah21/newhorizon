@@ -1080,9 +1080,9 @@ class _QuotationCardState extends State<QuotationCard>
                   const SizedBox(height: 12),
 
                   // Details section
-                  _DetailSection(qtn: widget.qtn),
+                  // _DetailSection(qtn: widget.qtn),
 
-                  const SizedBox(height: 12),
+                  // const SizedBox(height: 12),
 
                   // Expand/Collapse button and action hint
                   Row(

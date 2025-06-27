@@ -102,10 +102,7 @@ class POService {
       "FormID": "01109",
       "typeSelection": "P",
       "GSTDateTimeTemp": "01/07/2017",
-      "blnpocomparision_fabcon": true,
-      "blnpoitemwisestock_fabcon": true,
       "strtctype": "GEN",
-      "printtype": "pdf",
     };
 
     _dio.options.headers['Content-Type'] = 'application/json';

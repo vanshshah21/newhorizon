@@ -205,7 +205,7 @@ class LaborPOCard extends StatelessWidget {
                       context,
                       'Amount',
                       FormatUtils.formatAmount(po.pototalamt),
-                      Icons.attach_money,
+                      Icons.currency_rupee,
                       valueColor: theme.colorScheme.primary,
                       isAmount: true,
                     ),

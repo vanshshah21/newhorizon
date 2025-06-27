@@ -414,6 +414,7 @@
 //------------------------------------------------------------------------------
 
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:nhapp/pages/proforma_invoice/models/add_proforma_invoice.dart';
 import '../../../utils/storage_utils.dart';
 
@@ -424,6 +425,8 @@ class ProformaInvoiceService {
   late final Map<String, dynamic> _tokenDetails;
   late final Map<String, dynamic> _locationDetails;
   late final Map<String, dynamic> _financeDetails;
+  late final Map<String, dynamic> _quotationDocumentDetails;
+  late final Map<String, dynamic> _salesOrderDocumentDetails;
   late int _companyId;
 
   ProformaInvoiceService._();
@@ -454,6 +457,61 @@ class ProformaInvoiceService {
     _dio.options.headers['Accept'] = 'application/json';
     _dio.options.headers['companyid'] = _companyId.toString();
     _dio.options.headers['Authorization'] = 'Bearer $token';
+
+    fetchQuotationDefaultDocumentDetail("SQ");
+    fetchSalesOrderDefaultDocumentDetail("SO");
+  }
+
+  Future<void> fetchQuotationDefaultDocumentDetail(String type) async {
+    try {
+      String endpoint = "/api/Lead/GetDefaultDocumentDetail";
+      final year = _financeDetails['financialYear'];
+      final locationId = _locationDetails['id'];
+
+      final response = await _dio.get(
+        "$_baseUrl$endpoint",
+        queryParameters: {
+          "year": year,
+          "type": type,
+          "subType": type,
+          "locationId": locationId,
+        },
+      );
+      if (response.data['data'].isEmpty || response.statusCode != 200) {
+        throw Exception("No data found for quotation document detail");
+      }
+      _quotationDocumentDetails = response.data['data'][0];
+      return;
+    } catch (e) {
+      debugPrint("Error fetching quotation document detail: $e");
+      throw Exception("Failed to fetch quotation document detail");
+    }
+  }
+
+  Future<void> fetchSalesOrderDefaultDocumentDetail(String type) async {
+    try {
+      String endpoint = "/api/Lead/GetDefaultDocumentDetail";
+      final year = _financeDetails['financialYear'];
+      final locationId = _locationDetails['id'];
+
+      final response = await _dio.get(
+        "$_baseUrl$endpoint",
+        queryParameters: {
+          "year": year,
+          "type": type,
+          "subType": type,
+          "locationId": locationId,
+        },
+      );
+      if (response.data['data'].isEmpty || response.statusCode != 200) {
+        throw Exception("No data found for sales order document detail");
+      }
+      _salesOrderDocumentDetails = response.data['data'][0];
+      return;
+    } catch (e) {
+      debugPrint("Error fetching sales order document detail: $e");
+      throw Exception("Failed to fetch sales order document detail");
+    }
   }
 
   Future<DefaultDocumentDetail> fetchDefaultDocumentDetail(String type) async {
@@ -492,10 +550,18 @@ class ProformaInvoiceService {
   Future<List<QuotationNumber>> fetchQuotationNumberList(
     String custCode,
   ) async {
-    final endpoint =
-        "/api/Proforma/proformaInvoiceGetQuatationNumberList?fromLocationId=8&locationCode=8&year=24-25&group=QA&custCode=$custCode";
+    final endpoint = "/api/Proforma/proformaInvoiceGetQuatationNumberList";
 
-    final response = await _dio.get("$_baseUrl$endpoint");
+    final response = await _dio.get(
+      "$_baseUrl$endpoint",
+      queryParameters: {
+        "fromLocationId": _locationDetails['id'],
+        "locationCode": _locationDetails['id'],
+        "year": _financeDetails['financialYear'],
+        "group": "QA",
+        "custCode": custCode,
+      },
+    );
     final data = response.data['data'] as List;
     return data.map((item) => QuotationNumber.fromJson(item)).toList();
   }
@@ -503,29 +569,54 @@ class ProformaInvoiceService {
   Future<List<SalesOrderNumber>> fetchSalesOrderNumberList(
     String custCode,
   ) async {
-    final endpoint =
-        "/api/Proforma/proformaInvoiceGetSONumberList?fromLocationId=8&locationCode=8&year=24-25&group=SO&custCode=$custCode";
+    final endpoint = "/api/Proforma/proformaInvoiceGetSONumberList";
 
-    final response = await _dio.get("$_baseUrl$endpoint");
+    final response = await _dio.get(
+      "$_baseUrl$endpoint",
+      queryParameters: {
+        "fromLocationId": _locationDetails['id'],
+        "locationCode": _locationDetails['id'],
+        "year": _financeDetails['financialYear'],
+        "group": "SO",
+        "custCode": custCode,
+      },
+    );
     final data = response.data['data'] as List;
     return data.map((item) => SalesOrderNumber.fromJson(item)).toList();
   }
 
   Future<QuotationDetails> fetchQuotationDetails(String quotationNumber) async {
     final endpoint =
-        "/api/Proforma/proformaInvoiceGetModelItemDetails_Quatation?PILocationId=8&year=24-25&groupCode=QA&SONumber=$quotationNumber&srNo=0";
+        "/api/Proforma/proformaInvoiceGetModelItemDetails_Quatation";
 
-    final response = await _dio.get("$_baseUrl$endpoint");
+    final response = await _dio.get(
+      "$_baseUrl$endpoint",
+      queryParameters: {
+        "PILocationId": _locationDetails['id'],
+        "year": _financeDetails['financialYear'],
+        "groupCode": "QA",
+        "SONumber": quotationNumber,
+        "srNo": 0,
+      },
+    );
     return QuotationDetails.fromJson(response.data['data']);
   }
 
   Future<SalesOrderDetails> fetchSalesOrderDetails(
     String salesOrderNumber,
   ) async {
-    final endpoint =
-        "/api/Proforma/proformaInvoiceGetModelItemDetails_SO?PILocationId=8&year=24-25&groupCode=SO&SONumber=$salesOrderNumber&srNo=1";
+    final endpoint = "/api/Proforma/proformaInvoiceGetModelItemDetails_SO";
 
-    final response = await _dio.get("$_baseUrl$endpoint");
+    final response = await _dio.get(
+      "$_baseUrl$endpoint",
+      queryParameters: {
+        "PILocationId": _locationDetails['id'],
+        "year": _financeDetails['financialYear'],
+        "groupCode": "SO",
+        "SONumber": salesOrderNumber,
+        "srNo": 1,
+      },
+    );
     return SalesOrderDetails.fromJson(response.data['data']);
   }
 
@@ -551,12 +642,12 @@ class ProformaInvoiceService {
     if (companyDetails.isEmpty) {
       throw Exception("Company details not found");
     }
-    final companyId = companyDetails['id'] ?? 0;
+    final companyId = companyDetails['id'];
     final tokenDetails = await StorageUtils.readJson('session_token');
     if (tokenDetails.isEmpty) {
       throw Exception("Session token not found");
     }
-    final token = tokenDetails['token']['value'] ?? '';
+    final token = tokenDetails['token']['value'];
 
     _dio.options.headers['companyid'] = companyId.toString();
     _dio.options.headers['Authorization'] = 'Bearer $token';
@@ -570,7 +661,9 @@ class ProformaInvoiceService {
         'currencyCode': 'INR',
       },
     );
+    debugPrint("Response: ${response.data}");
     final data = response.data['data'] as List;
+    debugPrint("Rate Structures: $data");
     return data.map((item) => RateStructure.fromJson(item)).toList();
   }
 
@@ -702,6 +795,16 @@ class ProformaInvoiceService {
       return response.data['success'] == true;
     } catch (e) {
       throw Exception("Failed to submit proforma invoice: $e");
+    }
+  }
+
+  Future<bool> updateProformaInvoice(Map<String, dynamic> payload) async {
+    const endpoint = "/api/Proforma/proformaInvoiceEntryUpdate";
+    try {
+      final response = await _dio.post("$_baseUrl$endpoint", data: payload);
+      return response.data['success'] == true;
+    } catch (e) {
+      throw Exception("Failed to update proforma invoice: $e");
     }
   }
 }

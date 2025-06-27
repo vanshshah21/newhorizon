@@ -466,6 +466,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:intl/intl.dart' as intl;
+import 'package:nhapp/utils/format_utils.dart';
 
 class AuthorizePurchaseOrderScreen extends StatefulWidget {
   const AuthorizePurchaseOrderScreen({super.key});
@@ -867,10 +868,10 @@ class AuthorizePurchaseOrderScreenState
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        "Date: ${intl.DateFormat("dd/MM/yyyy").format(DateTime.parse(item['date']))}",
+                                        "Date: ${FormatUtils.formatDateForUser(DateTime.parse(item['date']))}",
                                       ),
                                       Text(
-                                        "Amount: ${intl.NumberFormat.currency(locale: 'en_IN', symbol: '', decimalDigits: 2).format(item['pototalamt'])}",
+                                        "Amount: ${FormatUtils.formatAmount(item['pototalamt'])}",
                                       ),
                                     ],
                                   ),

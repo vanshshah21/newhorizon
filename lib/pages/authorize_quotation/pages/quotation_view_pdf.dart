@@ -38,7 +38,7 @@ class _QuotationPdfLoaderPageState extends State<QuotationPdfLoaderPage> {
       }
     } catch (e) {
       if (!mounted) return;
-      setState(() => error = 'Error: $e');
+      setState(() => error = 'Error fetching PDF.');
     }
   }
 

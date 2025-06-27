@@ -337,12 +337,14 @@ class _ProformaInvoiceDetailsPageState
     int index,
   ) {
     final theme = Theme.of(context);
-    final qty = item['invoiceQty'] ?? item['qty'] ?? 0;
+    final qty =
+        double.tryParse(
+          item['invoiceQty']?.toString() ?? item['qty']?.toString() ?? '0',
+        ) ??
+        0.0;
     final rate = double.tryParse(item['itemRate']?.toString() ?? '0') ?? 0.0;
-    final amount =
-        double.tryParse(item['totalValue']?.toString() ?? '0') ?? 0.0;
-    final discountAmount =
-        double.tryParse(item['discountAmount']?.toString() ?? '0') ?? 0.0;
+    final amount = qty * rate;
+    final discountedRate = amount - (item['totalDiscountedBasic'] ?? 0.0);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -427,7 +429,7 @@ class _ProformaInvoiceDetailsPageState
               Expanded(
                 child: _buildItemDetail(
                   'Discount',
-                  FormatUtils.formatAmount(discountAmount),
+                  FormatUtils.formatAmount(discountedRate),
                 ),
               ),
             ],
@@ -468,8 +470,9 @@ class _ProformaInvoiceDetailsPageState
     // Get amounts from header based on API response structure
     double basicAmount =
         double.tryParse(header['invBacAmount']?.toString() ?? '0') ?? 0.0;
-    double discountedAmount =
+    double discountValue =
         double.tryParse(header['invDiscountValue']?.toString() ?? '0') ?? 0.0;
+    double discountedAmount = basicAmount - discountValue;
     double taxAmount =
         double.tryParse(header['invTax']?.toString() ?? '0') ?? 0.0;
     double totalAmount =
@@ -478,7 +481,7 @@ class _ProformaInvoiceDetailsPageState
     // If total amount is not available, calculate from items
     if (totalAmount == 0.0 && items.isNotEmpty) {
       for (var item in items) {
-        totalAmount +=
+        totalAmount =
             double.tryParse(item['totalValue']?.toString() ?? '0') ?? 0.0;
       }
     }

@@ -3,6 +3,7 @@ import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:nhapp/utils/format_utils.dart';
+import 'package:nhapp/utils/storage_utils.dart';
 import '../models/lead_form.dart';
 import '../services/lead_form_service.dart';
 
@@ -27,6 +28,10 @@ class _AddLeadPageState extends State<AddLeadPage> {
   SourceModel? _selectedSource;
   SalesmanModel? _selectedSalesman;
   RegionModel? _selectedRegion;
+
+  Map<String, dynamic> _companyDetails = {};
+  Map<String, dynamic> _locationDetails = {};
+  Map<String, dynamic> _userDetails = {};
 
   late final List<SourceModel> _sources = [];
   late final List<SalesmanModel> _salesmen = [];
@@ -81,7 +86,11 @@ class _AddLeadPageState extends State<AddLeadPage> {
 
   Future<void> _loadDropdowns() async {
     setState(() => _loading = true);
-    int siteId = 8; // Replace with your actual siteId from storage
+    _companyDetails = await StorageUtils.readJson('selected_company');
+    _locationDetails = await StorageUtils.readJson('selected_location');
+    final tokenDetails = await StorageUtils.readJson('session_token');
+    _userDetails = tokenDetails['user'] ?? {};
+    int siteId = _locationDetails['id'];
     final dateRange = await _service.fetchDateRange(siteId);
     final minDate =
         dateRange['periodSDt'] != null
@@ -108,7 +117,8 @@ class _AddLeadPageState extends State<AddLeadPage> {
       _maxDate = maxDate;
       _year = year;
       _siteId = siteId;
-      _userId = 2; // Replace with your actual user id from storage/session
+      _userId =
+          _userDetails['id']; // Replace with your actual user id from storage/session
       _isAutoNumberGenerated = isAutoNumberGenerated;
       _groupCode = groupCode;
       _locationCode = locationCode;
@@ -308,7 +318,7 @@ class _AddLeadPageState extends State<AddLeadPage> {
         locationCode: locationCode,
         companyCode: companyCode,
         locationId: _siteId!,
-        companyId: 1, // or your actual company id
+        companyId: _companyDetails['id'],
         userId: _userId!,
       );
     }
@@ -357,6 +367,7 @@ class _AddLeadPageState extends State<AddLeadPage> {
                 decoration: InputDecoration(
                   labelText: 'Lead Date',
                   errorText: _leadDateError,
+                  suffixIcon: Icon(Icons.calendar_today_outlined),
                 ),
                 child: InkWell(
                   onTap: () async {
@@ -364,7 +375,7 @@ class _AddLeadPageState extends State<AddLeadPage> {
                       context: context,
                       initialDate: initialDate,
                       firstDate: _minDate!,
-                      lastDate: _maxDate!,
+                      lastDate: DateTime.now(),
                     );
                     if (picked != null) {
                       setState(() {
@@ -373,10 +384,7 @@ class _AddLeadPageState extends State<AddLeadPage> {
                       });
                     }
                   },
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    child: Text(FormatUtils.formatDateForUser(_leadDate!)),
-                  ),
+                  child: Text(FormatUtils.formatDateForUser(_leadDate!)),
                 ),
               ),
               const SizedBox(height: 16),
@@ -412,7 +420,7 @@ class _AddLeadPageState extends State<AddLeadPage> {
                                   ),
                                 ),
                               )
-                              : null,
+                              : Icon(Icons.search_rounded),
                     ),
                     onChanged: (val) {
                       final upper = val.toUpperCase();
@@ -444,6 +452,7 @@ class _AddLeadPageState extends State<AddLeadPage> {
                       decoration: InputDecoration(
                         labelText: 'Customer Name',
                         errorText: _customerError,
+                        suffixIcon: const Icon(Icons.search_rounded),
                       ),
                       enabled: !_submitting,
                       onTapOutside: (event) {
@@ -573,14 +582,15 @@ class _AddLeadPageState extends State<AddLeadPage> {
                       focusNode: focusNode,
                       decoration: const InputDecoration(
                         labelText: 'Sales Item',
+                        suffixIcon: Icon(Icons.search_rounded),
                       ),
-                      onTapOutside: (event) {
-                        FocusScope.of(context).unfocus();
-                      },
+                      // onTapOutside: (event) {
+                      //   FocusScope.of(context).unfocus();
+                      // },
                       enabled: !_submitting,
                     ),
                 suggestionsCallback: (pattern) async {
-                  if (pattern.length < 3) return [];
+                  if (pattern.length < 4) return [];
                   return await _service.searchSalesItems(pattern);
                 },
                 itemBuilder:
@@ -588,6 +598,9 @@ class _AddLeadPageState extends State<AddLeadPage> {
                         ListTile(title: Text(suggestion.salesItemFullName)),
                 onSelected: (suggestion) {
                   _addItem(suggestion);
+                  setState(() {
+                    FocusScope.of(context).unfocus();
+                  });
                 },
                 emptyBuilder: (context) => const SizedBox(),
               ),

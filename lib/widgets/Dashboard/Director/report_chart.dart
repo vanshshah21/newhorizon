@@ -115,7 +115,6 @@ class _ReportPieChartCardState extends State<ReportPieChartCard> {
                                 status.amount,
                               )
                               : null,
-                      badgePositionPercentageOffset: 1.15,
                     );
                   }),
                 ),
@@ -123,16 +122,89 @@ class _ReportPieChartCardState extends State<ReportPieChartCard> {
             ),
             const SizedBox(height: 16),
             // Legends
+            // Wrap(
+            //   spacing: 8,
+            //   runSpacing: 4,
+            //   children: List.generate(chartData.length, (i) {
+            //     final status = chartData[i];
+            //     final isHighlighted = touchedIndex == i;
+            //     return GestureDetector(
+            //       onTap: () {
+            //         setState(() {
+            //           touchedIndex = i;
+            //         });
+            //       },
+            //       child: AnimatedContainer(
+            //         duration: const Duration(milliseconds: 150),
+            //         padding: const EdgeInsets.all(2.0),
+            //         decoration: BoxDecoration(
+            //           color:
+            //               isHighlighted
+            //                   ? sectionColors[i % sectionColors.length]
+            //                       .withValues(alpha: (0.15 * 255))
+            //                   : Colors.transparent,
+            //           borderRadius: BorderRadius.circular(8),
+            //         ),
+            //         child: Row(
+            //           mainAxisSize: MainAxisSize.min,
+            //           mainAxisAlignment: MainAxisAlignment.center,
+            //           children: [
+            //             Container(
+            //               width: 14,
+            //               height: 14,
+            //               decoration: BoxDecoration(
+            //                 shape: BoxShape.circle,
+            //                 color: sectionColors[i % sectionColors.length],
+            //                 border: Border.all(
+            //                   color:
+            //                       isHighlighted
+            //                           ? Colors.black
+            //                           : Colors.transparent,
+            //                   width: 1.5,
+            //                 ),
+            //               ),
+            //             ),
+            //             const SizedBox(width: 4),
+            //             Text(
+            //               status.code,
+            //               style: TextStyle(
+            //                 fontWeight:
+            //                     isHighlighted
+            //                         ? FontWeight.bold
+            //                         : FontWeight.normal,
+            //                 color:
+            //                     isHighlighted ? Colors.black : Colors.grey[800],
+            //                 fontSize: 12,
+            //               ),
+            //             ),
+            //             const SizedBox(width: 2),
+            //             Text(
+            //               '(${intl.NumberFormat.currency(locale: 'en_IN', symbol: "").format(status.total)})',
+            //               style: TextStyle(
+            //                 color: Colors.grey[600],
+            //                 fontSize: 10,
+            //               ),
+            //             ),
+            //           ],
+            //         ),
+            //       ),
+            //     );
+            //   }),
+            // ),
+            // ...existing code...
+            const SizedBox(height: 24),
+            // Legends Section - Updated to match sales_person style
             Wrap(
               spacing: 8,
               runSpacing: 4,
               children: List.generate(chartData.length, (i) {
-                final status = chartData[i];
+                final region = chartData[i];
                 final isHighlighted = touchedIndex == i;
                 return GestureDetector(
                   onTap: () {
                     setState(() {
-                      touchedIndex = i;
+                      // Toggle highlight: tap again to unselect
+                      touchedIndex = isHighlighted ? null : i;
                     });
                   },
                   child: AnimatedContainer(
@@ -142,7 +214,7 @@ class _ReportPieChartCardState extends State<ReportPieChartCard> {
                       color:
                           isHighlighted
                               ? sectionColors[i % sectionColors.length]
-                                  .withValues(alpha: (0.15 * 255))
+                                  .withOpacity(0.15)
                               : Colors.transparent,
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -167,7 +239,7 @@ class _ReportPieChartCardState extends State<ReportPieChartCard> {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          status.code,
+                          region.code,
                           style: TextStyle(
                             fontWeight:
                                 isHighlighted
@@ -180,7 +252,7 @@ class _ReportPieChartCardState extends State<ReportPieChartCard> {
                         ),
                         const SizedBox(width: 2),
                         Text(
-                          '(${intl.NumberFormat.currency(locale: 'en_IN', symbol: "").format(status.total)})',
+                          '(${intl.NumberFormat.currency(locale: 'en_IN', symbol: "").format(region.total)})',
                           style: TextStyle(
                             color: Colors.grey[600],
                             fontSize: 10,
@@ -192,6 +264,7 @@ class _ReportPieChartCardState extends State<ReportPieChartCard> {
                 );
               }),
             ),
+            // ...existing code...
           ],
         ),
       ),

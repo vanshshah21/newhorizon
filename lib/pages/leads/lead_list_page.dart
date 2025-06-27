@@ -84,6 +84,7 @@ class _LeadListPageState extends State<LeadListPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Leads List')),
       body: LeadInfiniteList(
+        key: _listKey,
         service: service,
         onPdfTap: (lead) => handlePdfTap(context, lead),
         onDeleteTap: (lead) => handleDeleteTap(context, lead),

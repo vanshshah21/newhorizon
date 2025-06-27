@@ -2957,11 +2957,11 @@ class _AddFollowUpFormState extends State<AddFollowUpForm> {
         setState(() {
           selectedSalesman = val;
           // Remove from next salesman if same
-          if (selectedNextSalesman != null &&
-              selectedNextSalesman!['salesmanCode'] ==
-                  selectedSalesman!['salesmanCode']) {
-            selectedNextSalesman = null;
-          }
+          // if (selectedNextSalesman != null &&
+          //     selectedNextSalesman!['salesmanCode'] ==
+          //         selectedSalesman!['salesmanCode']) {
+          //   selectedNextSalesman = null;
+          // }
         });
       },
       validator: (val) => val == null ? 'Required' : null,
@@ -3217,7 +3217,7 @@ class _AddFollowUpFormState extends State<AddFollowUpForm> {
                 value: followUpDate,
                 onChanged: (val) => setState(() => followUpDate = val),
                 firstDate: periodSDt,
-                lastDate: periodEDt,
+                lastDate: DateTime.now(),
                 required: true,
               ),
               const SizedBox(height: 16),
@@ -3226,6 +3226,7 @@ class _AddFollowUpFormState extends State<AddFollowUpForm> {
                 value: expectedDate,
                 onChanged: (val) => setState(() => expectedDate = val),
                 firstDate: followUpDate,
+                lastDate: DateTime(2100, 12, 31),
               ),
               const SizedBox(height: 16),
               _buildTimePicker(

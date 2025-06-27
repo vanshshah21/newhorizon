@@ -6,7 +6,7 @@ class FormatUtils {
   static final DateFormat _userDateFormat = DateFormat('dd/MM/yyyy');
   static final DateFormat _apiDateFormat = DateFormat('yyyy/MM/dd');
   static final NumberFormat _amountFormat = NumberFormat.currency(
-    locale: 'en_IN',
+    locale: 'en_US',
     symbol: '',
     decimalDigits: 2,
   );

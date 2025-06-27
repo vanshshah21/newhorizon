@@ -9,11 +9,9 @@ class PDFViewerPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // You may need to download the PDF to a local file before viewing
-    // For simplicity, assuming pdfUrl is a direct file path or URL
     return Scaffold(
       appBar: AppBar(title: const Text('PO PDF')),
-      body: PDF().cachedFromUrl(
+      body: PDF().fromUrl(
         pdfUrl,
         placeholder: (progress) => Center(child: Text('$progress %')),
         errorWidget: (error) => Center(child: Text(error.toString())),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
+import 'package:nhapp/pages/sales_order/pages/edit_so.dart';
 import 'package:nhapp/pages/sales_order/service/sales_order_service.dart';
 import '../models/sales_order.dart';
 import 'sales_order_card.dart';
@@ -60,11 +61,21 @@ class _SalesOrderInfiniteListTabState extends State<SalesOrderInfiniteListTab>
   }
 
   Future<void> _handleEditTap(SalesOrder so) async {
-    // TODO: Implement edit functionality
-    // Navigate to edit page
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Edit SO #${so.ioNumber} - Not implemented yet')),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder:
+            (context) => EditSalesOrderPage(
+              ioYear: so.ioYear,
+              ioGroup: so.ioGroup,
+              ioSiteCode: so.siteCode,
+              ioNumber: so.ioNumber,
+              locationId: so.siteId,
+            ),
+      ),
     );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Edit SO #${so.ioNumber}')));
   }
 
   Future<void> _handleDeleteTap(SalesOrder so) async {

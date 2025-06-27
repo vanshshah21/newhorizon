@@ -37,6 +37,8 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   SalesOrderDetails? _salesOrderResponse;
   List<Map<String, dynamic>> _rsGrid = [];
   List<Map<String, dynamic>> _discountDetails = [];
+  late DateTime startDate;
+  late DateTime endDate;
 
   final List<String> preferenceOptions = [
     "On Quotation",
@@ -80,12 +82,12 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
     try {
       _financeDetails = await StorageUtils.readJson('finance_period');
       if (_financeDetails != null) {
-        final startDate = DateTime.parse(_financeDetails!['periodSDt']);
-        final endDate = DateTime.parse(_financeDetails!['periodEDt']);
+        startDate = DateTime.parse(_financeDetails!['periodSDt']);
+        endDate = DateTime.parse(_financeDetails!['periodEDt']);
         final now = DateTime.now();
 
         selectedDate = now.isAfter(endDate) ? endDate : now;
-        dateController.text = "${selectedDate!.toLocal()}".split(' ')[0];
+        dateController.text = FormatUtils.formatDateForUser(selectedDate!);
       }
     } catch (e) {
       _setDefaultDate();
@@ -94,7 +96,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
 
   void _setDefaultDate() {
     selectedDate = DateTime.now();
-    dateController.text = "${selectedDate!.toLocal()}".split(' ')[0];
+    dateController.text = FormatUtils.formatDateForUser(selectedDate!);
   }
 
   Future<void> _loadRateStructures() async {
@@ -111,15 +113,44 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
     }
   }
 
+  // Future<void> _onPreferenceChanged(String? value) async {
+  //   if (value == null) return;
+
+  //   setState(() {
+  //     selectPreference = value;
+  //     selectedQuotationNumber = null;
+  //     selectedSalesOrderNumber = null;
+  //     quotationNumbers.clear();
+  //     salesOrderNumbers.clear();
+  //     items.clear();
+  //     _rsGrid.clear();
+  //     _discountDetails.clear();
+  //   });
+
+  //   try {
+  //     if (value == "On Quotation") {
+  //       await _service.fetchDefaultDocumentDetail("SQ");
+  //     } else if (value == "On Sales Order") {
+  //       await _service.fetchDefaultDocumentDetail("OB");
+  //     }
+  //   } catch (e) {
+  //     _showError("Failed to load document details: ${e.toString()}");
+  //   }
+  // }
   Future<void> _onPreferenceChanged(String? value) async {
     if (value == null) return;
 
     setState(() {
       selectPreference = value;
+
+      customerController.clear();
+      selectedCustomer = null;
+
       selectedQuotationNumber = null;
       selectedSalesOrderNumber = null;
       quotationNumbers.clear();
       salesOrderNumbers.clear();
+
       items.clear();
       _rsGrid.clear();
       _discountDetails.clear();
@@ -411,6 +442,21 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
     });
   }
 
+  // double _calculateTotalBasic() {
+  //   return items.fold(0.0, (sum, item) => sum + (item.basicRate * item.qty));
+  // }
+
+  // double _calculateTotalDiscount() {
+  //   return items.fold(0.0, (sum, item) => sum + (item.discountAmount ?? 0.0));
+  // }
+
+  // double _calculateTotalTax() {
+  //   return items.fold(0.0, (sum, item) => sum + (item.taxAmount ?? 0.0));
+  // }
+
+  // double _calculateTotalAmount() {
+  //   return items.fold(0.0, (sum, item) => sum + item.totalAmount);
+  // }
   double _calculateTotalBasic() {
     return items.fold(0.0, (sum, item) => sum + (item.basicRate * item.qty));
   }
@@ -875,13 +921,13 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
         final picked = await showDatePicker(
           context: context,
           initialDate: selectedDate ?? DateTime.now(),
-          firstDate: DateTime(2000),
-          lastDate: DateTime(2100),
+          firstDate: startDate,
+          lastDate: DateTime.now(),
         );
         if (picked != null) {
           setState(() {
             selectedDate = picked;
-            dateController.text = "${picked.toLocal()}".split(' ')[0];
+            dateController.text = FormatUtils.formatDateForUser(picked);
           });
         }
       },
@@ -1013,7 +1059,65 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
     );
   }
 
+  // Widget _buildTotalCard() {
+  //   return Card(
+  //     child: Padding(
+  //       padding: const EdgeInsets.all(16),
+  //       child: Column(
+  //         crossAxisAlignment: CrossAxisAlignment.start,
+  //         children: [
+  //           const Text(
+  //             "Total Summary",
+  //             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+  //           ),
+  //           const SizedBox(height: 12),
+  //           Row(
+  //             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  //             children: [
+  //               const Text("Basic Amount:"),
+  //               Text("₹${_calculateTotalBasic().toStringAsFixed(2)}"),
+  //             ],
+  //           ),
+  //           Row(
+  //             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  //             children: [
+  //               const Text("Discount Value:"),
+  //               Text("₹${_calculateTotalDiscount().toStringAsFixed(2)}"),
+  //             ],
+  //           ),
+  //           Row(
+  //             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  //             children: [
+  //               const Text("Tax Amount:"),
+  //               Text("₹${_calculateTotalTax().toStringAsFixed(2)}"),
+  //             ],
+  //           ),
+  //           const Divider(),
+  //           Row(
+  //             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  //             children: [
+  //               const Text(
+  //                 "Total Amount:",
+  //                 style: TextStyle(fontWeight: FontWeight.bold),
+  //               ),
+  //               Text(
+  //                 "₹${_calculateTotalAmount().toStringAsFixed(2)}",
+  //                 style: const TextStyle(fontWeight: FontWeight.bold),
+  //               ),
+  //             ],
+  //           ),
+  //         ],
+  //       ),
+  //     ),
+  //   );
+  // }
   Widget _buildTotalCard() {
+    final totalBasic = _calculateTotalBasic();
+    final totalDiscount = _calculateTotalDiscount();
+    final totalTax = _calculateTotalTax();
+    final netAmount = totalBasic - totalDiscount;
+    final finalAmount = netAmount + totalTax;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -1029,21 +1133,28 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text("Basic Amount:"),
-                Text("₹${_calculateTotalBasic().toStringAsFixed(2)}"),
+                Text("₹${totalBasic.toStringAsFixed(2)}"),
               ],
             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text("Discount Value:"),
-                Text("₹${_calculateTotalDiscount().toStringAsFixed(2)}"),
+                Text("₹${totalDiscount.toStringAsFixed(2)}"),
+              ],
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text("Net Amount:"),
+                Text("₹${netAmount.toStringAsFixed(2)}"),
               ],
             ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text("Tax Amount:"),
-                Text("₹${_calculateTotalTax().toStringAsFixed(2)}"),
+                Text("₹${totalTax.toStringAsFixed(2)}"),
               ],
             ),
             const Divider(),
@@ -1055,7 +1166,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 Text(
-                  "₹${_calculateTotalAmount().toStringAsFixed(2)}",
+                  "₹${finalAmount.toStringAsFixed(2)}",
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ],

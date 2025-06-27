@@ -24,7 +24,7 @@ class ServiceOrderInfiniteList extends StatefulWidget {
 
 class _ServiceOrderInfiniteListState extends State<ServiceOrderInfiniteList>
     with AutomaticKeepAliveClientMixin<ServiceOrderInfiniteList> {
-  static const _pageSize = 10;
+  static const _pageSize = 50;
 
   late final PagingController<int, ServiceOrderData> _pagingController;
   final TextEditingController _searchController = TextEditingController();

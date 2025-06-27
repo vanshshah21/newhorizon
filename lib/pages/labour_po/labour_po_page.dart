@@ -56,9 +56,9 @@
 
 import 'package:flutter/material.dart';
 import 'package:nhapp/pages/labour_po/models/labour_po_data.dart';
+import 'package:nhapp/pages/labour_po/pages/labour_po_pdf_viewer.dart';
 import 'package:nhapp/pages/labour_po/services/labour_po_service.dart';
 import 'package:nhapp/pages/labour_po/widgets/labour_po_infinite_list_tab.dart';
-import 'package:nhapp/pages/purchase_order/pages/pdf_viewer_page.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class LabourPOListPage extends StatefulWidget {
@@ -73,18 +73,14 @@ class LabourPOListPageState extends State<LabourPOListPage> {
 
   Future<void> handlePdfTap(LabourPOData po) async {
     try {
-      final pdfUrl = await service.fetchLabourPOPdfUrl(po);
       if (!mounted) return;
-      if (pdfUrl.isNotEmpty) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => PDFViewerPage(pdfUrl: pdfUrl)),
-        );
-      } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('PDF not found')));
-      }
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => LabourPOPdfLoaderPage(po: po, service: service),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(

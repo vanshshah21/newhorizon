@@ -97,6 +97,7 @@ class ServiceOrderService {
       "companyData": companyDetails,
       "locationData": locationDetails,
       "strDomCurrency": "INR",
+      "POData": [so.toJson()],
       "SiteCode": locationCode,
       "GSTDateTimeTemp": "01/07/2017",
     };

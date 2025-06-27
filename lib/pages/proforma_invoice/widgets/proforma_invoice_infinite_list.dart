@@ -18,10 +18,10 @@ class ProformaInvoiceInfiniteList extends StatefulWidget {
 
   @override
   State<ProformaInvoiceInfiniteList> createState() =>
-      _ProformaInvoiceInfiniteListState();
+      ProformaInvoiceInfiniteListState();
 }
 
-class _ProformaInvoiceInfiniteListState
+class ProformaInvoiceInfiniteListState
     extends State<ProformaInvoiceInfiniteList>
     with AutomaticKeepAliveClientMixin<ProformaInvoiceInfiniteList> {
   static const _pageSize = 50;
@@ -45,6 +45,10 @@ class _ProformaInvoiceInfiniteListState
         return newItems;
       },
     );
+  }
+
+  void refresh() {
+    _pagingController.refresh();
   }
 
   void _onSearch() {

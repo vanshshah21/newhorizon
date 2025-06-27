@@ -1073,10 +1073,352 @@
 //   }
 // }
 
+// import 'dart:convert';
+// import 'package:dio/dio.dart';
+// import 'package:flutter/material.dart';
+// import 'package:intl/intl.dart';
+// import 'package:nhapp/utils/storage_utils.dart';
+// import 'package:nhapp/widgets/Dashboard/RegionWiseSales/currency.dart';
+// import 'package:nhapp/widgets/Dashboard/RegionWiseSales/customer_wise.dart';
+// import 'package:nhapp/widgets/Dashboard/RegionWiseSales/region_wise.dart';
+// import 'package:nhapp/widgets/Dashboard/RegionWiseSales/sales_person.dart';
+
+// class TotalSalesRegionWisePage extends StatefulWidget {
+//   const TotalSalesRegionWisePage({super.key});
+
+//   @override
+//   State<TotalSalesRegionWisePage> createState() =>
+//       _TotalSalesRegionWisePageState();
+// }
+
+// class _TotalSalesRegionWisePageState extends State<TotalSalesRegionWisePage> {
+//   DateTime? _fromDate;
+//   DateTime? _toDate;
+//   bool _loading = false;
+//   Map<String, dynamic>? _data;
+
+//   final DateFormat _dateFormat = DateFormat('yyyy-MM-dd');
+
+//   Future<void> _pickDate(BuildContext context, bool isFrom) async {
+//     DateTime? initialDate;
+//     DateTime firstDate;
+//     final lastDate = DateTime(2100);
+
+//     if (isFrom) {
+//       initialDate = _fromDate ?? DateTime.now();
+//       firstDate = DateTime(2020);
+//     } else {
+//       // For 'to date', set initial date and first date based on 'from date'
+//       initialDate = _toDate ?? _fromDate ?? DateTime.now();
+//       firstDate = _fromDate ?? DateTime(2020);
+//     }
+
+//     final picked = await showDatePicker(
+//       context: context,
+//       initialDate: initialDate,
+//       firstDate: firstDate,
+//       lastDate: lastDate,
+//     );
+
+//     if (picked != null) {
+//       setState(() {
+//         if (isFrom) {
+//           _fromDate = picked;
+//           // Clear to date if it's before the new from date
+//           if (_toDate != null && _toDate!.isBefore(picked)) {
+//             _toDate = null;
+//           }
+//         } else {
+//           _toDate = picked;
+//         }
+//       });
+//     }
+//   }
+
+//   bool _isFormValid() {
+//     return _fromDate != null && _toDate != null;
+//   }
+
+//   void _showValidationError() {
+//     String message;
+//     if (_fromDate == null && _toDate == null) {
+//       message = "Please select both from date and to date";
+//     } else if (_fromDate == null) {
+//       message = "Please select from date";
+//     } else {
+//       message = "Please select to date";
+//     }
+
+//     ScaffoldMessenger.of(context).showSnackBar(
+//       SnackBar(content: Text(message), backgroundColor: Colors.red),
+//     );
+//   }
+
+//   bool _hasData() {
+//     if (_data == null) return false;
+
+//     final regionList = (_data?['regionlist'] as List?) ?? [];
+//     final salespersonList = (_data?['salespersonlist'] as List?) ?? [];
+//     final customerList = (_data?['customerlist'] as List?) ?? [];
+//     final currencyList = (_data?['currencylist'] as List?) ?? [];
+
+//     return regionList.isNotEmpty ||
+//         salespersonList.isNotEmpty ||
+//         customerList.isNotEmpty ||
+//         currencyList.isNotEmpty;
+//   }
+
+//   Future<void> _fetchData() async {
+//     if (!_isFormValid()) {
+//       _showValidationError();
+//       return;
+//     }
+
+//     setState(() {
+//       _loading = true;
+//       _data = null;
+//     });
+
+//     final url = await StorageUtils.readValue('url');
+//     final companyDetails = await StorageUtils.readJson('selected_company');
+//     if (companyDetails == null) {
+//       if (mounted) {
+//         ScaffoldMessenger.of(
+//           context,
+//         ).showSnackBar(const SnackBar(content: Text("Company not set")));
+//       }
+//       setState(() => _loading = false);
+//       return;
+//     }
+
+//     final locationDetails = await StorageUtils.readJson('selected_location');
+//     if (locationDetails == null) {
+//       if (mounted) {
+//         ScaffoldMessenger.of(
+//           context,
+//         ).showSnackBar(const SnackBar(content: Text("Location not set")));
+//       }
+//       setState(() => _loading = false);
+//       return;
+//     }
+
+//     final tokenDetails = await StorageUtils.readJson('session_token');
+//     if (tokenDetails == null) {
+//       if (mounted) {
+//         ScaffoldMessenger.of(context).showSnackBar(
+//           const SnackBar(content: Text("Session token not found")),
+//         );
+//       }
+//       setState(() => _loading = false);
+//       return;
+//     }
+
+//     final companyId = companyDetails['id'];
+//     final locationId = locationDetails['id'];
+//     final token = tokenDetails['token']['value'];
+//     final dio = Dio();
+
+//     dio.options.headers['Content-Type'] = 'application/json';
+//     dio.options.headers['Authorization'] = 'Bearer $token';
+//     final response = await dio.get(
+//       'http://$url/api/Login/dash_TotalSalesRegionwise_ChartData',
+//       queryParameters: {
+//         'companyid': companyId,
+//         'siteid': locationId,
+//         'fromdate': _dateFormat.format(_fromDate!),
+//         'todate': _dateFormat.format(_toDate!),
+//       },
+//     );
+
+//     final apiResponse = response.data;
+//     final decoded = jsonDecode(apiResponse);
+//     setState(() {
+//       _data = decoded['data'];
+//       _loading = false;
+//     });
+//   }
+
+//   Widget _buildDateField({
+//     required String label,
+//     required DateTime? value,
+//     required VoidCallback onTap,
+//     bool enabled = true,
+//   }) {
+//     return Expanded(
+//       child: GestureDetector(
+//         onTap: enabled ? onTap : null,
+//         child: AbsorbPointer(
+//           child: TextFormField(
+//             decoration: InputDecoration(
+//               labelText: label,
+//               border: const OutlineInputBorder(),
+//               suffixIcon: Icon(
+//                 Icons.calendar_today,
+//                 color: enabled ? null : Colors.grey,
+//               ),
+//               filled: !enabled,
+//               fillColor: !enabled ? Colors.grey[100] : null,
+//             ),
+//             controller: TextEditingController(
+//               text: value != null ? _dateFormat.format(value) : '',
+//             ),
+//             readOnly: true,
+//             enabled: enabled,
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _buildNoDataMessage() {
+//     return Center(
+//       child: Padding(
+//         padding: const EdgeInsets.all(32.0),
+//         child: Column(
+//           mainAxisAlignment: MainAxisAlignment.center,
+//           children: [
+//             Icon(Icons.bar_chart_outlined, size: 64, color: Colors.grey[400]),
+//             const SizedBox(height: 16),
+//             Text(
+//               'No Data Available',
+//               style: TextStyle(
+//                 fontSize: 18,
+//                 fontWeight: FontWeight.w600,
+//                 color: Colors.grey[600],
+//               ),
+//             ),
+//             const SizedBox(height: 8),
+//             Text(
+//               'No sales data found for the selected date range.',
+//               style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+//               textAlign: TextAlign.center,
+//             ),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     // Convert regionlist and salespersonlist to model objects
+//     final regionList =
+//         (_data?['regionlist'] as List?)
+//             ?.map((e) => RegionData.fromMap(e as Map<String, dynamic>))
+//             .toList() ??
+//         [];
+//     final salespersonList =
+//         (_data?['salespersonlist'] as List?)
+//             ?.map((e) => SalespersonData.fromMap(e as Map<String, dynamic>))
+//             .toList() ??
+//         [];
+//     final customerList =
+//         (_data?['customerlist'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+//     final currencyList =
+//         (_data?['currencylist'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+
+//     return Scaffold(
+//       body: SafeArea(
+//         child: Padding(
+//           padding: const EdgeInsets.all(12.0),
+//           child: Column(
+//             children: [
+//               Row(
+//                 children: [
+//                   _buildDateField(
+//                     label: 'From Date',
+//                     value: _fromDate,
+//                     onTap: () => _pickDate(context, true),
+//                   ),
+//                   const SizedBox(width: 12),
+//                   _buildDateField(
+//                     label: 'To Date',
+//                     value: _toDate,
+//                     onTap: () => _pickDate(context, false),
+//                     enabled: _fromDate != null,
+//                   ),
+//                 ],
+//               ),
+//               const SizedBox(height: 12),
+//               SizedBox(
+//                 width: double.infinity,
+//                 child: ElevatedButton(
+//                   onPressed: _loading ? null : _fetchData,
+//                   style: ElevatedButton.styleFrom(
+//                     backgroundColor: _isFormValid() ? null : Colors.grey,
+//                   ),
+//                   child:
+//                       _loading
+//                           ? const SizedBox(
+//                             width: 18,
+//                             height: 18,
+//                             child: CircularProgressIndicator(strokeWidth: 2),
+//                           )
+//                           : const Text('Submit'),
+//                 ),
+//               ),
+//               const SizedBox(height: 12),
+//               Expanded(
+//                 child:
+//                     _loading
+//                         ? const Center(child: CircularProgressIndicator())
+//                         : _data == null
+//                         ? const Center(child: Text('No data'))
+//                         : !_hasData()
+//                         ? _buildNoDataMessage()
+//                         : ListView(
+//                           physics: const AlwaysScrollableScrollPhysics(),
+//                           children: [
+//                             if (regionList.isNotEmpty)
+//                               RepaintBoundary(
+//                                 child: RegionPieChartCard(regions: regionList),
+//                               ),
+//                             if (regionList.isNotEmpty &&
+//                                 (salespersonList.isNotEmpty ||
+//                                     customerList.isNotEmpty ||
+//                                     currencyList.isNotEmpty))
+//                               const SizedBox(height: 18),
+//                             if (salespersonList.isNotEmpty)
+//                               RepaintBoundary(
+//                                 child: SalespersonPieChartCard(
+//                                   salespeople: salespersonList,
+//                                 ),
+//                               ),
+//                             if (salespersonList.isNotEmpty &&
+//                                 (customerList.isNotEmpty ||
+//                                     currencyList.isNotEmpty))
+//                               const SizedBox(height: 18),
+//                             if (customerList.isNotEmpty)
+//                               RepaintBoundary(
+//                                 child: CustomerPurchaseBarChartCard(
+//                                   customerData: customerList,
+//                                 ),
+//                               ),
+//                             if (customerList.isNotEmpty &&
+//                                 currencyList.isNotEmpty)
+//                               const SizedBox(height: 18),
+//                             if (currencyList.isNotEmpty)
+//                               RepaintBoundary(
+//                                 child: CurrencyBarChartCard(
+//                                   currencyData: currencyList,
+//                                 ),
+//                               ),
+//                           ],
+//                         ),
+//               ),
+//             ],
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+// }
+
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:nhapp/utils/format_utils.dart';
 import 'package:nhapp/utils/storage_utils.dart';
 import 'package:nhapp/widgets/Dashboard/RegionWiseSales/currency.dart';
 import 'package:nhapp/widgets/Dashboard/RegionWiseSales/customer_wise.dart';
@@ -1092,25 +1434,73 @@ class TotalSalesRegionWisePage extends StatefulWidget {
 }
 
 class _TotalSalesRegionWisePageState extends State<TotalSalesRegionWisePage> {
-  DateTime? _fromDate;
-  DateTime? _toDate;
+  DateTime? _fromDate = DateTime.now();
+  DateTime? _toDate = DateTime.now();
   bool _loading = false;
   Map<String, dynamic>? _data;
+  final DateTime _today = DateTime.now();
 
   final DateFormat _dateFormat = DateFormat('yyyy-MM-dd');
 
+  // Validation for From Date
+  String? _validateFromDate(DateTime? selectedDate) {
+    if (selectedDate == null) {
+      return null;
+    }
+
+    if (selectedDate.isAfter(_today)) {
+      return 'From Date cannot be greater than today';
+    }
+
+    return null;
+  }
+
+  // Validation for To Date
+  String? _validateToDate(DateTime? selectedDate) {
+    if (selectedDate == null) {
+      return null;
+    }
+
+    if (selectedDate.isAfter(_today)) {
+      return 'To Date cannot be greater than today';
+    }
+
+    if (_fromDate != null && selectedDate.isBefore(_fromDate!)) {
+      return 'To Date cannot be before From Date';
+    }
+
+    return null;
+  }
+
+  void _showSnackBar(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
+
   Future<void> _pickDate(BuildContext context, bool isFrom) async {
+    if (!isFrom && _fromDate == null) {
+      _showSnackBar('Please select From Date first');
+      return;
+    }
+
     DateTime? initialDate;
     DateTime firstDate;
-    final lastDate = DateTime(2100);
+    final lastDate = _today;
 
     if (isFrom) {
-      initialDate = _fromDate ?? DateTime.now();
+      initialDate = _fromDate ?? _today;
       firstDate = DateTime(2020);
     } else {
-      // For 'to date', set initial date and first date based on 'from date'
-      initialDate = _toDate ?? _fromDate ?? DateTime.now();
+      initialDate = _toDate ?? _fromDate ?? _today;
       firstDate = _fromDate ?? DateTime(2020);
+    }
+
+    // Ensure initial date doesn't exceed last date
+    if (initialDate.isAfter(lastDate)) {
+      initialDate = lastDate;
     }
 
     final picked = await showDatePicker(
@@ -1121,17 +1511,29 @@ class _TotalSalesRegionWisePageState extends State<TotalSalesRegionWisePage> {
     );
 
     if (picked != null) {
-      setState(() {
-        if (isFrom) {
+      if (isFrom) {
+        final validationError = _validateFromDate(picked);
+        if (validationError != null) {
+          _showSnackBar(validationError);
+          return;
+        }
+        setState(() {
           _fromDate = picked;
-          // Clear to date if it's before the new from date
+          // Reset To Date if it's before the new From Date
           if (_toDate != null && _toDate!.isBefore(picked)) {
             _toDate = null;
           }
-        } else {
-          _toDate = picked;
+        });
+      } else {
+        final validationError = _validateToDate(picked);
+        if (validationError != null) {
+          _showSnackBar(validationError);
+          return;
         }
-      });
+        setState(() {
+          _toDate = picked;
+        });
+      }
     }
   }
 
@@ -1246,21 +1648,28 @@ class _TotalSalesRegionWisePageState extends State<TotalSalesRegionWisePage> {
   }) {
     return Expanded(
       child: GestureDetector(
-        onTap: enabled ? onTap : null,
+        onTap:
+            enabled
+                ? onTap
+                : () {
+                  if (label == 'To Date' && _fromDate == null) {
+                    _showSnackBar('Please select From Date first');
+                  }
+                },
         child: AbsorbPointer(
           child: TextFormField(
             decoration: InputDecoration(
               labelText: label,
               border: const OutlineInputBorder(),
               suffixIcon: Icon(
-                Icons.calendar_today,
+                Icons.calendar_today_outlined,
                 color: enabled ? null : Colors.grey,
               ),
-              filled: !enabled,
-              fillColor: !enabled ? Colors.grey[100] : null,
+              fillColor: enabled ? Colors.white : Colors.grey[200],
+              filled: true,
             ),
             controller: TextEditingController(
-              text: value != null ? _dateFormat.format(value) : '',
+              text: value != null ? FormatUtils.formatDateForUser(value) : '',
             ),
             readOnly: true,
             enabled: enabled,

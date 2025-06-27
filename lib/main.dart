@@ -25,12 +25,14 @@ import 'package:nhapp/pages/home_screen.dart';
 import 'package:nhapp/pages/dashboard.dart';
 import 'package:nhapp/pages/items_pending_for_delivery.dart';
 import 'package:nhapp/pages/sales_analysis.dart';
+import 'package:nhapp/pages/sales_order/pages/add_so.dart';
 import 'package:nhapp/pages/sales_order/sales_order_page.dart';
 import 'package:nhapp/pages/upcoming_next_delivery.dart';
 import 'package:nhapp/pages/labour_po/labour_po_page.dart';
 import 'package:nhapp/pages/notifications/notification_page.dart';
 import 'package:nhapp/pages/purchase_order/purchase_order_screen.dart';
 import 'package:nhapp/pages/service_po/service_po_page.dart';
+import 'package:nhapp/utils/storage_utils.dart';
 import 'package:nhapp/utils/theme.dart';
 import 'dart:convert';
 import 'dart:async';
@@ -148,7 +150,7 @@ class MyApp extends StatelessWidget {
                           as List<dynamic>)[1]
                       as bool,
             ),
-        '/add_sales_order': (context) => const AddSalesOrderScreen(),
+        '/add_sales_order': (context) => const AddSalesOrderPage(),
         '/edit_sales_order':
             (context) => EditSalesOrderScreen(
               item: ModalRoute.of(context)?.settings.arguments as String,
@@ -2226,31 +2228,21 @@ class _SplashScreenState extends State<SplashScreen> {
   Widget build(BuildContext context) {
     return const Scaffold(
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.align_vertical_center_rounded,
-              size: 100,
-              color: Colors.blue,
-            ),
-            SizedBox(height: 20),
-            Text(
-              'Welcome to NewHorizon',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-          ],
+        child: Text(
+          'Welcome to NewHorizon',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
         ),
       ),
     );
   }
 
   Future<void> _checkLoginStatus() async {
-    final storage = const FlutterSecureStorage();
-    final sessionToken = await storage.read(key: 'session_token');
+    final sessionToken = await StorageUtils.readValue('session_token');
+    final company = await StorageUtils.readValue('selected_company');
+    final location = await StorageUtils.readValue('selected_location');
     if (!mounted) return;
     Navigator.of(context).pushNamedAndRemoveUntil(
-      sessionToken != null ? '/' : '/login',
+      sessionToken == null ? '/login' : '/',
       (Route<dynamic> route) => false,
     );
   }

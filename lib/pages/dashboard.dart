@@ -934,6 +934,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' as intl;
 import 'package:nhapp/pages/total_sales_region_wise.dart';
+import 'package:nhapp/utils/format_utils.dart';
 import 'package:nhapp/utils/token_utils.dart';
 import 'package:nhapp/utils/storage_utils.dart';
 import 'package:nhapp/widgets/Dashboard/Functional/purchase_amount_month_wise.dart';
@@ -1304,6 +1305,74 @@ class FunctionalTabView extends StatelessWidget {
   }
 }
 
+// class _FunctionalCard extends StatelessWidget {
+//   final String title;
+//   final String value;
+//   final String? subtitle;
+//   final String? count;
+//   final VoidCallback? onTap;
+
+//   const _FunctionalCard({
+//     required this.title,
+//     required this.value,
+//     this.subtitle,
+//     this.count,
+//     this.onTap,
+//   });
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return GestureDetector(
+//       onTap: onTap,
+//       child: Card(
+//         child: Column(
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           children: [
+//             Padding(
+//               padding: const EdgeInsets.all(24.0),
+//               child: Column(
+//                 crossAxisAlignment: CrossAxisAlignment.start,
+//                 children: [
+//                   Text(
+//                     title,
+//                     style: const TextStyle(
+//                       fontSize: 14,
+//                       color: Color(0xFF64748b),
+//                     ),
+//                   ),
+//                   Text(
+//                     value,
+//                     style: const TextStyle(
+//                       fontSize: 30,
+//                       fontWeight: FontWeight.w700,
+//                     ),
+//                   ),
+//                 ],
+//               ),
+//             ),
+//             if (subtitle != null && count != null)
+//               Padding(
+//                 padding: const EdgeInsets.only(left: 24.0, bottom: 24.0),
+//                 child: Row(
+//                   children: [
+//                     Text(subtitle!),
+//                     Text(
+//                       count!,
+//                       style: const TextStyle(
+//                         fontSize: 14,
+//                         fontWeight: FontWeight.w700,
+//                       ),
+//                     ),
+//                   ],
+//                 ),
+//               ),
+//             const SizedBox(height: 8),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+// }
 class _FunctionalCard extends StatelessWidget {
   final String title;
   final String value;
@@ -1332,13 +1401,29 @@ class _FunctionalCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF64748b),
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF64748b),
+                          ),
+                        ),
+                      ),
+                      if (onTap != null)
+                        Icon(
+                          // Icons.touch_app_outlined,
+                          Icons.arrow_forward_ios,
+                          size: 20,
+                          color: Colors.grey,
+                        ),
+                    ],
                   ),
+                  const SizedBox(height: 8),
                   Text(
                     value,
                     style: const TextStyle(
@@ -1375,7 +1460,7 @@ class _FunctionalCard extends StatelessWidget {
 
 // Title mapping for amount codes
 const amountTitles = {
-  "RECOVRD": "Retention Amount",
+  "RECOVRD": "Receivable Amount",
   "PAYOVRD": "Payable Overdue",
   "RECEIVABLE": "Total Receivable Amount",
   "PAYABLE": "Total Payable Amount",
@@ -1556,6 +1641,75 @@ class DirectoralTabView extends StatelessWidget {
   }
 }
 
+// class _DirectorOrderCard extends StatelessWidget {
+//   final String title;
+//   final double amount;
+//   final int count;
+//   final VoidCallback onTap;
+
+//   const _DirectorOrderCard({
+//     required this.title,
+//     required this.amount,
+//     required this.count,
+//     required this.onTap,
+//   });
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return GestureDetector(
+//       onTap: onTap,
+//       child: Card(
+//         child: Column(
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           children: [
+//             Padding(
+//               padding: const EdgeInsets.all(24.0),
+//               child: Column(
+//                 crossAxisAlignment: CrossAxisAlignment.start,
+//                 children: [
+//                   Text(
+//                     title,
+//                     style: const TextStyle(
+//                       fontSize: 14,
+//                       color: Color(0xFF64748b),
+//                     ),
+//                   ),
+//                   Text(
+//                     intl.NumberFormat.currency(
+//                       locale: 'en_IN',
+//                       symbol: '',
+//                       decimalDigits: 2,
+//                     ).format(amount),
+//                     style: const TextStyle(
+//                       fontSize: 30,
+//                       fontWeight: FontWeight.w700,
+//                     ),
+//                   ),
+//                 ],
+//               ),
+//             ),
+//             Padding(
+//               padding: const EdgeInsets.only(left: 24.0, bottom: 24.0),
+//               child: Row(
+//                 children: [
+//                   const Text("Count is "),
+//                   Text(
+//                     count.toString(),
+//                     style: const TextStyle(
+//                       fontSize: 14,
+//                       fontWeight: FontWeight.w700,
+//                     ),
+//                   ),
+//                 ],
+//               ),
+//             ),
+//             const SizedBox(height: 8),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+// }
 class _DirectorOrderCard extends StatelessWidget {
   final String title;
   final double amount;
@@ -1582,13 +1736,27 @@ class _DirectorOrderCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF64748b),
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Color(0xFF64748b),
+                          ),
+                        ),
+                      ),
+                      Icon(
+                        Icons.arrow_forward_ios,
+                        size: 20,
+                        color: Colors.grey,
+                      ),
+                    ],
                   ),
+                  const SizedBox(height: 8),
                   Text(
                     intl.NumberFormat.currency(
                       locale: 'en_IN',
@@ -1662,6 +1830,191 @@ class DetailsPage extends StatefulWidget {
   State<DetailsPage> createState() => _DetailsPageState();
 }
 
+// class _DetailsPageState extends State<DetailsPage> {
+//   String search = "";
+
+//   String formatKey(String key) {
+//     // Convert snake_case or camelCase to Title Case
+//     final spaced = key
+//         .replaceAllMapped(
+//           RegExp(r'([a-z])([A-Z])'),
+//           (m) => '${m.group(1)} ${m.group(2)}',
+//         )
+//         .replaceAll('_', ' ');
+//     return spaced
+//         .split(' ')
+//         .map((w) {
+//           if (w.isEmpty) return w;
+//           return w[0].toUpperCase() + w.substring(1).toLowerCase();
+//         })
+//         .join(' ');
+//   }
+
+//   String formatValue(String key, dynamic value) {
+//     // Try to format as date
+//     if (value is DateTime) {
+//       return intl.DateFormat("dd/MM/yyyy").format(value);
+//     }
+//     if (value is String) {
+//       // Try to parse as date
+//       try {
+//         final dt = DateTime.parse(value);
+//         if (dt.year > 1900 && dt.year < 2100) {
+//           return intl.DateFormat("dd/MM/yyyy").format(dt);
+//         }
+//       } catch (_) {
+//         return value; // Return as is if not a valid date
+//       }
+//     }
+//     // Format as amount if key suggests so or value is num
+//     if (key.toLowerCase().contains('amount') ||
+//         key.toLowerCase().contains('total')) {
+//       if (value is num) {
+//         return intl.NumberFormat.currency(
+//           locale: 'en_IN',
+//           symbol: "",
+//           decimalDigits: 0,
+//         ).format(value);
+//       }
+//       if (value is String) {
+//         final numValue = num.tryParse(value.replaceAll(',', ''));
+//         if (numValue != null) {
+//           return intl.NumberFormat.currency(
+//             locale: 'en_IN',
+//             symbol: "",
+//             decimalDigits: 0,
+//           ).format(numValue);
+//         }
+//       }
+//     }
+//     // Default: just show as string
+//     return value?.toString() ?? "";
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     final filteredList =
+//         widget.list.where((item) {
+//           final str = item.toString().toLowerCase();
+//           return str.contains(search.trim().toLowerCase());
+//         }).toList();
+
+//     return Scaffold(
+//       appBar: AppBar(title: Text(widget.title)),
+//       body: Column(
+//         children: [
+//           Padding(
+//             padding: const EdgeInsets.all(12),
+//             child: TextField(
+//               decoration: const InputDecoration(
+//                 labelText: "Search",
+//                 border: OutlineInputBorder(),
+//                 prefixIcon: Icon(Icons.search),
+//               ),
+//               onChanged: (val) => setState(() => search = val),
+//             ),
+//           ),
+//           Expanded(
+//             child:
+//                 filteredList.isEmpty
+//                     ? const Center(child: Text("No records found."))
+//                     : ListView.builder(
+//                       itemCount: filteredList.length,
+//                       itemBuilder: (context, idx) {
+//                         final Map<String, dynamic> item =
+//                             filteredList[idx] as Map<String, dynamic>;
+//                         final title =
+//                             item["customername"] ??
+//                             item["itemname"] ??
+//                             "Item #${idx + 1}";
+//                         final amount = item["amount"];
+
+//                         return Card(
+//                           margin: const EdgeInsets.symmetric(
+//                             horizontal: 12,
+//                             vertical: 6,
+//                           ),
+//                           child: ExpansionTile(
+//                             tilePadding: const EdgeInsets.symmetric(
+//                               horizontal: 16,
+//                               vertical: 8,
+//                             ),
+//                             title: Text(
+//                               title.toString(),
+//                               style: const TextStyle(
+//                                 fontWeight: FontWeight.w600,
+//                               ),
+//                             ),
+//                             subtitle:
+//                                 amount != null
+//                                     ? Text(
+//                                       "Amount: ${FormatUtils.formatAmount(amount)}",
+//                                       style: const TextStyle(
+//                                         fontWeight: FontWeight.w500,
+//                                       ),
+//                                     )
+//                                     : null,
+//                             children: [
+//                               Padding(
+//                                 padding: const EdgeInsets.symmetric(
+//                                   horizontal: 16,
+//                                   vertical: 8,
+//                                 ),
+//                                 child: Table(
+//                                   columnWidths: const {
+//                                     0: IntrinsicColumnWidth(),
+//                                     1: FlexColumnWidth(),
+//                                   },
+//                                   defaultVerticalAlignment:
+//                                       TableCellVerticalAlignment.middle,
+//                                   children:
+//                                       item.entries.map((e) {
+//                                         return TableRow(
+//                                           children: [
+//                                             Padding(
+//                                               padding:
+//                                                   const EdgeInsets.symmetric(
+//                                                     vertical: 4,
+//                                                   ),
+//                                               child: Text(
+//                                                 "${formatKey(e.key)}:",
+//                                                 style: const TextStyle(
+//                                                   fontWeight: FontWeight.w500,
+//                                                   color: Colors.grey,
+//                                                 ),
+//                                               ),
+//                                             ),
+//                                             Padding(
+//                                               padding:
+//                                                   const EdgeInsets.symmetric(
+//                                                     vertical: 4,
+//                                                   ),
+//                                               child: SelectableText(
+//                                                 formatValue(e.key, e.value),
+//                                                 style: const TextStyle(
+//                                                   fontSize: 14,
+//                                                 ),
+//                                               ),
+//                                             ),
+//                                           ],
+//                                         );
+//                                       }).toList(),
+//                                 ),
+//                               ),
+//                             ],
+//                           ),
+//                         );
+//                       },
+//                     ),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+// }
+
+// ...existing imports and code...
+
 class _DetailsPageState extends State<DetailsPage> {
   String search = "";
 
@@ -1683,40 +2036,51 @@ class _DetailsPageState extends State<DetailsPage> {
   }
 
   String formatValue(String key, dynamic value) {
-    // Try to format as date
+    // Try to format as date using FormatUtils
     if (value is DateTime) {
-      return intl.DateFormat("dd/MM/yyyy").format(value);
+      return FormatUtils.formatDateForUser(value);
     }
     if (value is String) {
-      // Try to parse as date
-      try {
-        final dt = DateTime.parse(value);
-        if (dt.year > 1900 && dt.year < 2100) {
-          return intl.DateFormat("dd/MM/yyyy").format(dt);
+      // Try to parse as date - be more careful with date detection
+      if (key.toLowerCase().contains('date') ||
+          key.toLowerCase().contains('time') ||
+          key.toLowerCase().endsWith('dt') ||
+          key.toLowerCase().endsWith('on')) {
+        try {
+          final dt = DateTime.parse(value);
+          if (dt.year > 1900 && dt.year < 2100) {
+            return FormatUtils.formatDateForUser(dt);
+          }
+        } catch (_) {
+          // If date parsing fails, return as string
         }
-      } catch (_) {}
+      }
     }
-    // Format as amount if key suggests so or value is num
+
+    // Format as amount using FormatUtils if key suggests so
     if (key.toLowerCase().contains('amount') ||
-        key.toLowerCase().contains('total')) {
-      if (value is num) {
-        return intl.NumberFormat.currency(
-          locale: 'en_IN',
-          symbol: "",
-          decimalDigits: 0,
-        ).format(value);
-      }
-      if (value is String) {
-        final numValue = num.tryParse(value.replaceAll(',', ''));
-        if (numValue != null) {
-          return intl.NumberFormat.currency(
-            locale: 'en_IN',
-            symbol: "",
-            decimalDigits: 0,
-          ).format(numValue);
-        }
+        key.toLowerCase().contains('total') ||
+        key.toLowerCase().contains('price') ||
+        key.toLowerCase().contains('cost') ||
+        key.toLowerCase().contains('value')) {
+      try {
+        return FormatUtils.formatAmount(value);
+      } catch (_) {
+        // If amount formatting fails, return as string
       }
     }
+
+    // Format as quantity using FormatUtils if key suggests so
+    if (key.toLowerCase().contains('quantity') ||
+        key.toLowerCase().contains('qty') ||
+        key.toLowerCase().contains('count')) {
+      try {
+        return FormatUtils.formatQuantity(value);
+      } catch (_) {
+        // If quantity formatting fails, return as string
+      }
+    }
+
     // Default: just show as string
     return value?.toString() ?? "";
   }
@@ -1756,82 +2120,232 @@ class _DetailsPageState extends State<DetailsPage> {
                         final title =
                             item["customername"] ??
                             item["itemname"] ??
+                            item["companyname"] ??
                             "Item #${idx + 1}";
                         final amount = item["amount"];
-
                         return Card(
                           margin: const EdgeInsets.symmetric(
                             horizontal: 12,
                             vertical: 6,
                           ),
-                          child: ExpansionTile(
-                            tilePadding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                            title: Text(
-                              title.toString(),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w600,
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [Colors.white, Colors.grey.shade50],
                               ),
                             ),
-                            subtitle:
-                                amount != null
-                                    ? Text(
-                                      "Amount: ${formatValue('amount', amount)}",
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    )
-                                    : null,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
-                                child: Table(
-                                  columnWidths: const {
-                                    0: IntrinsicColumnWidth(),
-                                    1: FlexColumnWidth(),
-                                  },
-                                  defaultVerticalAlignment:
-                                      TableCellVerticalAlignment.middle,
-                                  children:
-                                      item.entries.map((e) {
-                                        return TableRow(
-                                          children: [
-                                            Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    vertical: 4,
-                                                  ),
-                                              child: Text(
-                                                "${formatKey(e.key)}:",
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.w500,
-                                                  color: Colors.grey,
-                                                ),
-                                              ),
-                                            ),
-                                            Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    vertical: 4,
-                                                  ),
-                                              child: SelectableText(
-                                                formatValue(e.key, e.value),
-                                                style: const TextStyle(
-                                                  fontSize: 14,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
-                                        );
-                                      }).toList(),
+                            child: ExpansionTile(
+                              tilePadding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 12,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              collapsedShape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              iconColor: Theme.of(context).primaryColor,
+                              collapsedIconColor: Colors.grey.shade600,
+                              title: Text(
+                                title.toString(),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 16,
+                                  color: Colors.black87,
                                 ),
                               ),
-                            ],
+                              subtitle:
+                                  amount != null
+                                      ? Container(
+                                        margin: const EdgeInsets.only(top: 4),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Theme.of(
+                                            context,
+                                          ).primaryColor.withOpacity(0.1),
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          "Amount: ${FormatUtils.formatAmount(amount)}",
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 13,
+                                            color:
+                                                Theme.of(context).primaryColor,
+                                          ),
+                                        ),
+                                      )
+                                      : null,
+                              children: [
+                                Container(
+                                  margin: const EdgeInsets.fromLTRB(
+                                    16,
+                                    0,
+                                    16,
+                                    16,
+                                  ),
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey.shade50,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: Colors.grey.shade200,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Table(
+                                    columnWidths: const {
+                                      0: IntrinsicColumnWidth(),
+                                      1: FlexColumnWidth(),
+                                    },
+                                    defaultVerticalAlignment:
+                                        TableCellVerticalAlignment.middle,
+                                    children:
+                                        // item.entries.map((e) {
+                                        //   if (e.value == null ||
+                                        //       e.value.toString().isEmpty) {
+                                        //     return TableRow(
+                                        //       children: [
+                                        //         Padding(
+                                        //           padding:
+                                        //               const EdgeInsets.symmetric(
+                                        //                 vertical: 6,
+                                        //                 horizontal: 8,
+                                        //               ),
+                                        //           child: Text(
+                                        //             "${formatKey(e.key)}:",
+                                        //             style: const TextStyle(
+                                        //               fontWeight:
+                                        //                   FontWeight.w600,
+                                        //               color: Colors.black54,
+                                        //               fontSize: 13,
+                                        //             ),
+                                        //           ),
+                                        //         ),
+                                        //         Padding(
+                                        //           padding:
+                                        //               const EdgeInsets.symmetric(
+                                        //                 vertical: 6,
+                                        //                 horizontal: 8,
+                                        //               ),
+                                        //           child: const Text(
+                                        //             "N/A",
+                                        //             style: TextStyle(
+                                        //               fontSize: 14,
+                                        //               color: Colors.black87,
+                                        //               fontWeight:
+                                        //                   FontWeight.w500,
+                                        //             ),
+                                        //           ),
+                                        //         ),
+                                        //       ],
+                                        //     );
+                                        //   }
+                                        //   return TableRow(
+                                        //     children: [
+                                        //       Padding(
+                                        //         padding:
+                                        //             const EdgeInsets.symmetric(
+                                        //               vertical: 6,
+                                        //               horizontal: 8,
+                                        //             ),
+                                        //         child: Text(
+                                        //           "${formatKey(e.key)}:",
+                                        //           style: const TextStyle(
+                                        //             fontWeight: FontWeight.w600,
+                                        //             color: Colors.black54,
+                                        //             fontSize: 13,
+                                        //           ),
+                                        //         ),
+                                        //       ),
+                                        //       Padding(
+                                        //         padding:
+                                        //             const EdgeInsets.symmetric(
+                                        //               vertical: 6,
+                                        //               horizontal: 8,
+                                        //             ),
+                                        //         child: SelectableText(
+                                        //           formatValue(e.key, e.value),
+                                        //           style: const TextStyle(
+                                        //             fontSize: 14,
+                                        //             color: Colors.black87,
+                                        //             fontWeight: FontWeight.w500,
+                                        //           ),
+                                        //         ),
+                                        //       ),
+                                        //     ],
+                                        //   );
+                                        // }).toList(),
+                                        item.entries
+                                            .where((e) {
+                                              // Filter out null, empty, or whitespace-only values
+                                              if (e.value == null) return false;
+                                              if (e.value
+                                                  .toString()
+                                                  .trim()
+                                                  .isEmpty)
+                                                return false;
+                                              return true;
+                                            })
+                                            .map((e) {
+                                              return TableRow(
+                                                children: [
+                                                  Padding(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          vertical: 6,
+                                                          horizontal: 8,
+                                                        ),
+                                                    child: Text(
+                                                      "${formatKey(e.key)}:",
+                                                      style: const TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        color: Colors.black54,
+                                                        fontSize: 13,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  Padding(
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          vertical: 6,
+                                                          horizontal: 8,
+                                                        ),
+                                                    child: SelectableText(
+                                                      formatValue(
+                                                        e.key,
+                                                        e.value,
+                                                      ),
+                                                      style: const TextStyle(
+                                                        fontSize: 14,
+                                                        color: Colors.black87,
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              );
+                                            })
+                                            .toList(),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         );
                       },

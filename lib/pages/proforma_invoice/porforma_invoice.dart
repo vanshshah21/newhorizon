@@ -15,6 +15,7 @@ class ProformaInvoiceListPage extends StatefulWidget {
 
 class _ProformaInvoiceListPageState extends State<ProformaInvoiceListPage> {
   final service = ProformaInvoiceService();
+  final GlobalKey<ProformaInvoiceInfiniteListState> _listKey = GlobalKey();
 
   void handlePdfTap(BuildContext context, ProformaInvoice invoice) {
     Navigator.push(
@@ -34,13 +35,19 @@ class _ProformaInvoiceListPageState extends State<ProformaInvoiceListPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Proforma Invoices')),
       body: ProformaInvoiceInfiniteList(
+        key: _listKey,
         service: service,
         onPdfTap: (invoice) => handlePdfTap(context, invoice),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Navigate to the add proforma invoice page
-          Navigator.pushNamed(context, '/add_proforma_invoice');
+        onPressed: () async {
+          final result = await Navigator.pushNamed(
+            context,
+            '/add_proforma_invoice',
+          );
+          if (result == true) {
+            _listKey.currentState?.refresh();
+          }
         },
         tooltip: 'Add Proforma Invoice',
         child: const Icon(Icons.add),

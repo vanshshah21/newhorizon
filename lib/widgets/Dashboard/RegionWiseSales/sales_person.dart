@@ -408,7 +408,6 @@ class _SalespersonPieChartCardState extends State<SalespersonPieChartCard> {
                           isTouched
                               ? _buildTooltip(salesperson.name, value)
                               : null,
-                      badgePositionPercentageOffset: 1.15,
                     );
                   }),
                 ),

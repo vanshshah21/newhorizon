@@ -2312,7 +2312,7 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
                           context: context,
                           initialDate: _date,
                           firstDate: _minDate ?? DateTime(2000),
-                          lastDate: _maxDate ?? DateTime(2100),
+                          lastDate: DateTime.now(),
                         );
                         if (picked != null) {
                           setState(() => _date = picked);

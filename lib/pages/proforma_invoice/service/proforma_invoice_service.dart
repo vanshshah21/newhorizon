@@ -30,7 +30,6 @@ class ProformaInvoiceService {
     _dio.options.headers['Authorization'] = 'Bearer $token';
 
     final body = {
-      "piOn": "O",
       "locationId": locationId,
       "pageNumber": pageNumber,
       "pageSize": pageSize,

@@ -81,6 +81,7 @@ class QuotationService {
       "intSiteId": q.siteId,
       "strDomCurrency": "INR",
       "companyData": companyDetails,
+      "documentprint": "regular",
     };
 
     final response = await _dio.post('http://$url$endpoint', data: body);

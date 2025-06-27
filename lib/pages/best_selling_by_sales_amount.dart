@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:nhapp/utils/format_utils.dart';
 import 'package:nhapp/utils/storage_utils.dart';
 import 'package:nhapp/widgets/Dashboard/Director/best_selling_by_sales.dart';
 
@@ -32,8 +33,8 @@ class _BestSellingBySalesAmountPageState
 
   String? selectedType;
   String? selectedDropdown;
-  DateTime? fromDate;
-  DateTime? toDate;
+  DateTime? fromDate = DateTime.now();
+  DateTime? toDate = DateTime.now();
   Future<Map<String, dynamic>>? apiFuture;
 
   final DateFormat dateFormat = DateFormat('yyyy-MM-dd');
@@ -43,7 +44,7 @@ class _BestSellingBySalesAmountPageState
       context: context,
       initialDate: fromDate ?? DateTime.now(),
       firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
+      lastDate: DateTime.now(),
     );
     if (picked != null) {
       setState(() {
@@ -60,7 +61,7 @@ class _BestSellingBySalesAmountPageState
       context: context,
       initialDate: DateTime.now(),
       firstDate: fromDate ?? DateTime(2000),
-      lastDate: DateTime(2100),
+      lastDate: DateTime.now(),
     );
     if (picked != null) {
       setState(() {
@@ -245,6 +246,7 @@ class _BestSellingBySalesAmountPageState
               decoration: const InputDecoration(
                 labelText: 'Select Type',
                 border: OutlineInputBorder(),
+                fillColor: Colors.white,
                 contentPadding: EdgeInsets.symmetric(horizontal: 12),
               ),
             ),
@@ -294,13 +296,17 @@ class _BestSellingBySalesAmountPageState
                         child: TextFormField(
                           decoration: const InputDecoration(
                             labelText: 'From Date',
+                            fillColor: Colors.white,
                             border: OutlineInputBorder(),
+                            suffixIcon: const Icon(
+                              Icons.calendar_today_outlined,
+                            ),
                           ),
                           controller: TextEditingController(
                             text:
                                 fromDate == null
                                     ? ''
-                                    : dateFormat.format(fromDate!),
+                                    : FormatUtils.formatDateForUser(fromDate!),
                           ),
                         ),
                       ),
@@ -314,13 +320,17 @@ class _BestSellingBySalesAmountPageState
                         child: TextFormField(
                           decoration: const InputDecoration(
                             labelText: 'To Date',
+                            fillColor: Colors.white,
                             border: OutlineInputBorder(),
+                            suffixIcon: const Icon(
+                              Icons.calendar_today_outlined,
+                            ),
                           ),
                           controller: TextEditingController(
                             text:
                                 toDate == null
                                     ? ''
-                                    : dateFormat.format(toDate!),
+                                    : FormatUtils.formatDateForUser(toDate!),
                           ),
                         ),
                       ),
