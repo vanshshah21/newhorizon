@@ -34,19 +34,32 @@ import 'package:nhapp/pages/purchase_order/purchase_order_screen.dart';
 import 'package:nhapp/pages/service_po/service_po_page.dart';
 import 'package:nhapp/utils/storage_utils.dart';
 import 'package:nhapp/utils/theme.dart';
+import 'package:nhapp/utils/error_handler.dart';
 import 'dart:convert';
 import 'dart:async';
 
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:nhapp/toast.dart';
 
 void main() {
-  runApp(
-    ChangeNotifierProvider(
-      create: (context) => FavoritePages(),
-      child: const MyApp(),
-    ),
-    // const MyApp(),
+  // Initialize global error handling
+  ErrorHandler.initialize();
+  
+  runZonedGuarded(
+    () {
+      runApp(
+        ChangeNotifierProvider(
+          create: (context) => FavoritePages(),
+          child: const MyApp(),
+        ),
+      );
+    },
+    (error, stackTrace) {
+      // Handle errors that escape the Flutter framework
+      debugPrint('Uncaught error: $error');
+      debugPrint('Stack trace: $stackTrace');
+    },
   );
 }
 
@@ -56,10 +69,23 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       title: 'New Horizon ERP',
       theme: shadcnLightTheme,
       initialRoute: '/splash',
+      builder: (context, widget) {
+        // Global error boundary for the entire app
+        ErrorWidget.builder = (FlutterErrorDetails errorDetails) {
+          return ErrorHandler.buildErrorWidget(
+            'Something went wrong. Please restart the app.',
+            onRetry: () {
+              // You could implement app restart logic here
+            },
+          );
+        };
+        return widget!;
+      },
       routes: {
         '/splash': (context) => const SplashScreen(),
         '/login': (context) => const UserLoginScreen(),

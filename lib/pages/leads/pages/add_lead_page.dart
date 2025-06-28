@@ -23,6 +23,7 @@ class _AddLeadPageState extends State<AddLeadPage> {
   String? _year;
   int? _siteId;
   int? _userId;
+  late bool _isDuplicateItem;
 
   CustomerModel? _selectedCustomer;
   SourceModel? _selectedSource;
@@ -41,6 +42,7 @@ class _AddLeadPageState extends State<AddLeadPage> {
 
   final TextEditingController _customerController = TextEditingController();
   final TextEditingController _leadNumberController = TextEditingController();
+  final TextEditingController _salesItemController = TextEditingController();
 
   bool _loading = true;
   bool _submitting = false;
@@ -111,6 +113,10 @@ class _AddLeadPageState extends State<AddLeadPage> {
     final sources = await _service.fetchSources();
     final salesmen = await _service.fetchSalesmen();
     final regions = await _service.fetchRegions();
+    final salesPolicy = await _service.getSalesPolicy();
+    _isDuplicateItem =
+        salesPolicy['allowduplictae'] ?? salesPolicy['allowduplicate'] ?? false;
+
     setState(() {
       _leadDate = DateTime.now();
       _minDate = minDate;
@@ -576,9 +582,10 @@ class _AddLeadPageState extends State<AddLeadPage> {
 
               // Sales Item (Typeahead)
               TypeAheadField<SalesItemModel>(
+                direction: VerticalDirection.up,
                 builder:
-                    (context, controller, focusNode) => TextFormField(
-                      controller: controller,
+                    (context, _salesItemController, focusNode) => TextFormField(
+                      controller: _salesItemController,
                       focusNode: focusNode,
                       decoration: const InputDecoration(
                         labelText: 'Sales Item',
@@ -591,13 +598,28 @@ class _AddLeadPageState extends State<AddLeadPage> {
                     ),
                 suggestionsCallback: (pattern) async {
                   if (pattern.length < 4) return [];
-                  return await _service.searchSalesItems(pattern);
+
+                  final allItems = await _service.searchSalesItems(pattern);
+
+                  if (!_isDuplicateItem) {
+                    // Filter out items that are already added
+                    final addedItemCodes =
+                        _items.map((entry) => entry.item.itemCode).toSet();
+                    return allItems
+                        .where(
+                          (item) => !addedItemCodes.contains(item.itemCode),
+                        )
+                        .toList();
+                  }
+
+                  return allItems;
                 },
                 itemBuilder:
                     (context, suggestion) =>
                         ListTile(title: Text(suggestion.salesItemFullName)),
                 onSelected: (suggestion) {
                   _addItem(suggestion);
+                  _salesItemController.clear();
                   setState(() {
                     FocusScope.of(context).unfocus();
                   });

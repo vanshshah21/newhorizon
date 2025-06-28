@@ -379,7 +379,7 @@ class _BarChart extends StatelessWidget {
     if (idx < 0 || idx >= data.length) {
       return const SizedBox.shrink();
     }
-    final label = (data[idx]['customername'] ?? '').toString().trim();
+    final label = (data[idx]['customercode'] ?? '').toString().trim();
     final isSelected = touchedIndex == idx;
 
     // Truncate to 5 characters and add ellipsis if needed

@@ -134,6 +134,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:nhapp/pages/service_po/models/service_po_data.dart';
+import 'package:nhapp/pages/service_po/pages/service_po_pdf.dart';
 import 'package:nhapp/pages/service_po/service/service_po_service.dart';
 import 'package:nhapp/pages/service_po/widgets/service_po_infinite_list_tab.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -150,37 +151,11 @@ class ServicePOListPageState extends State<ServicePOListPage> {
   final service = ServicePOService();
 
   Future<void> handlePdfTap(ServicePOData po) async {
-    try {
-      final pdfUrl = await service.fetchServicePOPdfUrl(po);
-      if (!mounted) return;
-      if (pdfUrl.isNotEmpty) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder:
-                (_) => Scaffold(
-                  appBar: AppBar(title: const Text('Service PO PDF')),
-                  body: PDF().fromUrl(
-                    pdfUrl,
-                    placeholder:
-                        (progress) => Center(child: Text('$progress %')),
-                    errorWidget:
-                        (error) => Center(child: Text(error.toString())),
-                  ),
-                ),
-          ),
-        );
-      } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('PDF not found')));
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
-    }
+    if (!mounted) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => ServicePOPdfLoaderPage(po: po)),
+    );
   }
 
   Future<void> handleCallTap(ServicePOData po) async {

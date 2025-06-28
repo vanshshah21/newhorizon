@@ -281,9 +281,9 @@ class RecentInquiryPage extends StatefulWidget {
 class _RecentInquiryPageState extends State<RecentInquiryPage> {
   final List<Map<String, String>> _dateFilters = [
     {'label': 'Today', 'value': 'today'},
-    {'label': 'Month', 'value': 'month'},
-    {'label': 'Qtr', 'value': 'qtr'},
-    {'label': 'Ytd', 'value': 'ytd'},
+    {'label': 'This Month', 'value': 'month'},
+    {'label': 'This Quarter', 'value': 'qtr'},
+    {'label': 'YTD', 'value': 'ytd'},
     {'label': 'Custom Dates', 'value': 'custom'},
   ];
 

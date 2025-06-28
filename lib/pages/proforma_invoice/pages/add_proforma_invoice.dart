@@ -170,7 +170,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   Future<void> _onCustomerSelected(Customer customer) async {
     setState(() {
       selectedCustomer = customer;
-      customerController.text = customer.customerName;
+      customerController.text = customer.custName;
       quotationNumbers.clear();
       salesOrderNumbers.clear();
       selectedQuotationNumber = null;
@@ -179,9 +179,9 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
     });
 
     if (selectPreference == "On Quotation") {
-      await _loadQuotationNumbers(customer.customerCode);
+      await _loadQuotationNumbers(customer.custCode);
     } else if (selectPreference == "On Sales Order") {
-      await _loadSalesOrderNumbers(customer.customerCode);
+      await _loadSalesOrderNumbers(customer.custCode);
     }
   }
 
@@ -721,7 +721,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
       "invRoValue": finalAmount.round(),
       "invTax": totalTax,
       "invType": "M",
-      "invCustCode": selectedCustomer!.customerCode,
+      "invCustCode": selectedCustomer!.custCode,
       "invStatus": "O",
       "invOn":
           selectPreference == "On Quotation"
@@ -965,8 +965,8 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
       },
       itemBuilder: (context, suggestion) {
         return ListTile(
-          title: Text(suggestion.customerName),
-          subtitle: Text(suggestion.customerCode),
+          title: Text(suggestion.custName),
+          subtitle: Text(suggestion.custCode),
         );
       },
       onSelected: _onCustomerSelected,

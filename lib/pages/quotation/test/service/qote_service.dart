@@ -602,4 +602,47 @@ class QuotationService {
       throw Exception("Failed to submit quotation: $e");
     }
   }
+
+  Future<QuotationEditData> fetchQuotationForEdit(
+    String quotationNumber,
+    String quotationYear,
+    String? quotationGrp,
+    int? quotationSiteId,
+  ) async {
+    const endpoint = "/api/Quotation/QuotationGetDetails";
+    try {
+      final response = await _dio.post(
+        "$_baseUrl$endpoint",
+        queryParameters: {
+          "QtnYear": quotationYear,
+          "QtnGrp": quotationGrp,
+          "QtnNumber": quotationNumber,
+          "QtnSiteId": quotationSiteId,
+          "UserLocations": "'${locationDetails['code']}'",
+        },
+      );
+
+      if (response.data['success'] == true && response.data['data'] != null) {
+        return QuotationEditData.fromJson(response.data['data']);
+      } else {
+        throw Exception(
+          response.data['errorMessage'] ?? 'Failed to fetch quotation details',
+        );
+      }
+    } catch (e) {
+      throw Exception("Failed to fetch quotation for edit: $e");
+    }
+  }
+
+  Future<Map<String, dynamic>> updateQuotation(
+    Map<String, dynamic> payload,
+  ) async {
+    const endpoint = "/api/Quotation/QuotationUpdate";
+    try {
+      final response = await _dio.post("$_baseUrl$endpoint", data: payload);
+      return response.data;
+    } catch (e) {
+      throw Exception("Failed to update quotation: $e");
+    }
+  }
 }

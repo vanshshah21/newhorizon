@@ -517,6 +517,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:nhapp/pages/leads/pages/lead_pdf_loader_page.dart';
+import 'package:nhapp/pages/quotation/pages/add_quotation_page.dart';
 import 'package:nhapp/utils/format_utils.dart';
 import '../models/lead_data.dart';
 import '../models/lead_detail_data.dart';
@@ -601,6 +602,33 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
                         mainAxisAlignment: MainAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
+                          // Create Quotation Button
+                          ElevatedButton.icon(
+                            onPressed: () async {
+                              final result = await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) => AddQuotationPage(
+                                    leadData: widget.lead,
+                                    leadDetailData: data,
+                                  ),
+                                ),
+                              );
+                              if (result == true) {
+                                // Quotation created successfully
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Quotation created successfully!'),
+                                  ),
+                                );
+                              }
+                            },
+                            icon: const Icon(Icons.add_business, size: 18),
+                            label: const Text('Create Quotation'),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
                           IconButton.filledTonal(
                             onPressed: () {},
                             icon: SvgPicture.asset(

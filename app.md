@@ -356,4 +356,8 @@ During page load following api will be called API Details GET url:{{baseUrl}}/ap
 
 
 
-
+getdefaultdocumentdetail
+SQ: Quote
+OB: Sales Order
+PI: Performa
+IQ: inquiry

@@ -716,6 +716,28 @@ class LeadFormService {
     }
   }
 
+  Future<Map<String, dynamic>> getSalesPolicy() async {
+    try {
+      await _setupHeaders();
+      final baseUrl = await _getBaseUrl();
+      final companyDetails = await StorageUtils.readJson('selected_company');
+      if (companyDetails == null) throw Exception("Company not set");
+      final companyCode = companyDetails['code'];
+      const endpoint = "/api/Login/GetSalesPolicyDetails";
+      final response = await _dio.get(
+        '$baseUrl$endpoint',
+        queryParameters: {"companyCode": companyCode},
+      );
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return response.data['data']['salesPolicyResultModel'][0]
+            as Map<String, dynamic>;
+      }
+      return {};
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<List<SalesmanModel>> fetchSalesmen() async {
     try {
       await _setupHeaders();

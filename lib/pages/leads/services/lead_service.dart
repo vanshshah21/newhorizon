@@ -2,58 +2,72 @@ import 'package:dio/dio.dart';
 import 'package:flutter/widgets.dart';
 import 'package:nhapp/pages/leads/models/lead_detail_data.dart';
 import 'package:nhapp/utils/storage_utils.dart';
+import 'package:nhapp/utils/network_utils.dart';
 import '../models/lead_data.dart';
 
 class LeadService {
-  final Dio _dio = Dio();
+  final Dio _dio = NetworkUtils.createDioInstance();
 
   Future<List<LeadData>> fetchLeadsList({
     required int page,
     required int pageSize,
     String? searchValue,
   }) async {
-    final url = await StorageUtils.readValue('url');
-    final companyDetails = await StorageUtils.readJson('selected_company');
-    if (companyDetails == null) throw Exception("Company not set");
+    try {
+      final url = await StorageUtils.readValue('url');
+      final companyDetails = await StorageUtils.readJson('selected_company');
+      if (companyDetails == null) throw Exception("Company not set");
 
-    final locationDetails = await StorageUtils.readJson('selected_location');
-    if (locationDetails == null) throw Exception("Location not set");
+      final locationDetails = await StorageUtils.readJson('selected_location');
+      if (locationDetails == null) throw Exception("Location not set");
 
-    final tokenDetails = await StorageUtils.readJson('session_token');
-    if (tokenDetails == null) throw Exception("Session token not found");
+      final tokenDetails = await StorageUtils.readJson('session_token');
+      if (tokenDetails == null) throw Exception("Session token not found");
 
-    final companyId = companyDetails['id'];
-    final token = tokenDetails['token']['value'];
-    final userId = tokenDetails['user']['id'];
-    final locationId = locationDetails['id'];
+      final companyId = companyDetails['id'];
+      final token = tokenDetails['token']['value'];
+      final userId = tokenDetails['user']['id'];
+      final locationId = locationDetails['id'];
 
-    final endpoint = "/api/Lead/inquiryEntryList";
+      final endpoint = "/api/Lead/LeadEntryList";
 
-    final body = {
-      "PageNumber": page,
-      "PageSize": pageSize,
-      "SortField": "",
-      "SortDirection": "",
-      "SearchValue": searchValue ?? "",
-      "UserId": userId,
-      "locationIds": locationId.toString(),
-      "restcoresalestrans": "false",
-    };
+      final body = {
+        "PageNumber": page,
+        "PageSize": pageSize,
+        "SortField": "",
+        "SortDirection": "",
+        "SearchValue": searchValue ?? "",
+        "UserId": userId,
+        "locationIds": locationId.toString(),
+        "restcoresalestrans": "false",
+      };
 
-    _dio.options.headers['Content-Type'] = 'application/json';
-    _dio.options.headers['Accept'] = 'application/json';
-    _dio.options.headers['companyid'] = companyId.toString();
-    _dio.options.headers['Authorization'] = 'Bearer $token';
+      final response = await _dio.post(
+        "http://$url$endpoint",
+        data: body,
+        options: Options(
+          headers: {
+            'companyid': companyId.toString(),
+            'Authorization': 'Bearer $token',
+          },
+        ),
+      );
 
-    final response = await _dio.post("http://$url$endpoint", data: body);
-    debugPrint("fetchLeadsList Status Code: ${response.statusCode}");
-    //debugPrint("fetchLeadsList Response: ${response.data}");
-    if (response.statusCode == 200 && response.data['success'] == true) {
-      final List<dynamic> data = response.data['data'] ?? [];
-      return data.map((e) => LeadData.fromJson(e)).toList();
-    } else {
-      debugPrint("fetchLeadsList Error throwing exception");
-      throw Exception('Failed to load leads list');
+      debugPrint("fetchLeadsList Status Code: ${response.statusCode}");
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final List<dynamic> data = response.data['data'] ?? [];
+        return data.map((e) => LeadData.fromJson(e)).toList();
+      } else {
+        throw Exception(
+          'Failed to load leads list: ${response.data['message'] ?? 'Unknown error'}',
+        );
+      }
+    } on DioException catch (e) {
+      debugPrint("fetchLeadsList DioException: ${e.message}");
+      throw Exception(NetworkUtils.getErrorMessage(e));
+    } catch (e) {
+      debugPrint("fetchLeadsList Error: $e");
+      throw Exception('Failed to load leads list: $e');
     }
   }
 

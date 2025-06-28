@@ -359,3 +359,146 @@ class QuotationDetails {
     );
   }
 }
+
+// ...existing code...
+
+class QuotationEditData {
+  final String quotationNumber;
+  final int quotationId;
+  final String customerCode;
+  final String customerName;
+  final String billToCustomerCode;
+  final String billToCustomerName;
+  final String salesmanCode;
+  final String subject;
+  final DateTime quotationDate;
+  final String quotationBase;
+  final int? inquiryId;
+  final String inquiryNumber;
+  final List<QuotationItem> items;
+  final String quotationYear;
+  final String quotationGroup;
+  final int quotationSiteId;
+
+  QuotationEditData({
+    required this.quotationNumber,
+    required this.quotationId,
+    required this.customerCode,
+    required this.customerName,
+    required this.billToCustomerCode,
+    required this.billToCustomerName,
+    required this.salesmanCode,
+    required this.subject,
+    required this.quotationDate,
+    required this.quotationBase,
+    this.inquiryId,
+    required this.inquiryNumber,
+    required this.items,
+    required this.quotationYear,
+    required this.quotationGroup,
+    required this.quotationSiteId,
+  });
+
+  factory QuotationEditData.fromJson(Map<String, dynamic> json) {
+    List<QuotationItem> items = [];
+    if (json['itemDetails'] != null) {
+      for (int i = 0; i < json['itemDetails'].length; i++) {
+        final item = json['itemDetails'][i];
+
+        // Process discount details
+        String discountType = "None";
+        double? discountPercentage;
+        double? discountAmount;
+
+        if (json['discountDetails'] != null) {
+          final discountDetail =
+              (json['discountDetails'] as List)
+                  .where((d) => d['itmLineNo'] == (i + 1))
+                  .firstOrNull;
+
+          if (discountDetail != null &&
+              (discountDetail['discountValue'] ?? 0) > 0) {
+            final discValue = (discountDetail['discountValue'] ?? 0).toDouble();
+            final discType = discountDetail['discountType'] ?? '';
+
+            if (discType == 'Percentage') {
+              discountType = 'Percentage';
+              discountPercentage = discValue;
+              discountAmount =
+                  ((item['basicPriceSUOM'] ?? 0).toDouble() *
+                      (item['qtySUOM'] ?? 0).toDouble()) *
+                  (discValue / 100);
+            } else {
+              discountType = 'Value';
+              discountAmount = discValue;
+              final basicAmount =
+                  (item['basicPriceSUOM'] ?? 0).toDouble() *
+                  (item['qtySUOM'] ?? 0).toDouble();
+              discountPercentage =
+                  basicAmount > 0 ? (discValue / basicAmount) * 100 : 0;
+            }
+          }
+        }
+
+        // Process rate structure details
+        List<Map<String, dynamic>>? rateStructureRows;
+        if (json['rateStructureDetails'] != null) {
+          rateStructureRows =
+              (json['rateStructureDetails'] as List)
+                  .where((r) => r['itmModelRefNo'] == (i + 1))
+                  .map((r) => Map<String, dynamic>.from(r))
+                  .toList();
+        }
+
+        // Calculate tax amount
+        double taxAmount = 0.0;
+        if (rateStructureRows != null) {
+          for (final rsDetail in rateStructureRows) {
+            taxAmount += (rsDetail['rateAmount'] ?? 0).toDouble();
+          }
+        }
+
+        items.add(
+          QuotationItem(
+            itemName: item['salesItemDesc'] ?? '',
+            itemCode: item['salesItemCode'] ?? '',
+            qty: (item['qtySUOM'] ?? 0).toDouble(),
+            basicRate: (item['basicPriceSUOM'] ?? 0).toDouble(),
+            uom: item['uom'] ?? 'NOS',
+            discountType: discountType,
+            discountPercentage: discountPercentage,
+            discountAmount: discountAmount,
+            rateStructure: item['rateStructureCode'] ?? '',
+            taxAmount: taxAmount,
+            totalAmount:
+                (item['itemAmountAfterDisc'] ?? 0).toDouble() + taxAmount,
+            rateStructureRows: rateStructureRows,
+            lineNo: i + 1,
+            hsnCode: item['hsnCode'] ?? '',
+            isFromInquiry: false,
+          ),
+        );
+      }
+    }
+
+    return QuotationEditData(
+      quotationNumber: json['quotationNumber']?.toString() ?? '',
+      quotationId: json['quotationId'] ?? 0,
+      customerCode: json['customerCode'] ?? '',
+      customerName: json['customerName'] ?? '',
+      billToCustomerCode: json['billToCustomerCode'] ?? '',
+      billToCustomerName: json['billToCustomerName'] ?? '',
+      salesmanCode: json['salesPersonCode'] ?? '',
+      subject: json['subject'] ?? '',
+      quotationDate:
+          DateTime.tryParse(json['quotationDate'] ?? '') ?? DateTime.now(),
+      quotationBase: json['quotationBase'] ?? 'R',
+      inquiryId: json['inquiryId'],
+      inquiryNumber: json['inquiryNumber'] ?? '',
+      items: items,
+      quotationYear: json['quotationYear'] ?? '',
+      quotationGroup: json['quotationGroup'] ?? '',
+      quotationSiteId: json['quotationSiteId'] ?? 0,
+    );
+  }
+}

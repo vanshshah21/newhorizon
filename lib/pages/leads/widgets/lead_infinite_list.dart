@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 import 'package:nhapp/utils/paging_extensions.dart';
+import 'package:nhapp/utils/error_handler.dart';
 import '../models/lead_data.dart';
 import '../services/lead_service.dart';
 import 'lead_card.dart';
@@ -42,12 +43,17 @@ class LeadInfiniteListState extends State<LeadInfiniteList>
       getNextPageKey:
           (state) => state.lastPageIsEmpty ? null : state.nextIntPageKey,
       fetchPage: (pageKey) async {
-        final newItems = await widget.service.fetchLeadsList(
-          page: pageKey,
-          pageSize: _pageSize,
-          searchValue: _currentSearchValue,
-        );
-        return newItems;
+        try {
+          final newItems = await widget.service.fetchLeadsList(
+            page: pageKey,
+            pageSize: _pageSize,
+            searchValue: _currentSearchValue,
+          );
+          return newItems;
+        } catch (e) {
+          // Let the PagingController handle the error
+          rethrow;
+        }
       },
     );
   }
@@ -127,11 +133,31 @@ class LeadInfiniteListState extends State<LeadInfiniteList>
                             // service: widget.service,
                           ),
                       noItemsFoundIndicatorBuilder:
-                          (context) =>
-                              const Center(child: Text('No data found.')),
+                          (context) => ErrorHandler.buildNoDataWidget(
+                            message: 'No leads found.',
+                          ),
                       firstPageErrorIndicatorBuilder:
-                          (context) =>
-                              const Center(child: Text('Error loading data.')),
+                          (context) => ErrorHandler.buildErrorWidget(
+                            'Failed to load leads. Please check your connection and try again.',
+                            onRetry: () => _pagingController.refresh(),
+                          ),
+                      newPageErrorIndicatorBuilder:
+                          (context) => Container(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              children: [
+                                const Text(
+                                  'Failed to load more leads',
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                                const SizedBox(height: 8),
+                                ElevatedButton(
+                                  onPressed: () => _pagingController.refresh(),
+                                  child: const Text('Retry'),
+                                ),
+                              ],
+                            ),
+                          ),
                     ),
                   ),
             ),

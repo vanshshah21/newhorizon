@@ -4,6 +4,7 @@ import 'package:nhapp/pages/leads/pages/add_lead_page.dart';
 import 'package:nhapp/pages/leads/pages/lead_pdf_loader_page.dart';
 import 'package:nhapp/pages/leads/services/lead_service.dart';
 import 'package:nhapp/pages/leads/widgets/lead_infinite_list.dart';
+import 'package:nhapp/utils/error_handler.dart';
 
 class LeadListPage extends StatefulWidget {
   const LeadListPage({super.key});
@@ -45,24 +46,22 @@ class _LeadListPageState extends State<LeadListPage> {
           ),
     );
     if (confirm == true) {
-      try {
-        final success = await service.deleteLead(lead);
-        if (success) {
-          // Refresh the list
-          _listKey.currentState?.refresh();
+      final result = await ErrorHandler.handleAsyncOperation<bool>(
+        () => service.deleteLead(lead),
+        context: context,
+        errorMessage: 'Failed to delete lead',
+        fallbackValue: false,
+      );
+      
+      if (result == true) {
+        // Refresh the list
+        _listKey.currentState?.refresh();
+        if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Lead deleted successfully!')),
           );
-          return true;
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to delete lead')),
-          );
         }
-      } catch (e) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: $e')));
+        return true;
       }
     }
     return false;

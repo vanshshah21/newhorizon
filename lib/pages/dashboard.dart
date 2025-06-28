@@ -1273,18 +1273,18 @@ class FunctionalTabView extends StatelessWidget {
                 count: getValue('overdueReceiveGoodsCount'),
                 onTap: () => Navigator.pushNamed(context, '/delivery_overdue'),
               );
-            case 3:
-              return _FunctionalCard(
-                title: 'Unauthorized PO Count',
-                value: getValue('unauthorisedPoCount'),
-                subtitle: null,
-                count: null,
-                onTap:
-                    () => Navigator.pushNamed(
-                      context,
-                      '/authorize_purchase_orders',
-                    ),
-              );
+            // case 3:
+            //   return _FunctionalCard(
+            //     title: 'Unauthorized PO Count',
+            //     value: getValue('unauthorisedPoCount'),
+            //     subtitle: null,
+            //     count: null,
+            //     onTap:
+            //         () => Navigator.pushNamed(
+            //           context,
+            //           '/authorize_purchase_orders',
+            //         ),
+            //   );
             case 4:
               return const SizedBox(height: 16);
             case 5:
@@ -1520,11 +1520,9 @@ class DirectoralTabView extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          intl.NumberFormat.currency(
-                            locale: 'en_IN',
-                            symbol: '',
-                            decimalDigits: 2,
-                          ).format(_parseDouble(amt["totalamount"])),
+                          FormatUtils.formatAmount(
+                            _parseDouble(amt["totalamount"]),
+                          ),
                           style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w700,
@@ -1539,22 +1537,22 @@ class DirectoralTabView extends StatelessWidget {
           const SizedBox(height: 24),
           const Divider(),
           const SizedBox(height: 24),
-          _DirectorOrderCard(
-            title: 'Orders',
-            amount: orderAmount,
-            count: ordertile.length,
-            onTap:
-                () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder:
-                        (_) => DetailsPage(
-                          title: "Order Overdue Dispatch",
-                          list: ordertile,
-                        ),
-                  ),
-                ),
-          ),
+          // _DirectorOrderCard(
+          //   title: 'Orders',
+          //   amount: orderAmount,
+          //   count: ordertile.length,
+          //   onTap:
+          //       () => Navigator.push(
+          //         context,
+          //         MaterialPageRoute(
+          //           builder:
+          //               (_) => DetailsPage(
+          //                 title: "Order Overdue Dispatch",
+          //                 list: ordertile,
+          //               ),
+          //         ),
+          //       ),
+          // ),
           _DirectorOrderCard(
             title: 'Order Dispatch',
             amount: dispatchAmount,
@@ -1758,11 +1756,7 @@ class _DirectorOrderCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    intl.NumberFormat.currency(
-                      locale: 'en_IN',
-                      symbol: '',
-                      decimalDigits: 2,
-                    ).format(amount),
+                    FormatUtils.formatAmount(amount),
                     style: const TextStyle(
                       fontSize: 30,
                       fontWeight: FontWeight.w700,

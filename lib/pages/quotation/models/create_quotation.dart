@@ -67,7 +67,7 @@ class ModelDetail {
     "DiscountAmt": discountAmt,
     "QtyIUOM": qtyIUOM,
     "QtySUOM": qtySUOM,
-    "ItemLineNo": itemLineNo,
+    "itmLineNo": itemLineNo,
     "BasicPriceIUOM": basicPriceIUOM,
     "BasicPriceSUOM": basicPriceSUOM,
   };

@@ -115,14 +115,12 @@ import '../models/quotation_list_item.dart';
 class QuotationCard extends StatefulWidget {
   final QuotationListItem quotation;
   final VoidCallback onPdfTap;
-  final VoidCallback? onEditTap;
-  final VoidCallback? onDeleteTap;
+  final VoidCallback onEditTap;
 
   const QuotationCard({
     required this.quotation,
     required this.onPdfTap,
-    this.onEditTap,
-    this.onDeleteTap,
+    required this.onEditTap,
     super.key,
   });
 
@@ -200,7 +198,7 @@ class _QuotationCardState extends State<QuotationCard>
           ),
           if (widget.quotation.isEdit)
             SlidableAction(
-              onPressed: (_) => widget.onEditTap!(),
+              onPressed: (_) => widget.onEditTap(),
               backgroundColor: Colors.green.shade600,
               foregroundColor: Colors.white,
               icon: Icons.edit_outlined,

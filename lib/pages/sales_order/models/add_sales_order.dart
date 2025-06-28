@@ -284,29 +284,35 @@ class QuotationListResponse {
   }
 }
 
-// ...existing code...
-
 class QuotationDetails {
-  final List<Map<String, dynamic>> itemDetail;
+  final List<Map<String, dynamic>> modelDetails;
   final List<Map<String, dynamic>>? rateStructDetail;
   final List<Map<String, dynamic>>? discountDetail;
+  final List<Map<String, dynamic>>? quotationDetails;
+  final List<Map<String, dynamic>>? rateStructureDetails;
 
   QuotationDetails({
-    required this.itemDetail,
+    required this.modelDetails,
     this.rateStructDetail,
     this.discountDetail,
+    this.quotationDetails,
+    this.rateStructureDetails,
   });
 
   factory QuotationDetails.fromJson(Map<String, dynamic> json) {
     return QuotationDetails(
-      itemDetail: List<Map<String, dynamic>>.from(json['itemDetail'] ?? []),
-      rateStructDetail:
-          json['rateStructDetail'] != null
-              ? List<Map<String, dynamic>>.from(json['rateStructDetail'])
-              : null,
+      modelDetails: List<Map<String, dynamic>>.from(json['modelDetails'] ?? []),
       discountDetail:
           json['discountDetail'] != null
               ? List<Map<String, dynamic>>.from(json['discountDetail'])
+              : null,
+      quotationDetails:
+          json['quotationDetails'] != null
+              ? List<Map<String, dynamic>>.from(json['quotationDetails'])
+              : null,
+      rateStructureDetails:
+          json['rateStructureDetails'] != null
+              ? List<Map<String, dynamic>>.from(json['rateStructureDetails'])
               : null,
     );
   }
@@ -442,8 +448,8 @@ class SalesOrderItem {
       return {
         "customerItemCode": itemCode,
         "rateCode": item['rateCode'] ?? item['msprtcd'],
-        "incOrExc": item['incExc'] ?? item['mspincexc'],
-        "perOrVal": item['perValueCode'] ?? item['mspperval'],
+        "incOrExc": item['incOrExc'] ?? item['mspincexc'],
+        "perOrVal": item['perOrVal'] ?? item['mspperval'],
         "taxValue":
             item['taxValue']?.toString() ??
             item['msprtval']?.toString() ??

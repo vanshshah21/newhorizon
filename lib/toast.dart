@@ -1,80 +1,62 @@
 import 'package:flutter/material.dart';
 
-void main() {
-  runApp(const MyApp());
-}
+/// Global navigator key to access context from anywhere
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+/// Show a toast message using overlay
+void showToast(String message, {Duration duration = const Duration(seconds: 2)}) {
+  final context = navigatorKey.currentContext;
+  if (context == null) return;
 
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Minimal Toast Example',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
-      home: const MyHomePage(),
-    );
-  }
-}
+  final overlay = Overlay.of(context);
+  OverlayEntry? overlayEntry;
 
-class MyHomePage extends StatelessWidget {
-  const MyHomePage({super.key});
-
-  void showMinimalToast(BuildContext context, String message) {
-    final overlay = Overlay.of(context);
-    OverlayEntry? overlayEntry;
-
-    overlayEntry = OverlayEntry(
-      builder:
-          (context) => Positioned(
-            bottom: 50.0,
-            left: 20.0,
-            right: 20.0,
-            child: Material(
-              color: Colors.transparent,
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 12,
-                    horizontal: 24,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withAlpha((0.7 * 255).toInt()),
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  child: Text(
-                    message,
-                    style: const TextStyle(color: Colors.white, fontSize: 16),
-                  ),
-                ),
-              ),
+  overlayEntry = OverlayEntry(
+    builder: (context) => Positioned(
+      bottom: 50.0,
+      left: 20.0,
+      right: 20.0,
+      child: Material(
+        color: Colors.transparent,
+        child: Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              vertical: 12,
+              horizontal: 24,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.black.withAlpha((0.8 * 255).toInt()),
+              borderRadius: BorderRadius.circular(25),
+            ),
+            child: Text(
+              message,
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+              textAlign: TextAlign.center,
             ),
           ),
-    );
-
-    overlay.insert(overlayEntry);
-
-    Future.delayed(const Duration(seconds: 2)).then((_) {
-      overlayEntry?.remove();
-      overlayEntry = null;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Minimal Toast Example')),
-      body: Center(
-        child: ElevatedButton(
-          onPressed: () {
-            showMinimalToast(context, 'This is a minimal toast!');
-          },
-          child: const Text('Show Toast'),
         ),
       ),
-    );
-  }
+    ),
+  );
+
+  overlay.insert(overlayEntry);
+
+  Future.delayed(duration).then((_) {
+    overlayEntry?.remove();
+    overlayEntry = null;
+  });
+}
+
+/// Show a snackbar message (alternative to toast)
+void showSnackBar(String message, {bool isError = false}) {
+  final context = navigatorKey.currentContext;
+  if (context == null) return;
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(message),
+      backgroundColor: isError ? Colors.red : null,
+      duration: const Duration(seconds: 3),
+    ),
+  );
 }

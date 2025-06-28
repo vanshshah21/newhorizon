@@ -1,44 +1,22 @@
-// import 'package:flutter/material.dart';
-// // import 'package:flutter_pdfview/flutter_pdfview.dart';
-// import 'package:flutter_cached_pdfview/flutter_cached_pdfview.dart';
-
-// class PDFViewerPage extends StatelessWidget {
-//   final String pdfUrl;
-
-//   const PDFViewerPage({required this.pdfUrl, super.key});
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       appBar: AppBar(title: const Text('PO PDF')),
-//       body: PDF().fromUrl(
-//         pdfUrl,
-//         placeholder: (progress) => Center(child: Text('$progress %')),
-//         errorWidget: (error) => Center(child: Text(error.toString())),
-//       ),
-//     );
-//   }
-// }
-
 import 'package:flutter/material.dart';
 import 'package:flutter_cached_pdfview/flutter_cached_pdfview.dart';
-import '../model/po_data.dart';
-import '../services/po_service.dart';
+import '../models/sales_order.dart';
+import '../service/sales_order_service.dart';
 
-class POPdfLoaderPage extends StatefulWidget {
-  final POData po;
-  final bool isRegular;
+class SalesOrderPdfLoaderPage extends StatefulWidget {
+  final SalesOrder salesOrder;
 
-  const POPdfLoaderPage({required this.po, required this.isRegular, super.key});
+  const SalesOrderPdfLoaderPage({required this.salesOrder, super.key});
 
   @override
-  State<POPdfLoaderPage> createState() => _POPdfLoaderPageState();
+  State<SalesOrderPdfLoaderPage> createState() =>
+      _SalesOrderPdfLoaderPageState();
 }
 
-class _POPdfLoaderPageState extends State<POPdfLoaderPage> {
+class _SalesOrderPdfLoaderPageState extends State<SalesOrderPdfLoaderPage> {
   String? pdfUrl;
   String? error;
-  final service = POService();
+  final service = SalesOrderService();
 
   @override
   void initState() {
@@ -52,7 +30,7 @@ class _POPdfLoaderPageState extends State<POPdfLoaderPage> {
       pdfUrl = null;
     });
     try {
-      final url = await service.fetchPOPdfUrl(widget.po, widget.isRegular);
+      final url = await service.fetchSalesOrderPdfUrl(widget.salesOrder);
       if (!mounted) return;
       if (url.isEmpty) {
         setState(() => error = 'PDF not found');
@@ -69,7 +47,7 @@ class _POPdfLoaderPageState extends State<POPdfLoaderPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('PO PDF'),
+        title: const Text('Sales Order PDF'),
         actions: [
           if (pdfUrl != null)
             IconButton(

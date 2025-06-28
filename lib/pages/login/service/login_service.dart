@@ -74,18 +74,11 @@
 
 import 'package:dio/dio.dart';
 import 'package:nhapp/utils/storage_utils.dart';
+import 'package:nhapp/utils/network_utils.dart';
 import '../models/login_response.dart';
 
 class LoginService {
-  final Dio _dio = Dio();
-
-  LoginService() {
-    // Configure Dio defaults
-    _dio.options.connectTimeout = const Duration(seconds: 30);
-    _dio.options.receiveTimeout = const Duration(seconds: 30);
-    _dio.options.headers['Content-Type'] = 'application/json';
-    _dio.options.headers['Accept'] = 'application/json';
-  }
+  final Dio _dio = NetworkUtils.createDioInstance();
 
   Future<LoginResponse> login({
     required String url,
@@ -101,7 +94,7 @@ class LoginService {
     } on DioException catch (e) {
       return LoginResponse(
         success: false,
-        message: 'Network error: ${e.message}',
+        message: NetworkUtils.getErrorMessage(e),
       );
     } catch (e) {
       return LoginResponse(success: false, message: 'Unexpected error: $e');
@@ -112,38 +105,50 @@ class LoginService {
     required String url,
     required String username,
   }) async {
-    final response = await _dio.get(
-      'http://$url/api/Login/GetCompanyAndLocationByUserOnLogin',
-      queryParameters: {'UserName': username},
-    );
-    return response.data['data'] as Map<String, dynamic>;
+    try {
+      final response = await _dio.get(
+        'http://$url/api/Login/GetCompanyAndLocationByUserOnLogin',
+        queryParameters: {'UserName': username},
+      );
+      return response.data['data'] as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw Exception(NetworkUtils.getErrorMessage(e));
+    } catch (e) {
+      throw Exception('Failed to get company and location: $e');
+    }
   }
 
   Future<Map<String, dynamic>> getCompanyCurrentYearDatesData() async {
-    final url = await StorageUtils.readValue("url");
-    final companyDetails = await StorageUtils.readJson("selected_company");
-    if (url == null || companyDetails == null) {
-      throw Exception("URL or company details not found");
+    try {
+      final url = await StorageUtils.readValue("url");
+      final companyDetails = await StorageUtils.readJson("selected_company");
+      if (url == null || companyDetails == null) {
+        throw Exception("URL or company details not found");
+      }
+
+      final tokenDetails = await StorageUtils.readJson("session_token");
+      if (tokenDetails == null) {
+        throw Exception("Session token not found");
+      }
+
+      final companyId = companyDetails['id'];
+      final token = tokenDetails['token']['value'];
+
+      final response = await _dio.get(
+        'http://$url/api/Login/GetCompanyCurrentYearDatesData',
+        queryParameters: {'companyid': companyId},
+        options: Options(
+          headers: {
+            'Authorization': 'Bearer $token',
+            'CompanyId': companyId.toString(),
+          },
+        ),
+      );
+      return response.data['data'] as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw Exception(NetworkUtils.getErrorMessage(e));
+    } catch (e) {
+      throw Exception('Failed to get company year data: $e');
     }
-
-    final tokenDetails = await StorageUtils.readJson("session_token");
-    if (tokenDetails == null) {
-      throw Exception("Session token not found");
-    }
-
-    final companyId = companyDetails['id'];
-    final token = tokenDetails['token'];
-
-    final response = await _dio.get(
-      'http://$url/api/Login/GetCompanyCurrentYearDatesData',
-      queryParameters: {'companyid': companyId},
-      options: Options(
-        headers: {
-          'Authorization': 'Bearer $token',
-          'CompanyId': companyId.toString(),
-        },
-      ),
-    );
-    return response.data['data'] as Map<String, dynamic>;
   }
 }

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:nhapp/pages/quotation/helper/quotation_helper.dart';
-import 'package:nhapp/pages/quotation/models/add_quotation.dart';
-import 'package:nhapp/pages/quotation/service/add_quotation.dart';
+import 'package:nhapp/pages/Quotation2/models/add_quotation.dart';
+import 'package:nhapp/pages/Quotation2/services/quotation_service.dart';
 
 class AddQuotationItemPage extends StatefulWidget {
   final Map<String, dynamic>? initialItem;

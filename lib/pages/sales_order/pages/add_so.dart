@@ -247,6 +247,8 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
     }
   }
 
+  // ...existing code...
+
   Future<void> _onQuotationNumberSelected(
     QuotationNumber quotationNumber,
   ) async {
@@ -276,7 +278,7 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
                   (item) => {
                     "SalesItemCode": item.salesItemCode,
                     "QuotationId": item.quotationId,
-                    "itemLineNo": item.itemLineNo,
+                    "itmLineNo": item.itemLineNo,
                   },
                 )
                 .toList(),
@@ -288,7 +290,7 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
 
       // Convert quotation items to sales order items
       int lineNo = 1;
-      for (final detail in quotationDetails.itemDetail) {
+      for (final detail in quotationDetails.modelDetails) {
         // Calculate discount details
         String discountType = "None";
         double? discountPercentage;
@@ -345,9 +347,9 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
 
         // Get rate structure rows for this item
         List<Map<String, dynamic>> rateStructureRows = [];
-        if (quotationDetails.rateStructDetail != null) {
+        if (quotationDetails.rateStructureDetails != null) {
           rateStructureRows =
-              quotationDetails.rateStructDetail!
+              quotationDetails.rateStructureDetails!
                   .where(
                     (rs) => rs['customerItemCode'] == detail['salesItemCode'],
                   )
@@ -381,6 +383,212 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
     } finally {
       setState(() => _loadingQuotationDetails = false);
     }
+  }
+
+  Map<String, dynamic> _buildSubmissionPayload() {
+    final userId = _service.tokenDetails['user']['id'] ?? 0;
+    final locationId = _service.locationDetails['id'] ?? 0;
+    final locationCode = _service.locationDetails['code'] ?? "";
+    final companyCode = _service.companyDetails['code'] ?? "";
+    final companyId = _service.companyId;
+    final docYear = _financeDetails?['financialYear'] ?? "";
+
+    // Build model details
+    List<Map<String, dynamic>> modelDetails = [];
+    List<Map<String, dynamic>> discountDetails = [];
+    List<Map<String, dynamic>> rateStructureDetails = [];
+
+    for (int i = 0; i < items.length; i++) {
+      final item = items[i];
+      item.lineNo = i + 1;
+
+      final modelDetail = item.toModelDetail();
+      modelDetail['custPONumber'] = customerPONumberController.text;
+
+      // Add quotation reference if applicable
+      if (salesOrderReference == "With Quotation Reference" &&
+          selectedQuotationNumber != null) {
+        // Find the corresponding quotation item detail
+        final quotationItemDetail = quotationItemDetails.firstWhere(
+          (qItem) =>
+              qItem.salesItemCode == item.itemCode &&
+              qItem.quotationId == selectedQuotationNumber!.quotationID,
+          orElse: () => quotationItemDetails.first,
+        );
+
+        modelDetail['quotationId'] = selectedQuotationNumber!.quotationID;
+        modelDetail['quotationLineNo'] = quotationItemDetail.itemLineNo;
+        modelDetail['quotationAmendNo'] = quotationItemDetail.amendSrNo;
+      }
+      modelDetails.add(modelDetail);
+
+      final discountDetail = item.toDiscountDetail();
+      if (discountDetail.isNotEmpty) {
+        discountDetails.add(discountDetail);
+      }
+
+      rateStructureDetails.addAll(item.toRateStructureDetails());
+    }
+
+    final totalBasic = _calculateTotalBasic();
+    final totalDiscount = _calculateTotalDiscount();
+    final totalTax = _calculateTotalTax();
+    final totalAfterDiscount = totalBasic - totalDiscount;
+    final finalAmount = totalAfterDiscount + totalTax;
+
+    return {
+      "authorizationRequired": "Y",
+      "autoNumberRequired": "Y",
+      "siteRequired": "Y",
+      "authorizationDate": FormatUtils.formatDateForApi(
+        selectedDate ?? DateTime.now(),
+      ),
+      "fromLocationId": locationId,
+      "userId": userId,
+      "companyId": companyId,
+      "companyCode": companyCode,
+      "fromLocationCode": locationCode,
+      "fromLocationName": _service.locationDetails['name'] ?? "",
+      "ip": "",
+      "mac": "",
+      "docType": "OB",
+      "docSubType": "OB",
+      "domesticCurrencyCode": "INR",
+      "salesOrderDetails": {
+        "orderId": 0,
+        "customerPONumber": customerPONumberController.text,
+        "customerPODate": FormatUtils.formatDateForApi(selectedCustomerPODate!),
+        // Prefill quotation details from selected quotation
+        "quotationId":
+            salesOrderReference == "With Quotation Reference" &&
+                    selectedQuotationNumber != null
+                ? selectedQuotationNumber!.quotationID
+                : 0,
+        "quotationYear":
+            salesOrderReference == "With Quotation Reference" &&
+                    selectedQuotationNumber != null
+                ? selectedQuotationNumber!.quotationYear
+                : "",
+        "quotationGroup":
+            salesOrderReference == "With Quotation Reference" &&
+                    selectedQuotationNumber != null
+                ? selectedQuotationNumber!.quotationGroup
+                : "",
+        "quotationNumber":
+            salesOrderReference == "With Quotation Reference" &&
+                    selectedQuotationNumber != null
+                ? selectedQuotationNumber!.quotationNumber
+                : "",
+        "OAFGroup": null,
+        "quotationDate":
+            salesOrderReference == "With Quotation Reference" &&
+                    selectedQuotationNumber != null
+                ? FormatUtils.formatDateForApi(
+                  selectedQuotationNumber!.quotationDate,
+                )
+                : null,
+        "customerCode": selectedOrderFrom?.customerCode ?? "",
+        "customerName": selectedOrderFrom?.customerName ?? "",
+        // Prefill salesman from quotation if available
+        "salesManCode":
+            salesOrderReference == "With Quotation Reference" &&
+                    selectedQuotationNumber != null
+                ? selectedQuotationNumber!.salesmanCode
+                : "",
+        "attachFlag": "",
+        "totalAmountAfterDiscountCustomerCurrency": totalAfterDiscount
+            .toStringAsFixed(2),
+        "totalAmountAfterDiscountDomesticCurrency": totalAfterDiscount
+            .toStringAsFixed(2),
+        "totalAmounttAfterTaxDomesticCurrency": finalAmount.toStringAsFixed(2),
+        "totalAmountAfterTaxCustomerCurrency": finalAmount.toStringAsFixed(2),
+        "discountType": "V",
+        "discountAmount": "0.00",
+        "exchangeRate": "1.0000",
+        "orderStatus": "O",
+        "xobCredit": "",
+        "xobcrauth": "",
+        "amendSrNo": 0,
+        "authBy": userId,
+        "authDate": null,
+        "ioYear": docYear,
+        "ioGroup": documentDetail?.groupCode ?? "SO",
+        "ioSiteId": locationId.toString(),
+        "ioSiteCode": locationCode,
+        "ioDate": FormatUtils.formatDateForApi(selectedDate!),
+        "amendYear": "",
+        "amendGroup": "",
+        "amendSiteId": 0,
+        "amendSiteCode": "",
+        "amendNumber": "",
+        "amendDate": null,
+        "amendAuthBy": 0,
+        "amendAuthByDate": null,
+        "custType": "CU",
+        "lcDetail": "F",
+        "bgDetail": "F",
+        "salesOrderType": "REG",
+        "isAgentAssociated":
+            salesOrderReference == "With Quotation Reference" &&
+            selectedQuotationNumber != null &&
+            selectedQuotationNumber!.agentCode.isNotEmpty,
+        "custContactPersonId": "",
+        "salesOrderRefNo": "",
+        "buyerCode": 0,
+        "soDeliveryDate": null,
+        // Prefill currency from quotation if available
+        "currencyCode":
+            salesOrderReference == "With Quotation Reference" &&
+                    selectedQuotationNumber != null
+                ? selectedQuotationNumber!.quotationCurrency
+                : "INR",
+        "bookCode": "",
+        // Prefill agent code from quotation if available
+        "agentCode":
+            salesOrderReference == "With Quotation Reference" &&
+                    selectedQuotationNumber != null
+                ? selectedQuotationNumber!.agentCode
+                : "",
+        "ioNumber": "",
+        "modOfDispatchCode": "",
+        "isFreeSupply": false,
+        "isReturnable": false,
+        "isRoadPermitReceived": false,
+        "customerLOINumber": "",
+        "customerLOIDate": "",
+        "isInterBranchTransfer": false,
+        "customerPOId": 0,
+        // Prefill consultant code from quotation if available
+        "consultantCode":
+            salesOrderReference == "With Quotation Reference" &&
+                    selectedQuotationNumber != null
+                ? selectedQuotationNumber!.consultantCode
+                : "",
+        "billToCode": selectedBillTo?.customerCode ?? "",
+        "billToCreditLimit": 0,
+        "billToAccBalance": 0,
+        "config": "N",
+        "projectName": "",
+      },
+      "modelDetails": modelDetails,
+      "discountDetails": discountDetails,
+      "rateStructureDetails": rateStructureDetails,
+      "deliveryDetails": [],
+      "paymentDetails": [],
+      "termDetails": [],
+      "specificationDetails": [],
+      "optionalItemDetails": [],
+      "textDetails": [],
+      "standardTerms": [],
+      "historyDetails": [],
+      "addOnDetails": [],
+      "subItemDetails": [],
+      "noteDetails": [],
+      "projectLotDetails": [],
+      "equipmentAttributeDetails": [],
+      "technicalspec": [],
+      "msctechspecifications": true,
+    };
   }
 
   Future<void> _showAddItemPage() async {
@@ -443,286 +651,287 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
     });
   }
 
-  Map<String, dynamic> _buildSubmissionPayload() {
-    final userId = _service.tokenDetails['user']['id'] ?? 0;
-    final locationId = _service.locationDetails['id'] ?? 0;
-    final locationCode = _service.locationDetails['code'] ?? "";
-    final companyCode = _service.companyDetails['code'] ?? "";
-    final companyId = _service.companyId;
-    final docYear = _financeDetails?['financialYear'] ?? "";
+  // Map<String, dynamic> _buildSubmissionPayload() {
+  //   final userId = _service.tokenDetails['user']['id'] ?? 0;
+  //   final locationId = _service.locationDetails['id'] ?? 0;
+  //   final locationCode = _service.locationDetails['code'] ?? "";
+  //   final companyCode = _service.companyDetails['code'] ?? "";
+  //   final companyId = _service.companyId;
+  //   final docYear = _financeDetails?['financialYear'] ?? "";
 
-    // Build model details
-    List<Map<String, dynamic>> modelDetails = [];
-    List<Map<String, dynamic>> discountDetails = [];
-    List<Map<String, dynamic>> rateStructureDetails = [];
+  //   // Build model details
+  //   List<Map<String, dynamic>> modelDetails = [];
+  //   List<Map<String, dynamic>> discountDetails = [];
+  //   List<Map<String, dynamic>> rateStructureDetails = [];
 
-    for (int i = 0; i < items.length; i++) {
-      final item = items[i];
-      item.lineNo = i + 1;
+  //   for (int i = 0; i < items.length; i++) {
+  //     final item = items[i];
+  //     item.lineNo = i + 1;
 
-      final modelDetail = item.toModelDetail();
-      modelDetail['custPONumber'] = customerPONumberController.text;
+  //     final modelDetail = item.toModelDetail();
+  //     modelDetail['custPONumber'] = customerPONumberController.text;
 
-      // Add quotation reference if applicable
-      if (salesOrderReference == "With Quotation Reference" &&
-          selectedQuotationNumber != null) {
-        modelDetail['quotationId'] = selectedQuotationNumber!.quotationID;
-        modelDetail['quotationLineNo'] = item.lineNo;
-        modelDetail['quotationAmendNo'] = 0;
-      }
-      modelDetails.add(modelDetail);
+  //     // Add quotation reference if applicable
+  //     if (salesOrderReference == "With Quotation Reference" &&
+  //         selectedQuotationNumber != null) {
+  //       modelDetail['quotationId'] = selectedQuotationNumber!.quotationID;
+  //       modelDetail['quotationLineNo'] = item.lineNo;
+  //       modelDetail['quotationAmendNo'] = 0;
+  //     }
+  //     modelDetails.add(modelDetail);
 
-      final discountDetail = item.toDiscountDetail();
-      if (discountDetail.isNotEmpty) {
-        discountDetails.add(discountDetail);
-      }
+  //     final discountDetail = item.toDiscountDetail();
+  //     if (discountDetail.isNotEmpty) {
+  //       discountDetails.add(discountDetail);
+  //     }
 
-      rateStructureDetails.addAll(item.toRateStructureDetails());
-    }
+  //     rateStructureDetails.addAll(item.toRateStructureDetails());
+  //   }
 
-    final totalBasic = _calculateTotalBasic();
-    final totalDiscount = _calculateTotalDiscount();
-    final totalTax = _calculateTotalTax();
-    final totalAfterDiscount = totalBasic - totalDiscount;
-    final finalAmount = totalAfterDiscount + totalTax;
+  //   final totalBasic = _calculateTotalBasic();
+  //   final totalDiscount = _calculateTotalDiscount();
+  //   final totalTax = _calculateTotalTax();
+  //   final totalAfterDiscount = totalBasic - totalDiscount;
+  //   final finalAmount = totalAfterDiscount + totalTax;
 
-    // return {
-    //   "authorizationRequired": "Y",
-    //   "autoNumberRequired": "Y",
-    //   "siteRequired": "Y",
-    //   "authorizationDate": FormatUtils.formatDateForApi(
-    //     selectedDate ?? DateTime.now(),
-    //   ),
-    //   "fromLocationId": locationId,
-    //   "userId": userId,
-    //   "companyId": companyId,
-    //   "companyCode": companyCode,
-    //   "fromLocationCode": locationCode,
-    //   "fromLocationName": _service.locationDetails['name'] ?? "",
-    //   "ip": "",
-    //   "mac": "",
-    //   "docType": "OB",
-    //   "docSubType": "OB",
-    //   "domesticCurrencyCode": "INR",
-    //   "salesOrderDetails": {
-    //     "orderId": 0,
-    //     "customerPONumber": customerPONumberController.text,
-    //     "customerPODate": FormatUtils.formatDateForApi(selectedCustomerPODate!),
-    //     "quotationId": 0,
-    //     "quotationYear": "",
-    //     "quotationGroup": "",
-    //     "quotationNumber": "",
-    //     "OAFGroup": null,
-    //     "quotationDate": null,
-    //     "customerCode": selectedOrderFrom?.customerCode ?? "",
-    //     "customerName": selectedOrderFrom?.customerName ?? "",
-    //     "salesManCode": "",
-    //     "attachFlag": "",
-    //     "totalAmountAfterDiscountCustomerCurrency": totalAfterDiscount
-    //         .toStringAsFixed(2),
-    //     "totalAmountAfterDiscountDomesticCurrency": totalAfterDiscount
-    //         .toStringAsFixed(2),
-    //     "totalAmounttAfterTaxDomesticCurrency": finalAmount.toStringAsFixed(2),
-    //     "totalAmountAfterTaxCustomerCurrency": finalAmount.toStringAsFixed(2),
-    //     "discountType": "V",
-    //     "discountAmount": "0.00",
-    //     "exchangeRate": "1.0000",
-    //     "orderStatus": "O",
-    //     "xobCredit": "",
-    //     "xobcrauth": "",
-    //     "amendSrNo": 0,
-    //     "authBy": userId,
-    //     "authDate": null,
-    //     "ioYear": docYear,
-    //     "ioGroup": documentDetail?.groupCode ?? "SO",
-    //     "ioSiteId": locationId.toString(),
-    //     "ioSiteCode": locationCode,
-    //     "ioDate": FormatUtils.formatDateForApi(selectedDate!),
-    //     "amendYear": "",
-    //     "amendGroup": "",
-    //     "amendSiteId": 0,
-    //     "amendSiteCode": "",
-    //     "amendNumber": "",
-    //     "amendDate": null,
-    //     "amendAuthBy": 0,
-    //     "amendAuthByDate": null,
-    //     "custType": "CU",
-    //     "lcDetail": "F",
-    //     "bgDetail": "F",
-    //     "salesOrderType": "REG",
-    //     "isAgentAssociated": false,
-    //     "custContactPersonId": "",
-    //     "salesOrderRefNo": "",
-    //     "buyerCode": 0,
-    //     "soDeliveryDate": null,
-    //     "currencyCode": "INR",
-    //     "bookCode": "",
-    //     "agentCode": "",
-    //     "ioNumber": "",
-    //     "modOfDispatchCode": "",
-    //     "isFreeSupply": false,
-    //     "isReturnable": false,
-    //     "isRoadPermitReceived": false,
-    //     "customerLOINumber": "",
-    //     "customerLOIDate": "",
-    //     "isInterBranchTransfer": false,
-    //     "customerPOId": 0,
-    //     "consultantCode": "",
-    //     "billToCode": selectedBillTo?.customerCode ?? "",
-    //     "billToCreditLimit": 0,
-    //     "billToAccBalance": 0,
-    //     "config": "N",
-    //     "projectName": "",
-    //   },
-    //   "modelDetails": modelDetails,
-    //   "discountDetails": discountDetails,
-    //   "rateStructureDetails": rateStructureDetails,
-    //   "deliveryDetails": [],
-    //   "paymentDetails": [],
-    //   "termDetails": [],
-    //   "specificationDetails": [],
-    //   "optionalItemDetails": [],
-    //   "textDetails": [],
-    //   "standardTerms": [],
-    //   "historyDetails": [],
-    //   "addOnDetails": [],
-    //   "subItemDetails": [],
-    //   "noteDetails": [],
-    //   "projectLotDetails": [],
-    //   "equipmentAttributeDetails": [],
-    //   "technicalspec": [],
-    //   "msctechspecifications": true,
-    // };
-    return {
-      "authorizationRequired": "Y",
-      "autoNumberRequired": "Y",
-      "siteRequired": "Y",
-      "authorizationDate": FormatUtils.formatDateForApi(
-        selectedDate ?? DateTime.now(),
-      ),
-      "fromLocationId": locationId,
-      "userId": userId,
-      "companyId": companyId,
-      "companyCode": companyCode,
-      "fromLocationCode": locationCode,
-      "fromLocationName": _service.locationDetails['name'] ?? "",
-      "ip": "",
-      "mac": "",
-      "docType": "OB",
-      "docSubType": "OB",
-      "domesticCurrencyCode": "INR",
-      "salesOrderDetails": {
-        "orderId": 0,
-        "customerPONumber": customerPONumberController.text,
-        "customerPODate": FormatUtils.formatDateForApi(selectedCustomerPODate!),
-        "quotationId":
-            salesOrderReference == "With Quotation Reference" &&
-                    selectedQuotationNumber != null
-                ? selectedQuotationNumber!.quotationID
-                : 0,
-        "quotationYear":
-            salesOrderReference == "With Quotation Reference" &&
-                    selectedQuotationNumber != null
-                ? selectedQuotationNumber!.quotationYear
-                : "",
-        "quotationGroup":
-            salesOrderReference == "With Quotation Reference" &&
-                    selectedQuotationNumber != null
-                ? selectedQuotationNumber!.quotationGroup
-                : "",
-        "quotationNumber":
-            salesOrderReference == "With Quotation Reference" &&
-                    selectedQuotationNumber != null
-                ? selectedQuotationNumber!.quotationNumber
-                : "",
-        "OAFGroup": null,
-        "quotationDate":
-            salesOrderReference == "With Quotation Reference" &&
-                    selectedQuotationNumber != null
-                ? FormatUtils.formatDateForApi(
-                  selectedQuotationNumber!.quotationDate,
-                )
-                : null,
-        "customerCode": selectedOrderFrom?.customerCode ?? "",
-        "customerName": selectedOrderFrom?.customerName ?? "",
-        "salesManCode": "",
-        "attachFlag": "",
-        "totalAmountAfterDiscountCustomerCurrency": totalAfterDiscount
-            .toStringAsFixed(2),
-        "totalAmountAfterDiscountDomesticCurrency": totalAfterDiscount
-            .toStringAsFixed(2),
-        "totalAmounttAfterTaxDomesticCurrency": finalAmount.toStringAsFixed(2),
-        "totalAmountAfterTaxCustomerCurrency": finalAmount.toStringAsFixed(2),
-        "discountType": "V",
-        "discountAmount": "0.00",
-        "exchangeRate": "1.0000",
-        "orderStatus": "O",
-        "xobCredit": "",
-        "xobcrauth": "",
-        "amendSrNo": 0,
-        "authBy": userId,
-        "authDate": null,
-        "ioYear": docYear,
-        "ioGroup": documentDetail?.groupCode ?? "SO",
-        "ioSiteId": locationId.toString(),
-        "ioSiteCode": locationCode,
-        "ioDate": FormatUtils.formatDateForApi(selectedDate!),
-        "amendYear": "",
-        "amendGroup": "",
-        "amendSiteId": 0,
-        "amendSiteCode": "",
-        "amendNumber": "",
-        "amendDate": null,
-        "amendAuthBy": 0,
-        "amendAuthByDate": null,
-        "custType": "CU",
-        "lcDetail": "F",
-        "bgDetail": "F",
-        "salesOrderType": "REG",
-        "isAgentAssociated": false,
-        "custContactPersonId": "",
-        "salesOrderRefNo": "",
-        "buyerCode": 0,
-        "soDeliveryDate": null,
-        "currencyCode": "INR",
-        "bookCode": "",
-        "agentCode": "",
-        "ioNumber": "",
-        "modOfDispatchCode": "",
-        "isFreeSupply": false,
-        "isReturnable": false,
-        "isRoadPermitReceived": false,
-        "customerLOINumber": "",
-        "customerLOIDate": "",
-        "isInterBranchTransfer": false,
-        "customerPOId": 0,
-        "consultantCode": "",
-        "billToCode": selectedBillTo?.customerCode ?? "",
-        "billToCreditLimit": 0,
-        "billToAccBalance": 0,
-        "config": "N",
-        "projectName": "",
-      },
-      "modelDetails": modelDetails,
-      "discountDetails": discountDetails,
-      "rateStructureDetails": rateStructureDetails,
-      "deliveryDetails": [],
-      "paymentDetails": [],
-      "termDetails": [],
-      "specificationDetails": [],
-      "optionalItemDetails": [],
-      "textDetails": [],
-      "standardTerms": [],
-      "historyDetails": [],
-      "addOnDetails": [],
-      "subItemDetails": [],
-      "noteDetails": [],
-      "projectLotDetails": [],
-      "equipmentAttributeDetails": [],
-      "technicalspec": [],
-      "msctechspecifications": true,
-    };
-  }
+  //   // return {
+  //   //   "authorizationRequired": "Y",
+  //   //   "autoNumberRequired": "Y",
+  //   //   "siteRequired": "Y",
+  //   //   "authorizationDate": FormatUtils.formatDateForApi(
+  //   //     selectedDate ?? DateTime.now(),
+  //   //   ),
+  //   //   "fromLocationId": locationId,
+  //   //   "userId": userId,
+  //   //   "companyId": companyId,
+  //   //   "companyCode": companyCode,
+  //   //   "fromLocationCode": locationCode,
+  //   //   "fromLocationName": _service.locationDetails['name'] ?? "",
+  //   //   "ip": "",
+  //   //   "mac": "",
+  //   //   "docType": "OB",
+  //   //   "docSubType": "OB",
+  //   //   "domesticCurrencyCode": "INR",
+  //   //   "salesOrderDetails": {
+  //   //     "orderId": 0,
+  //   //     "customerPONumber": customerPONumberController.text,
+  //   //     "customerPODate": FormatUtils.formatDateForApi(selectedCustomerPODate!),
+  //   //     "quotationId": 0,
+  //   //     "quotationYear": "",
+  //   //     "quotationGroup": "",
+  //   //     "quotationNumber": "",
+  //   //     "OAFGroup": null,
+  //   //     "quotationDate": null,
+  //   //     "customerCode": selectedOrderFrom?.customerCode ?? "",
+  //   //     "customerName": selectedOrderFrom?.customerName ?? "",
+  //   //     "salesManCode": "",
+  //   //     "attachFlag": "",
+  //   //     "totalAmountAfterDiscountCustomerCurrency": totalAfterDiscount
+  //   //         .toStringAsFixed(2),
+  //   //     "totalAmountAfterDiscountDomesticCurrency": totalAfterDiscount
+  //   //         .toStringAsFixed(2),
+  //   //     "totalAmounttAfterTaxDomesticCurrency": finalAmount.toStringAsFixed(2),
+  //   //     "totalAmountAfterTaxCustomerCurrency": finalAmount.toStringAsFixed(2),
+  //   //     "discountType": "V",
+  //   //     "discountAmount": "0.00",
+  //   //     "exchangeRate": "1.0000",
+  //   //     "orderStatus": "O",
+  //   //     "xobCredit": "",
+  //   //     "xobcrauth": "",
+  //   //     "amendSrNo": 0,
+  //   //     "authBy": userId,
+  //   //     "authDate": null,
+  //   //     "ioYear": docYear,
+  //   //     "ioGroup": documentDetail?.groupCode ?? "SO",
+  //   //     "ioSiteId": locationId.toString(),
+  //   //     "ioSiteCode": locationCode,
+  //   //     "ioDate": FormatUtils.formatDateForApi(selectedDate!),
+  //   //     "amendYear": "",
+  //   //     "amendGroup": "",
+  //   //     "amendSiteId": 0,
+  //   //     "amendSiteCode": "",
+  //   //     "amendNumber": "",
+  //   //     "amendDate": null,
+  //   //     "amendAuthBy": 0,
+  //   //     "amendAuthByDate": null,
+  //   //     "custType": "CU",
+  //   //     "lcDetail": "F",
+  //   //     "bgDetail": "F",
+  //   //     "salesOrderType": "REG",
+  //   //     "isAgentAssociated": false,
+  //   //     "custContactPersonId": "",
+  //   //     "salesOrderRefNo": "",
+  //   //     "buyerCode": 0,
+  //   //     "soDeliveryDate": null,
+  //   //     "currencyCode": "INR",
+  //   //     "bookCode": "",
+  //   //     "agentCode": "",
+  //   //     "ioNumber": "",
+  //   //     "modOfDispatchCode": "",
+  //   //     "isFreeSupply": false,
+  //   //     "isReturnable": false,
+  //   //     "isRoadPermitReceived": false,
+  //   //     "customerLOINumber": "",
+  //   //     "customerLOIDate": "",
+  //   //     "isInterBranchTransfer": false,
+  //   //     "customerPOId": 0,
+  //   //     "consultantCode": "",
+  //   //     "billToCode": selectedBillTo?.customerCode ?? "",
+  //   //     "billToCreditLimit": 0,
+  //   //     "billToAccBalance": 0,
+  //   //     "config": "N",
+  //   //     "projectName": "",
+  //   //   },
+  //   //   "modelDetails": modelDetails,
+  //   //   "discountDetails": discountDetails,
+  //   //   "rateStructureDetails": rateStructureDetails,
+  //   //   "deliveryDetails": [],
+  //   //   "paymentDetails": [],
+  //   //   "termDetails": [],
+  //   //   "specificationDetails": [],
+  //   //   "optionalItemDetails": [],
+  //   //   "textDetails": [],
+  //   //   "standardTerms": [],
+  //   //   "historyDetails": [],
+  //   //   "addOnDetails": [],
+  //   //   "subItemDetails": [],
+  //   //   "noteDetails": [],
+  //   //   "projectLotDetails": [],
+  //   //   "equipmentAttributeDetails": [],
+  //   //   "technicalspec": [],
+  //   //   "msctechspecifications": true,
+  //   // };
+
+  //   return {
+  //     "authorizationRequired": "Y",
+  //     "autoNumberRequired": "Y",
+  //     "siteRequired": "Y",
+  //     "authorizationDate": FormatUtils.formatDateForApi(
+  //       selectedDate ?? DateTime.now(),
+  //     ),
+  //     "fromLocationId": locationId,
+  //     "userId": userId,
+  //     "companyId": companyId,
+  //     "companyCode": companyCode,
+  //     "fromLocationCode": locationCode,
+  //     "fromLocationName": _service.locationDetails['name'] ?? "",
+  //     "ip": "",
+  //     "mac": "",
+  //     "docType": "OB",
+  //     "docSubType": "OB",
+  //     "domesticCurrencyCode": "INR",
+  //     "salesOrderDetails": {
+  //       "orderId": 0,
+  //       "customerPONumber": customerPONumberController.text,
+  //       "customerPODate": FormatUtils.formatDateForApi(selectedCustomerPODate!),
+  //       "quotationId":
+  //           salesOrderReference == "With Quotation Reference" &&
+  //                   selectedQuotationNumber != null
+  //               ? selectedQuotationNumber!.quotationID
+  //               : 0,
+  //       "quotationYear":
+  //           salesOrderReference == "With Quotation Reference" &&
+  //                   selectedQuotationNumber != null
+  //               ? selectedQuotationNumber!.quotationYear
+  //               : "",
+  //       "quotationGroup":
+  //           salesOrderReference == "With Quotation Reference" &&
+  //                   selectedQuotationNumber != null
+  //               ? selectedQuotationNumber!.quotationGroup
+  //               : "",
+  //       "quotationNumber":
+  //           salesOrderReference == "With Quotation Reference" &&
+  //                   selectedQuotationNumber != null
+  //               ? selectedQuotationNumber!.quotationNumber
+  //               : "",
+  //       "OAFGroup": null,
+  //       "quotationDate":
+  //           salesOrderReference == "With Quotation Reference" &&
+  //                   selectedQuotationNumber != null
+  //               ? FormatUtils.formatDateForApi(
+  //                 selectedQuotationNumber!.quotationDate,
+  //               )
+  //               : null,
+  //       "customerCode": selectedOrderFrom?.customerCode ?? "",
+  //       "customerName": selectedOrderFrom?.customerName ?? "",
+  //       "salesManCode": "",
+  //       "attachFlag": "",
+  //       "totalAmountAfterDiscountCustomerCurrency": totalAfterDiscount
+  //           .toStringAsFixed(2),
+  //       "totalAmountAfterDiscountDomesticCurrency": totalAfterDiscount
+  //           .toStringAsFixed(2),
+  //       "totalAmounttAfterTaxDomesticCurrency": finalAmount.toStringAsFixed(2),
+  //       "totalAmountAfterTaxCustomerCurrency": finalAmount.toStringAsFixed(2),
+  //       "discountType": "V",
+  //       "discountAmount": "0.00",
+  //       "exchangeRate": "1.0000",
+  //       "orderStatus": "O",
+  //       "xobCredit": "",
+  //       "xobcrauth": "",
+  //       "amendSrNo": 0,
+  //       "authBy": userId,
+  //       "authDate": null,
+  //       "ioYear": docYear,
+  //       "ioGroup": documentDetail?.groupCode ?? "SO",
+  //       "ioSiteId": locationId.toString(),
+  //       "ioSiteCode": locationCode,
+  //       "ioDate": FormatUtils.formatDateForApi(selectedDate!),
+  //       "amendYear": "",
+  //       "amendGroup": "",
+  //       "amendSiteId": 0,
+  //       "amendSiteCode": "",
+  //       "amendNumber": "",
+  //       "amendDate": null,
+  //       "amendAuthBy": 0,
+  //       "amendAuthByDate": null,
+  //       "custType": "CU",
+  //       "lcDetail": "F",
+  //       "bgDetail": "F",
+  //       "salesOrderType": "REG",
+  //       "isAgentAssociated": false,
+  //       "custContactPersonId": "",
+  //       "salesOrderRefNo": "",
+  //       "buyerCode": 0,
+  //       "soDeliveryDate": null,
+  //       "currencyCode": "INR",
+  //       "bookCode": "",
+  //       "agentCode": "",
+  //       "ioNumber": "",
+  //       "modOfDispatchCode": "",
+  //       "isFreeSupply": false,
+  //       "isReturnable": false,
+  //       "isRoadPermitReceived": false,
+  //       "customerLOINumber": "",
+  //       "customerLOIDate": "",
+  //       "isInterBranchTransfer": false,
+  //       "customerPOId": 0,
+  //       "consultantCode": "",
+  //       "billToCode": selectedBillTo?.customerCode ?? "",
+  //       "billToCreditLimit": 0,
+  //       "billToAccBalance": 0,
+  //       "config": "N",
+  //       "projectName": "",
+  //     },
+  //     "modelDetails": modelDetails,
+  //     "discountDetails": discountDetails,
+  //     "rateStructureDetails": rateStructureDetails,
+  //     "deliveryDetails": [],
+  //     "paymentDetails": [],
+  //     "termDetails": [],
+  //     "specificationDetails": [],
+  //     "optionalItemDetails": [],
+  //     "textDetails": [],
+  //     "standardTerms": [],
+  //     "historyDetails": [],
+  //     "addOnDetails": [],
+  //     "subItemDetails": [],
+  //     "noteDetails": [],
+  //     "projectLotDetails": [],
+  //     "equipmentAttributeDetails": [],
+  //     "technicalspec": [],
+  //     "msctechspecifications": true,
+  //   };
+  // }
 
   Future<void> _submitSalesOrder() async {
     if (!_formKey.currentState!.validate()) return;

@@ -499,27 +499,27 @@
 //---------------------------------------------------------------------------------------------------------
 
 class Customer {
-  final String customerCode;
-  final String customerName;
-  final String gstNumber;
-  final String telephoneNo;
-  final String customerFullName;
+  final int totalRows;
+  final String custCode;
+  final String custName;
+  final String cityCode;
+  final String cityName;
 
   Customer({
-    required this.customerCode,
-    required this.customerName,
-    required this.gstNumber,
-    required this.telephoneNo,
-    required this.customerFullName,
+    required this.totalRows,
+    required this.custCode,
+    required this.custName,
+    required this.cityCode,
+    required this.cityName,
   });
 
   factory Customer.fromJson(Map<String, dynamic> json) {
     return Customer(
-      customerCode: json['customerCode'] ?? '',
-      customerName: json['customerName'] ?? '',
-      gstNumber: json['gstNumber'] ?? '',
-      telephoneNo: json['telephoneNo'] ?? '',
-      customerFullName: json['customerFullName'] ?? '',
+      totalRows: json['totalRows'] ?? 0,
+      custCode: json['custCode'] ?? '',
+      custName: json['custName'] ?? '',
+      cityCode: json['cityCode'] ?? '',
+      cityName: json['cityName'] ?? '',
     );
   }
 }

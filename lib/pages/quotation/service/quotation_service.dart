@@ -1,34 +1,23 @@
 import 'package:dio/dio.dart';
 import 'package:nhapp/utils/storage_utils.dart';
+import 'package:nhapp/utils/network_utils.dart';
+import 'package:nhapp/services/base_service.dart';
 import '../models/quotation_list_item.dart';
 import '../models/quotation_detail.dart';
 
-class QuotationService {
-  final Dio _dio = Dio();
+class QuotationService extends BaseService {
 
   Future<List<QuotationListItem>> fetchQuotationList({
     required int pageNumber,
     required int pageSize,
     String? searchValue,
   }) async {
-    final url = await StorageUtils.readValue('url');
-    final companyDetails = await StorageUtils.readJson('selected_company');
-    if (companyDetails == null) throw Exception("Company not set");
-
+    final baseUrl = await getBaseUrl();
+    final headers = await getAuthHeaders();
+    
     final locationDetails = await StorageUtils.readJson('selected_location');
     if (locationDetails == null) throw Exception("Location not set");
-
-    final tokenDetails = await StorageUtils.readJson('session_token');
-    if (tokenDetails == null) throw Exception("Session token not found");
-
-    final companyId = companyDetails['id'];
     final locationId = locationDetails['id'];
-    final token = tokenDetails['token']['value'];
-
-    _dio.options.headers['Content-Type'] = 'application/json';
-    _dio.options.headers['Accept'] = 'application/json';
-    _dio.options.headers['companyid'] = companyId.toString();
-    _dio.options.headers['Authorization'] = 'Bearer $token';
 
     final body = {
       "userLocationIds": locationId,
@@ -42,30 +31,24 @@ class QuotationService {
 
     final endpoint = "/api/Quotation/QuotationEntryList";
 
-    final response = await _dio.post('http://$url$endpoint', data: body);
-    if (response.statusCode == 200 && response.data['success'] == true) {
-      final List data = response.data['data'] ?? [];
-      return data.map((e) => QuotationListItem.fromJson(e)).toList();
-    }
-    throw Exception('Failed to fetch quotations');
+    return executeListRequest<QuotationListItem>(
+      () => dio.post(
+        '$baseUrl$endpoint', 
+        data: body,
+        options: Options(headers: headers),
+      ),
+      (item) => QuotationListItem.fromJson(item),
+    );
   }
 
   Future<String> fetchQuotationPdfUrl(QuotationListItem q) async {
-    final url = await StorageUtils.readValue('url');
+    final baseUrl = await getBaseUrl();
+    final headers = await getAuthHeaders();
+    
     final companyDetails = await StorageUtils.readJson('selected_company');
     if (companyDetails == null) throw Exception("Company not set");
-
-    final tokenDetails = await StorageUtils.readJson('session_token');
-    if (tokenDetails == null) throw Exception("Session token not found");
-
+    
     final companyId = companyDetails['id'];
-    final token = tokenDetails['token']['value'];
-
-    _dio.options.headers['Content-Type'] = 'application/json';
-    _dio.options.headers['Accept'] = 'application/json';
-    _dio.options.headers['companyid'] = companyId.toString();
-    _dio.options.headers['Authorization'] = 'Bearer $token';
-
     final endpoint = "/api/Quotation/QuotationGetPrint";
 
     final body = {
@@ -84,48 +67,146 @@ class QuotationService {
       "documentprint": "regular",
     };
 
-    final response = await _dio.post('http://$url$endpoint', data: body);
-    if (response.statusCode == 200 && response.data['success'] == true) {
-      return response.data['data'] ?? '';
-    }
-    throw Exception('Failed to fetch PDF');
+    return executeRequest<String>(
+      () => dio.post(
+        '$baseUrl$endpoint', 
+        data: body,
+        options: Options(headers: headers),
+      ),
+      (data) => data?.toString() ?? '',
+    );
   }
 
   Future<QuotationDetail> fetchQuotationDetail(QuotationListItem q) async {
-    final url = await StorageUtils.readValue('url');
-    final companyDetails = await StorageUtils.readJson('selected_company');
-    if (companyDetails == null) throw Exception("Company not set");
-
+    final baseUrl = await getBaseUrl();
+    final headers = await getAuthHeaders();
+    
     final locationDetails = await StorageUtils.readJson('selected_location');
     if (locationDetails == null) throw Exception("Location not set");
-
-    final tokenDetails = await StorageUtils.readJson('session_token');
-    if (tokenDetails == null) throw Exception("Session token not found");
-
-    final companyId = companyDetails['id'];
     final locationId = locationDetails['id'];
-    final token = tokenDetails['token']['value'];
-
-    _dio.options.headers['Content-Type'] = 'application/json';
-    _dio.options.headers['Accept'] = 'application/json';
-    _dio.options.headers['companyid'] = companyId.toString();
-    _dio.options.headers['Authorization'] = 'Bearer $token';
 
     final endpoint = "/api/Quotation/QuotationGetDetails";
 
-    final response = await _dio.post(
-      'http://$url$endpoint',
-      queryParameters: <String, dynamic>{
-        "QtnYear": q.qtnYear,
-        "QtnGrp": q.qtnGroup,
-        "QtnNumber": q.qtnNumber,
-        "QtnSiteId": q.siteId,
-        "UserLocations": locationId,
-      },
+    return executeRequest<QuotationDetail>(
+      () => dio.post(
+        '$baseUrl$endpoint',
+        queryParameters: <String, dynamic>{
+          "QtnYear": q.qtnYear,
+          "QtnGrp": q.qtnGroup,
+          "QtnNumber": q.qtnNumber,
+          "QtnSiteId": q.siteId,
+          "UserLocations": locationId,
+        },
+        options: Options(headers: headers),
+      ),
+      (data) => QuotationDetail.fromJson(data),
     );
-    if (response.statusCode == 200 && response.data['success'] == true) {
-      return QuotationDetail.fromJson(response.data['data']);
-    }
-    throw Exception('Failed to fetch quotation details');
+  }
+
+  /// Delete a quotation
+  Future<bool> deleteQuotation(QuotationListItem quotation) async {
+    final baseUrl = await getBaseUrl();
+    final headers = await getAuthHeaders();
+    
+    final endpoint = "/api/Quotation/DeleteQuotation";
+
+    return executeBooleanRequest(
+      () => dio.delete(
+        '$baseUrl$endpoint',
+        queryParameters: {
+          "QtnID": quotation.qtnID,
+          "QtnYear": quotation.qtnYear,
+          "QtnGroup": quotation.qtnGroup,
+          "QtnNumber": quotation.qtnNumber,
+        },
+        options: Options(headers: headers),
+      ),
+    );
+  }
+
+  /// Update quotation status (if such functionality exists)
+  Future<bool> updateQuotationStatus(
+    QuotationListItem quotation, 
+    String newStatus,
+  ) async {
+    final baseUrl = await getBaseUrl();
+    final headers = await getAuthHeaders();
+    
+    final endpoint = "/api/Quotation/UpdateStatus";
+
+    final body = {
+      "QtnID": quotation.qtnID,
+      "QtnYear": quotation.qtnYear,
+      "QtnGroup": quotation.qtnGroup,
+      "QtnNumber": quotation.qtnNumber,
+      "NewStatus": newStatus,
+    };
+
+    return executeBooleanRequest(
+      () => dio.put(
+        '$baseUrl$endpoint',
+        data: body,
+        options: Options(headers: headers),
+      ),
+    );
+  }
+
+  /// Search quotations by customer
+  Future<List<QuotationListItem>> searchQuotationsByCustomer({
+    required String customerCode,
+    required int pageNumber,
+    required int pageSize,
+  }) async {
+    final baseUrl = await getBaseUrl();
+    final headers = await getAuthHeaders();
+    
+    final locationDetails = await StorageUtils.readJson('selected_location');
+    if (locationDetails == null) throw Exception("Location not set");
+    final locationId = locationDetails['id'];
+
+    final body = {
+      "userLocationIds": locationId,
+      "pageNumber": pageNumber,
+      "pageSize": pageSize,
+      "sortField": "",
+      "sortDirection": "",
+      "searchValue": customerCode,
+      "searchType": "customer",
+      "restcoresalestrans": "false",
+    };
+
+    final endpoint = "/api/Quotation/SearchByCustomer";
+
+    return executeListRequest<QuotationListItem>(
+      () => dio.post(
+        '$baseUrl$endpoint', 
+        data: body,
+        options: Options(headers: headers),
+      ),
+      (item) => QuotationListItem.fromJson(item),
+    );
+  }
+
+  /// Get quotation statistics
+  Future<Map<String, dynamic>> getQuotationStatistics() async {
+    final baseUrl = await getBaseUrl();
+    final headers = await getAuthHeaders();
+    
+    final locationDetails = await StorageUtils.readJson('selected_location');
+    if (locationDetails == null) throw Exception("Location not set");
+    final locationId = locationDetails['id'];
+
+    final endpoint = "/api/Quotation/GetStatistics";
+
+    return executeRequest<Map<String, dynamic>>(
+      () => dio.get(
+        '$baseUrl$endpoint',
+        queryParameters: {
+          "locationId": locationId,
+        },
+        options: Options(headers: headers),
+      ),
+      (data) => data is Map<String, dynamic> ? data : <String, dynamic>{},
+    );
   }
 }

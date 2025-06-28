@@ -1522,92 +1522,92 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
 
       // Convert quotation items to sales order items
       int lineNo = 1;
-      for (final detail in quotationDetails.itemDetail) {
-        // Calculate discount details
-        String discountType = "None";
-        double? discountPercentage;
-        double? discountAmount;
+      // for (final detail in quotationDetails.itemDetail) {
+      //   // Calculate discount details
+      //   String discountType = "None";
+      //   double? discountPercentage;
+      //   double? discountAmount;
 
-        if (quotationDetails.discountDetail != null &&
-            quotationDetails.discountDetail!.isNotEmpty) {
-          final discountDetail = quotationDetails.discountDetail!.firstWhere(
-            (d) => d['salesItemCode'] == detail['salesItemCode'],
-            orElse: () => {},
-          );
+      //   if (quotationDetails.discountDetail != null &&
+      //       quotationDetails.discountDetail!.isNotEmpty) {
+      //     final discountDetail = quotationDetails.discountDetail!.firstWhere(
+      //       (d) => d['salesItemCode'] == detail['salesItemCode'],
+      //       orElse: () => {},
+      //     );
 
-          if (discountDetail.isNotEmpty &&
-              (discountDetail['discountValue'] ?? 0) > 0) {
-            final discValue = (discountDetail['discountValue'] ?? 0).toDouble();
-            final discType = discountDetail['discountType'] ?? '';
+      //     if (discountDetail.isNotEmpty &&
+      //         (discountDetail['discountValue'] ?? 0) > 0) {
+      //       final discValue = (discountDetail['discountValue'] ?? 0).toDouble();
+      //       final discType = discountDetail['discountType'] ?? '';
 
-            if (discType == 'Percentage') {
-              discountType = 'Percentage';
-              discountPercentage = discValue;
-              discountAmount =
-                  ((detail['basicPriceSUOM'] ?? 0).toDouble() *
-                      (detail['qtySUOM'] ?? 0).toDouble()) *
-                  (discValue / 100);
-            } else {
-              discountType = 'Value';
-              discountAmount = discValue;
-              final basicAmount =
-                  (detail['basicPriceSUOM'] ?? 0).toDouble() *
-                  (detail['qtySUOM'] ?? 0).toDouble();
-              discountPercentage =
-                  basicAmount > 0 ? (discValue / basicAmount) * 100 : 0;
-            }
-          }
-        }
+      //       if (discType == 'Percentage') {
+      //         discountType = 'Percentage';
+      //         discountPercentage = discValue;
+      //         discountAmount =
+      //             ((detail['basicPriceSUOM'] ?? 0).toDouble() *
+      //                 (detail['qtySUOM'] ?? 0).toDouble()) *
+      //             (discValue / 100);
+      //       } else {
+      //         discountType = 'Value';
+      //         discountAmount = discValue;
+      //         final basicAmount =
+      //             (detail['basicPriceSUOM'] ?? 0).toDouble() *
+      //             (detail['qtySUOM'] ?? 0).toDouble();
+      //         discountPercentage =
+      //             basicAmount > 0 ? (discValue / basicAmount) * 100 : 0;
+      //       }
+      //     }
+      //   }
 
-        // Calculate tax amount
-        double taxAmount = 0.0;
-        if (quotationDetails.rateStructDetail != null) {
-          final rateStructDetails = quotationDetails.rateStructDetail!.where(
-            (rs) => rs['customerItemCode'] == detail['salesItemCode'],
-          );
-          for (final rsDetail in rateStructDetails) {
-            taxAmount += (rsDetail['rateAmount'] ?? 0).toDouble();
-          }
-        }
+      //   // Calculate tax amount
+      //   double taxAmount = 0.0;
+      //   if (quotationDetails.rateStructDetail != null) {
+      //     final rateStructDetails = quotationDetails.rateStructDetail!.where(
+      //       (rs) => rs['customerItemCode'] == detail['salesItemCode'],
+      //     );
+      //     for (final rsDetail in rateStructDetails) {
+      //       taxAmount += (rsDetail['rateAmount'] ?? 0).toDouble();
+      //     }
+      //   }
 
-        // Calculate total amount
-        final basicRate = (detail['basicPriceSUOM'] ?? 0).toDouble();
-        final qty = (detail['qtySUOM'] ?? 0).toDouble();
-        final basicAmount = basicRate * qty;
-        final discountedAmount = basicAmount - (discountAmount ?? 0);
-        final totalAmount = discountedAmount + taxAmount;
+      //   // Calculate total amount
+      //   final basicRate = (detail['basicPriceSUOM'] ?? 0).toDouble();
+      //   final qty = (detail['qtySUOM'] ?? 0).toDouble();
+      //   final basicAmount = basicRate * qty;
+      //   final discountedAmount = basicAmount - (discountAmount ?? 0);
+      //   final totalAmount = discountedAmount + taxAmount;
 
-        // Get rate structure rows for this item
-        List<Map<String, dynamic>> rateStructureRows = [];
-        if (quotationDetails.rateStructDetail != null) {
-          rateStructureRows =
-              quotationDetails.rateStructDetail!
-                  .where(
-                    (rs) => rs['customerItemCode'] == detail['salesItemCode'],
-                  )
-                  .toList();
-        }
+      //   // Get rate structure rows for this item
+      //   List<Map<String, dynamic>> rateStructureRows = [];
+      //   if (quotationDetails.rateStructDetail != null) {
+      //     rateStructureRows =
+      //         quotationDetails.rateStructDetail!
+      //             .where(
+      //               (rs) => rs['customerItemCode'] == detail['salesItemCode'],
+      //             )
+      //             .toList();
+      //   }
 
-        items.add(
-          SalesOrderItem(
-            itemName: detail['salesItemDesc'] ?? '',
-            itemCode: detail['salesItemCode'] ?? '',
-            qty: qty,
-            basicRate: basicRate,
-            uom: detail['uom'] ?? 'NOS',
-            discountType: discountType,
-            discountPercentage: discountPercentage,
-            discountAmount: discountAmount,
-            rateStructure: detail['rateStructureCode'] ?? '',
-            taxAmount: taxAmount,
-            totalAmount: totalAmount,
-            rateStructureRows: rateStructureRows,
-            lineNo: lineNo,
-            hsnCode: detail['hsnCode'] ?? '',
-          ),
-        );
-        lineNo++;
-      }
+      //   items.add(
+      //     SalesOrderItem(
+      //       itemName: detail['salesItemDesc'] ?? '',
+      //       itemCode: detail['salesItemCode'] ?? '',
+      //       qty: qty,
+      //       basicRate: basicRate,
+      //       uom: detail['uom'] ?? 'NOS',
+      //       discountType: discountType,
+      //       discountPercentage: discountPercentage,
+      //       discountAmount: discountAmount,
+      //       rateStructure: detail['rateStructureCode'] ?? '',
+      //       taxAmount: taxAmount,
+      //       totalAmount: totalAmount,
+      //       rateStructureRows: rateStructureRows,
+      //       lineNo: lineNo,
+      //       hsnCode: detail['hsnCode'] ?? '',
+      //     ),
+      //   );
+      //   lineNo++;
+      // }
 
       setState(() {});
     } catch (e) {

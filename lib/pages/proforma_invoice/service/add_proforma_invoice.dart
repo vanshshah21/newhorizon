@@ -459,7 +459,7 @@ class ProformaInvoiceService {
     _dio.options.headers['Authorization'] = 'Bearer $token';
 
     fetchQuotationDefaultDocumentDetail("SQ");
-    fetchSalesOrderDefaultDocumentDetail("SO");
+    fetchSalesOrderDefaultDocumentDetail("OB");
   }
 
   Future<void> fetchQuotationDefaultDocumentDetail(String type) async {
@@ -532,7 +532,7 @@ class ProformaInvoiceService {
   }
 
   Future<List<Customer>> fetchCustomerSuggestions(String pattern) async {
-    const endpoint = "/api/Followup/FollowUpGetCustomer";
+    const endpoint = "/api/Proforma/proformaInvoiceCustomerList";
     final body = {
       "pageNumber": 1,
       "pageSize": 10,
@@ -558,7 +558,7 @@ class ProformaInvoiceService {
         "fromLocationId": _locationDetails['id'],
         "locationCode": _locationDetails['id'],
         "year": _financeDetails['financialYear'],
-        "group": "QA",
+        "group": _quotationDocumentDetails['groupCode'],
         "custCode": custCode,
       },
     );
@@ -577,7 +577,7 @@ class ProformaInvoiceService {
         "fromLocationId": _locationDetails['id'],
         "locationCode": _locationDetails['id'],
         "year": _financeDetails['financialYear'],
-        "group": "SO",
+        "group": _salesOrderDocumentDetails['groupCode'],
         "custCode": custCode,
       },
     );
@@ -594,7 +594,7 @@ class ProformaInvoiceService {
       queryParameters: {
         "PILocationId": _locationDetails['id'],
         "year": _financeDetails['financialYear'],
-        "groupCode": "QA",
+        "groupCode": _quotationDocumentDetails['groupCode'],
         "SONumber": quotationNumber,
         "srNo": 0,
       },
@@ -612,7 +612,7 @@ class ProformaInvoiceService {
       queryParameters: {
         "PILocationId": _locationDetails['id'],
         "year": _financeDetails['financialYear'],
-        "groupCode": "SO",
+        "groupCode": _salesOrderDocumentDetails['groupCode'],
         "SONumber": salesOrderNumber,
         "srNo": 1,
       },

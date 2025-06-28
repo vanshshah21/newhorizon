@@ -4,15 +4,18 @@ import 'package:nhapp/pages/quotation/models/quotation_list_item.dart';
 import 'package:nhapp/pages/quotation/service/quotation_service.dart';
 import 'package:nhapp/pages/quotation/widgets/quotation_card.dart';
 import 'package:nhapp/utils/paging_extensions.dart';
+import 'package:nhapp/utils/error_handler.dart';
 
 class QuotationInfiniteList extends StatefulWidget {
   final QuotationService service;
   final void Function(QuotationListItem quotation) onPdfTap;
   final Future<void> Function()? onRefresh;
+  final void Function(QuotationListItem quotation) onEditTap;
 
   const QuotationInfiniteList({
     required this.service,
     required this.onPdfTap,
+    required this.onEditTap,
     this.onRefresh,
     super.key,
   });
@@ -40,12 +43,17 @@ class QuotationInfiniteListState extends State<QuotationInfiniteList>
       getNextPageKey:
           (state) => state.lastPageIsEmpty ? null : state.nextIntPageKey,
       fetchPage: (pageKey) async {
-        final newItems = await widget.service.fetchQuotationList(
-          pageNumber: pageKey,
-          pageSize: _pageSize,
-          searchValue: _currentSearchValue,
-        );
-        return newItems;
+        try {
+          final newItems = await widget.service.fetchQuotationList(
+            pageNumber: pageKey,
+            pageSize: _pageSize,
+            searchValue: _currentSearchValue,
+          );
+          return newItems;
+        } catch (e) {
+          // Let the PagingController handle the error
+          rethrow;
+        }
       },
     );
   }
@@ -103,27 +111,50 @@ class QuotationInfiniteListState extends State<QuotationInfiniteList>
             child: PagingListener<int, QuotationListItem>(
               controller: _pagingController,
               builder:
-                  (context, state, fetchNextPage) =>
-                      PagedListView<int, QuotationListItem>(
-                        state: state,
-                        fetchNextPage: fetchNextPage,
-                        builderDelegate:
-                            PagedChildBuilderDelegate<QuotationListItem>(
-                              itemBuilder:
-                                  (context, quotation, index) => QuotationCard(
-                                    quotation: quotation,
-                                    onPdfTap: () => widget.onPdfTap(quotation),
-                                  ),
-                              noItemsFoundIndicatorBuilder:
-                                  (context) => const Center(
-                                    child: Text('No data found.'),
-                                  ),
-                              firstPageErrorIndicatorBuilder:
-                                  (context) => const Center(
-                                    child: Text('Error loading data.'),
-                                  ),
+                  (
+                    context,
+                    state,
+                    fetchNextPage,
+                  ) => PagedListView<int, QuotationListItem>(
+                    state: state,
+                    fetchNextPage: fetchNextPage,
+                    builderDelegate: PagedChildBuilderDelegate<
+                      QuotationListItem
+                    >(
+                      itemBuilder:
+                          (context, quotation, index) => QuotationCard(
+                            quotation: quotation,
+                            onPdfTap: () => widget.onPdfTap(quotation),
+                            onEditTap: () => widget.onEditTap(quotation),
+                          ),
+                      noItemsFoundIndicatorBuilder:
+                          (context) => ErrorHandler.buildNoDataWidget(
+                            message: 'No quotations found.',
+                          ),
+                      firstPageErrorIndicatorBuilder:
+                          (context) => ErrorHandler.buildErrorWidget(
+                            'Failed to load quotations. Please check your connection and try again.',
+                            onRetry: () => _pagingController.refresh(),
+                          ),
+                      newPageErrorIndicatorBuilder:
+                          (context) => Container(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              children: [
+                                const Text(
+                                  'Failed to load more quotations',
+                                  style: TextStyle(color: Colors.red),
+                                ),
+                                const SizedBox(height: 8),
+                                ElevatedButton(
+                                  onPressed: () => _pagingController.refresh(),
+                                  child: const Text('Retry'),
+                                ),
+                              ],
                             ),
-                      ),
+                          ),
+                    ),
+                  ),
             ),
           ),
         ],

@@ -988,9 +988,9 @@ class _CustomerBySalesAmountPageState extends State<CustomerBySalesAmountPage> {
   // Dropdown options
   final List<Map<String, String>> dropdownOptions = [
     {'label': 'Today', 'value': 'today'},
-    {'label': 'Month', 'value': 'month'},
-    {'label': 'Qtr', 'value': 'qtr'},
-    {'label': 'Ytd', 'value': 'ytd'},
+    {'label': 'This Month', 'value': 'month'},
+    {'label': 'This Quarter', 'value': 'qtr'},
+    {'label': 'YTD', 'value': 'ytd'},
     {'label': 'Custom Dates', 'value': 'custom'},
   ];
 
