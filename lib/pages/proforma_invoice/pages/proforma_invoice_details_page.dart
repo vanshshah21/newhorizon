@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:nhapp/pages/proforma_invoice/models/proforma_details.dart';
 import 'package:nhapp/pages/proforma_invoice/models/proforma_invoice_item.dart';
 import 'package:nhapp/pages/proforma_invoice/service/proforma_invoice_service.dart';
+import 'package:nhapp/pages/proforma_invoice/pages/proforma_invoice_pdf_loader_page.dart';
 import 'package:nhapp/utils/format_utils.dart';
 
 class ProformaInvoiceDetailsPage extends StatefulWidget {
@@ -52,6 +54,55 @@ class _ProformaInvoiceDetailsPageState
     }
   }
 
+  void _viewPdf() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) => ProformaInvoicePdfLoaderPage(
+              invoice: widget.invoice,
+              service: service,
+            ),
+      ),
+    );
+  }
+
+  Future<void> _downloadPdf() async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Preparing PDF for download...')),
+      );
+
+      final pdfUrl = await service.fetchProformaInvoicePdfUrl(widget.invoice);
+
+      if (!mounted) return;
+
+      if (pdfUrl.isEmpty) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('PDF not available')));
+        return;
+      }
+
+      final uri = Uri.parse(pdfUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('PDF download started')));
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Cannot open PDF URL')));
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error downloading PDF: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -65,9 +116,12 @@ class _ProformaInvoiceDetailsPageState
         actions: [
           IconButton(
             icon: const Icon(Icons.picture_as_pdf),
-            onPressed: () {
-              // PDF functionality
-            },
+            onPressed: _viewPdf,
+            tooltip: 'View PDF',
+          ),
+          IconButton(
+            icon: const Icon(Icons.download),
+            onPressed: _downloadPdf,
             tooltip: 'Download PDF',
           ),
         ],

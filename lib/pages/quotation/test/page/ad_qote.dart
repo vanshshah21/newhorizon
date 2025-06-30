@@ -492,6 +492,7 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
         }
 
         _showSuccess(response['message'] ?? "Quotation submitted successfully");
+        // Ensure we return true to trigger refresh
         Navigator.pop(context, true);
       } else {
         _showError(response['errorMessage'] ?? "Failed to submit quotation");

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:nhapp/pages/sales_order/models/sales_order_detail.dart';
+import 'package:nhapp/pages/sales_order/pages/so_pdf_page.dart';
 import 'package:nhapp/utils/format_utils.dart';
 import '../models/sales_order.dart';
 import '../service/sales_order_service.dart';
@@ -60,11 +62,69 @@ class _SalesOrderDetailsPageState extends State<SalesOrderDetailsPage>
     }
   }
 
+  void _viewPdf() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) => SalesOrderPdfLoaderPage(salesOrder: widget.salesOrder),
+      ),
+    );
+  }
+
+  Future<void> _downloadPdf() async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Preparing PDF for download...')),
+      );
+
+      final pdfUrl = await _service.fetchSalesOrderPdfUrl(widget.salesOrder);
+
+      if (!mounted) return;
+
+      if (pdfUrl.isEmpty) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('PDF not available')));
+        return;
+      }
+
+      final uri = Uri.parse(pdfUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('PDF download started')));
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Cannot open PDF URL')));
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error downloading PDF: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text('SO #${widget.salesOrder.ioNumber}'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf),
+            onPressed: _viewPdf,
+            tooltip: 'View PDF',
+          ),
+          IconButton(
+            icon: const Icon(Icons.download),
+            onPressed: _downloadPdf,
+            tooltip: 'Download PDF',
+          ),
+        ],
         bottom:
             _isLoading || _error != null
                 ? null

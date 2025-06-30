@@ -83,6 +83,8 @@ class QuotationService {
       "documentprint": "regular",
       "strDomCurrency": "INR",
       "companyData": companyDetails,
+      "printtype": "pdf",
+      "reportselection": "withvalue",
     };
 
     _dio.options.headers['Content-Type'] = 'application/json';

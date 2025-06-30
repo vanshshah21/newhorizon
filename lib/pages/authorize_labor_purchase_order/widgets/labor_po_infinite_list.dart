@@ -66,67 +66,71 @@ class _LaborPOInfiniteListState extends State<LaborPOInfiniteList>
   @override
   Widget build(BuildContext context) {
     super.build(context); // for AutomaticKeepAliveClientMixin
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  decoration: const InputDecoration(
-                    labelText: 'Search',
-                    border: OutlineInputBorder(),
+    return RefreshIndicator(
+      onRefresh: () async {
+        _pagingController.refresh();
+      },
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: const InputDecoration(
+                      labelText: 'Search',
+                      border: OutlineInputBorder(),
+                    ),
+                    onSubmitted: (_) => _onSearch(),
+                    onTapOutside: (event) {
+                      FocusScope.of(context).unfocus();
+                    },
                   ),
-                  onSubmitted: (_) => _onSearch(),
-                  onTapOutside: (event) {
-                    FocusScope.of(context).unfocus();
-                  },
                 ),
-              ),
-              const SizedBox(width: 8),
-              IconButton.filled(
-                onPressed: _onSearch,
-                icon: const Icon(Icons.search),
-              ),
-            ],
+                const SizedBox(width: 8),
+                IconButton.filled(
+                  onPressed: _onSearch,
+                  icon: const Icon(Icons.search),
+                ),
+              ],
+            ),
           ),
-        ),
-        Expanded(
-          child: PagingListener<int, LaborPOData>(
-            controller: _pagingController,
-            builder:
-                (
-                  context,
-                  state,
-                  fetchNextPage,
-                ) => PagedListView<int, LaborPOData>(
-                  state: state,
-                  fetchNextPage: fetchNextPage,
-                  builderDelegate: PagedChildBuilderDelegate<LaborPOData>(
-                    itemBuilder:
-                        (context, po, index) => LaborPOCard(
-                          po: po,
-                          onPdfTap: () => widget.onPdfTap(po),
-                          onAuthorizeTap: () async {
-                            final authorized = await widget.onAuthorizeTap(po);
-                            if (authorized) {
-                              _pagingController.refresh();
-                            }
-                          },
+          Expanded(
+            child: PagingListener<int, LaborPOData>(
+              controller: _pagingController,
+              builder:
+                  (context, state, fetchNextPage) =>
+                      PagedListView<int, LaborPOData>(
+                        state: state,
+                        fetchNextPage: fetchNextPage,
+                        builderDelegate: PagedChildBuilderDelegate<LaborPOData>(
+                          itemBuilder:
+                              (context, po, index) => LaborPOCard(
+                                po: po,
+                                onPdfTap: () => widget.onPdfTap(po),
+                                onAuthorizeTap: () async {
+                                  final authorized = await widget
+                                      .onAuthorizeTap(po);
+                                  if (authorized) {
+                                    _pagingController.refresh();
+                                  }
+                                },
+                              ),
+                          noItemsFoundIndicatorBuilder:
+                              (context) =>
+                                  const Center(child: Text('No data found.')),
+                          firstPageErrorIndicatorBuilder:
+                              (context) => const Center(
+                                child: Text('Error loading data.'),
+                              ),
                         ),
-                    noItemsFoundIndicatorBuilder:
-                        (context) =>
-                            const Center(child: Text('No data found.')),
-                    firstPageErrorIndicatorBuilder:
-                        (context) =>
-                            const Center(child: Text('Error loading data.')),
-                  ),
-                ),
+                      ),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 

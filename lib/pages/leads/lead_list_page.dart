@@ -52,7 +52,7 @@ class _LeadListPageState extends State<LeadListPage> {
         errorMessage: 'Failed to delete lead',
         fallbackValue: false,
       );
-      
+
       if (result == true) {
         // Refresh the list
         _listKey.currentState?.refresh();

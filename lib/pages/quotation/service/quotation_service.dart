@@ -6,7 +6,6 @@ import '../models/quotation_list_item.dart';
 import '../models/quotation_detail.dart';
 
 class QuotationService extends BaseService {
-
   Future<List<QuotationListItem>> fetchQuotationList({
     required int pageNumber,
     required int pageSize,
@@ -14,7 +13,7 @@ class QuotationService extends BaseService {
   }) async {
     final baseUrl = await getBaseUrl();
     final headers = await getAuthHeaders();
-    
+
     final locationDetails = await StorageUtils.readJson('selected_location');
     if (locationDetails == null) throw Exception("Location not set");
     final locationId = locationDetails['id'];
@@ -33,7 +32,7 @@ class QuotationService extends BaseService {
 
     return executeListRequest<QuotationListItem>(
       () => dio.post(
-        '$baseUrl$endpoint', 
+        '$baseUrl$endpoint',
         data: body,
         options: Options(headers: headers),
       ),
@@ -44,10 +43,10 @@ class QuotationService extends BaseService {
   Future<String> fetchQuotationPdfUrl(QuotationListItem q) async {
     final baseUrl = await getBaseUrl();
     final headers = await getAuthHeaders();
-    
+
     final companyDetails = await StorageUtils.readJson('selected_company');
     if (companyDetails == null) throw Exception("Company not set");
-    
+
     final companyId = companyDetails['id'];
     final endpoint = "/api/Quotation/QuotationGetPrint";
 
@@ -65,22 +64,37 @@ class QuotationService extends BaseService {
       "strDomCurrency": "INR",
       "companyData": companyDetails,
       "documentprint": "regular",
+      "printtype": "pdf",
+      "reportselection": "withvalue",
     };
 
     return executeRequest<String>(
       () => dio.post(
-        '$baseUrl$endpoint', 
+        '$baseUrl$endpoint',
         data: body,
         options: Options(headers: headers),
       ),
-      (data) => data?.toString() ?? '',
+      (data) {
+        if (data is Map<String, dynamic>) {
+          if (data['success'] == true && data['data'] != null) {
+            return data['data'];
+          } else {
+            throw Exception(
+              data['errorMessage'] ??
+                  data['message'] ??
+                  'Failed to get PDF URL',
+            );
+          }
+        }
+        return data?.toString() ?? '';
+      },
     );
   }
 
   Future<QuotationDetail> fetchQuotationDetail(QuotationListItem q) async {
     final baseUrl = await getBaseUrl();
     final headers = await getAuthHeaders();
-    
+
     final locationDetails = await StorageUtils.readJson('selected_location');
     if (locationDetails == null) throw Exception("Location not set");
     final locationId = locationDetails['id'];
@@ -107,7 +121,7 @@ class QuotationService extends BaseService {
   Future<bool> deleteQuotation(QuotationListItem quotation) async {
     final baseUrl = await getBaseUrl();
     final headers = await getAuthHeaders();
-    
+
     final endpoint = "/api/Quotation/DeleteQuotation";
 
     return executeBooleanRequest(
@@ -126,12 +140,12 @@ class QuotationService extends BaseService {
 
   /// Update quotation status (if such functionality exists)
   Future<bool> updateQuotationStatus(
-    QuotationListItem quotation, 
+    QuotationListItem quotation,
     String newStatus,
   ) async {
     final baseUrl = await getBaseUrl();
     final headers = await getAuthHeaders();
-    
+
     final endpoint = "/api/Quotation/UpdateStatus";
 
     final body = {
@@ -159,7 +173,7 @@ class QuotationService extends BaseService {
   }) async {
     final baseUrl = await getBaseUrl();
     final headers = await getAuthHeaders();
-    
+
     final locationDetails = await StorageUtils.readJson('selected_location');
     if (locationDetails == null) throw Exception("Location not set");
     final locationId = locationDetails['id'];
@@ -179,7 +193,7 @@ class QuotationService extends BaseService {
 
     return executeListRequest<QuotationListItem>(
       () => dio.post(
-        '$baseUrl$endpoint', 
+        '$baseUrl$endpoint',
         data: body,
         options: Options(headers: headers),
       ),
@@ -191,7 +205,7 @@ class QuotationService extends BaseService {
   Future<Map<String, dynamic>> getQuotationStatistics() async {
     final baseUrl = await getBaseUrl();
     final headers = await getAuthHeaders();
-    
+
     final locationDetails = await StorageUtils.readJson('selected_location');
     if (locationDetails == null) throw Exception("Location not set");
     final locationId = locationDetails['id'];
@@ -201,9 +215,7 @@ class QuotationService extends BaseService {
     return executeRequest<Map<String, dynamic>>(
       () => dio.get(
         '$baseUrl$endpoint',
-        queryParameters: {
-          "locationId": locationId,
-        },
+        queryParameters: {"locationId": locationId},
         options: Options(headers: headers),
       ),
       (data) => data is Map<String, dynamic> ? data : <String, dynamic>{},

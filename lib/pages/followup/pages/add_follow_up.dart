@@ -3008,7 +3008,7 @@ class _AddFollowUpFormState extends State<AddFollowUpForm> {
       ),
       value: selectedNextSalesman,
       items:
-          filteredList
+          salesmanList
               .map(
                 (e) => DropdownMenuItem(
                   value: e,

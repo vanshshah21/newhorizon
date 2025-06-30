@@ -106,8 +106,8 @@ class AuthorizePOService {
       "FormID": "01109",
       "typeSelection": "P",
       "GSTDateTimeTemp": "01/07/2017",
-      "blnpocomparision_fabcon": true,
-      "blnpoitemwisestock_fabcon": true,
+      "blnpocomparision_fabcon": false,
+      "blnpoitemwisestock_fabcon": false,
       "strtctype": "GEN",
       "printtype": "pdf",
     };

@@ -1537,22 +1537,19 @@ class DirectoralTabView extends StatelessWidget {
           const SizedBox(height: 24),
           const Divider(),
           const SizedBox(height: 24),
-          // _DirectorOrderCard(
-          //   title: 'Orders',
-          //   amount: orderAmount,
-          //   count: ordertile.length,
-          //   onTap:
-          //       () => Navigator.push(
-          //         context,
-          //         MaterialPageRoute(
-          //           builder:
-          //               (_) => DetailsPage(
-          //                 title: "Order Overdue Dispatch",
-          //                 list: ordertile,
-          //               ),
-          //         ),
-          //       ),
-          // ),
+          _DirectorOrderCard(
+            title: 'Orders',
+            amount: orderAmount,
+            count: ordertile.length,
+            onTap:
+                () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder:
+                        (_) => DetailsPage(title: "Orders", list: ordertile),
+                  ),
+                ),
+          ),
           _DirectorOrderCard(
             title: 'Order Dispatch',
             amount: dispatchAmount,
@@ -1569,22 +1566,22 @@ class DirectoralTabView extends StatelessWidget {
                   ),
                 ),
           ),
-          _DirectorOrderCard(
-            title: 'Order Overdue Dispatch',
-            amount: overduedispatchAmount,
-            count: overduedispatchtile.length,
-            onTap:
-                () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder:
-                        (_) => DetailsPage(
-                          title: "Order Overdue Dispatch",
-                          list: overduedispatchtile,
-                        ),
-                  ),
-                ),
-          ),
+          // _DirectorOrderCard(
+          //   title: 'Order Overdue Dispatch',
+          //   amount: overduedispatchAmount,
+          //   count: overduedispatchtile.length,
+          //   onTap:
+          //       () => Navigator.push(
+          //         context,
+          //         MaterialPageRoute(
+          //           builder:
+          //               (_) => DetailsPage(
+          //                 title: "Order Overdue Dispatch",
+          //                 list: overduedispatchtile,
+          //               ),
+          //         ),
+          //       ),
+          // ),
           const SizedBox(height: 24),
           const Divider(),
           const SizedBox(height: 8),
@@ -2029,24 +2026,82 @@ class _DetailsPageState extends State<DetailsPage> {
         .join(' ');
   }
 
+  // String formatValue(String key, dynamic value) {
+  //   // Try to format as date using FormatUtils
+  //   if (value is DateTime) {
+  //     return FormatUtils.formatDateForUser(value);
+  //   }
+  //   if (value is String) {
+  //     // Try to parse as date - be more careful with date detection
+  //     if (key.toLowerCase().contains('date') ||
+  //         key.toLowerCase().contains('time') ||
+  //         key.toLowerCase().endsWith('dt') ||
+  //         key.toLowerCase().endsWith('on')) {
+  //       try {
+  //         final dt = DateTime.parse(value);
+  //         if (dt.year > 1900 && dt.year < 2100) {
+  //           return FormatUtils.formatDateForUser(dt);
+  //         }
+  //       } catch (_) {
+  //         // If date parsing fails, return as string
+  //       }
+  //     }
+  //   }
+
+  //   // Format as amount using FormatUtils if key suggests so
+  //   if (key.toLowerCase().contains('amount') ||
+  //       key.toLowerCase().contains('total') ||
+  //       key.toLowerCase().contains('price') ||
+  //       key.toLowerCase().contains('cost') ||
+  //       key.toLowerCase().contains('value')) {
+  //     try {
+  //       return FormatUtils.formatAmount(value);
+  //     } catch (_) {
+  //       // If amount formatting fails, return as string
+  //     }
+  //   }
+
+  //   // Format as quantity using FormatUtils if key suggests so
+  //   if (key.toLowerCase().contains('quantity') ||
+  //       key.toLowerCase().contains('qty') ||
+  //       key.toLowerCase().contains('count')) {
+  //     try {
+  //       return FormatUtils.formatQuantity(value);
+  //     } catch (_) {
+  //       // If quantity formatting fails, return as string
+  //     }
+  //   }
+
+  //   // Default: just show as string
+  //   return value?.toString() ?? "";
+  // }
   String formatValue(String key, dynamic value) {
+    // Handle null values first
+    if (value == null) return "";
+
     // Try to format as date using FormatUtils
     if (value is DateTime) {
-      return FormatUtils.formatDateForUser(value);
+      try {
+        return FormatUtils.formatDateForUser(value);
+      } catch (_) {
+        return value.toString();
+      }
     }
+
     if (value is String) {
-      // Try to parse as date - be more careful with date detection
-      if (key.toLowerCase().contains('date') ||
-          key.toLowerCase().contains('time') ||
-          key.toLowerCase().endsWith('dt') ||
-          key.toLowerCase().endsWith('on')) {
+      // Only try to parse as date if the string is not empty
+      if (value.trim().isNotEmpty &&
+          (key.toLowerCase().contains('date') ||
+              key.toLowerCase().contains('time') ||
+              key.toLowerCase().endsWith('dt') ||
+              key.toLowerCase().endsWith('on'))) {
         try {
           final dt = DateTime.parse(value);
           if (dt.year > 1900 && dt.year < 2100) {
             return FormatUtils.formatDateForUser(dt);
           }
         } catch (_) {
-          // If date parsing fails, return as string
+          // If date parsing fails, continue to return as string
         }
       }
     }
@@ -2058,7 +2113,17 @@ class _DetailsPageState extends State<DetailsPage> {
         key.toLowerCase().contains('cost') ||
         key.toLowerCase().contains('value')) {
       try {
-        return FormatUtils.formatAmount(value);
+        // Handle different numeric types
+        if (value is num) {
+          return FormatUtils.formatAmount(value);
+        }
+        if (value is String && value.trim().isNotEmpty) {
+          // Try to parse string as number
+          final numValue = num.tryParse(value.replaceAll(',', '').trim());
+          if (numValue != null) {
+            return FormatUtils.formatAmount(numValue);
+          }
+        }
       } catch (_) {
         // If amount formatting fails, return as string
       }
@@ -2069,14 +2134,24 @@ class _DetailsPageState extends State<DetailsPage> {
         key.toLowerCase().contains('qty') ||
         key.toLowerCase().contains('count')) {
       try {
-        return FormatUtils.formatQuantity(value);
+        // Handle different numeric types
+        if (value is num) {
+          return FormatUtils.formatQuantity(value);
+        }
+        if (value is String && value.trim().isNotEmpty) {
+          // Try to parse string as number
+          final numValue = num.tryParse(value.replaceAll(',', '').trim());
+          if (numValue != null) {
+            return FormatUtils.formatQuantity(numValue);
+          }
+        }
       } catch (_) {
         // If quantity formatting fails, return as string
       }
     }
 
-    // Default: just show as string
-    return value?.toString() ?? "";
+    // Default: just show as string, ensuring it's never null
+    return value.toString();
   }
 
   @override

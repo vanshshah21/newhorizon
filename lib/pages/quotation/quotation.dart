@@ -162,8 +162,11 @@ class QuotationListPage extends StatelessWidget {
         MaterialPageRoute(builder: (_) => const AddQuotationPage()),
       );
       if (result == true) {
-        // Call refresh on the list
+        // Force refresh on the list by calling refresh method
         _listKey.currentState?.refresh();
+
+        // Add a small delay to ensure the refresh is processed
+        await Future.delayed(const Duration(milliseconds: 100));
 
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

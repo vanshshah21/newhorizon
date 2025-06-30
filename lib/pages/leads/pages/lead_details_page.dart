@@ -519,6 +519,7 @@ import 'package:flutter_svg/svg.dart';
 import 'package:nhapp/pages/leads/pages/lead_pdf_loader_page.dart';
 import 'package:nhapp/pages/quotation/pages/add_quotation_page.dart';
 import 'package:nhapp/utils/format_utils.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/lead_data.dart';
 import '../models/lead_detail_data.dart';
 import '../services/lead_service.dart';
@@ -542,6 +543,11 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
   }
 
   Future<void> _fetchDetail() async {
+    setState(() {
+      data = null;
+      error = null;
+    });
+
     LeadService service = LeadService();
     try {
       final detail = await service.fetchLeadDetails(
@@ -561,6 +567,51 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
     }
   }
 
+  void _viewPdf() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => LeadPdfLoaderPage(lead: widget.lead),
+      ),
+    );
+  }
+
+  Future<void> _downloadPdf() async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Preparing PDF for download...')),
+      );
+
+      final service = LeadService();
+      final pdfUrl = await service.fetchLeadPdfUrl(widget.lead);
+
+      if (!mounted) return;
+
+      if (pdfUrl.isEmpty) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('PDF not available')));
+        return;
+      }
+
+      final uri = Uri.parse(pdfUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('PDF download started')));
+      } else {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Cannot open PDF URL')));
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error downloading PDF: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -571,7 +622,16 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
     if (error != null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Inquiry Details')),
-        body: Center(child: Text(error!)),
+        body: RefreshIndicator(
+          onRefresh: _fetchDetail,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Container(
+              height: MediaQuery.of(context).size.height * 0.8,
+              child: Center(child: Text(error!)),
+            ),
+          ),
+        ),
       );
     }
     if (data == null) {
@@ -583,369 +643,272 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(title: const Text('View Lead')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-        child: Center(
-          child: Column(
-            children: [
-              Card(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  side: BorderSide(color: borderColor, width: 2),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(2.0),
-                  child: Column(
+      appBar: AppBar(
+        title: const Text('View Lead'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf),
+            onPressed: _viewPdf,
+            tooltip: 'View PDF',
+          ),
+          IconButton(
+            icon: const Icon(Icons.download),
+            onPressed: _downloadPdf,
+            tooltip: 'Download PDF',
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: _fetchDetail,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          child: Center(
+            child: Column(
+              children: [
+                // Card(
+                //   shape: RoundedRectangleBorder(
+                //     borderRadius: BorderRadius.circular(24),
+                //     side: BorderSide(color: borderColor, width: 2),
+                //   ),
+                //   child: Padding(
+                //     padding: const EdgeInsets.all(2.0),
+                //     child: Column(
+                //       children: [
+                //         Row(
+                //           mainAxisAlignment: MainAxisAlignment.start,
+                //           mainAxisSize: MainAxisSize.min,
+                //           children: [
+                //             IconButton.filledTonal(
+                //               onPressed: _downloadPdf,
+                //               icon: SvgPicture.asset(
+                //                 'assets/icons/download.svg',
+                //                 height: 20,
+                //                 width: 20,
+                //               ),
+                //             ),
+                //             const SizedBox(width: 6),
+                //             IconButton.filledTonal(
+                //               onPressed: _viewPdf,
+                //               icon: SvgPicture.asset(
+                //                 'assets/icons/pdf.svg',
+                //                 height: 20,
+                //                 width: 20,
+                //               ),
+                //             ),
+                //             const SizedBox(width: 6),
+                //             IconButton.filledTonal(
+                //               onPressed: () {},
+                //               icon: SvgPicture.asset(
+                //                 'assets/icons/file.svg',
+                //                 height: 20,
+                //                 width: 20,
+                //               ),
+                //             ),
+                //             const SizedBox(width: 6),
+                //             IconButton.filledTonal(
+                //               onPressed: () {},
+                //               icon: SvgPicture.asset(
+                //                 'assets/icons/location.svg',
+                //                 height: 20,
+                //                 width: 20,
+                //               ),
+                //             ),
+                //           ],
+                //         ),
+                //       ],
+                //     ),
+                //   ),
+                // ),
+                Card(
+                  child: Row(
                     children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Create Quotation Button
-                          ElevatedButton.icon(
-                            onPressed: () async {
-                              final result = await Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (context) => AddQuotationPage(
+                      ElevatedButton.icon(
+                        onPressed: () async {
+                          final result = await Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder:
+                                  (context) => AddQuotationPage(
                                     leadData: widget.lead,
                                     leadDetailData: data,
                                   ),
+                            ),
+                          );
+                          if (result == true) {
+                            // Quotation created successfully
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Quotation created successfully!',
                                 ),
-                              );
-                              if (result == true) {
-                                // Quotation created successfully
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Quotation created successfully!'),
-                                  ),
-                                );
-                              }
-                            },
-                            icon: const Icon(Icons.add_business, size: 18),
-                            label: const Text('Create Quotation'),
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            ),
+                              ),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.add_business, size: 18),
+                        label: const Text('Create Quotation'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
                           ),
-                          const SizedBox(width: 8),
-                          IconButton.filledTonal(
-                            onPressed: () {},
-                            icon: SvgPicture.asset(
-                              'assets/icons/download.svg', // Path to your SVG
-                              height: 20, // Optional: Set size
-                              width:
-                                  20, // Optional: Recolor (for single-color SVGs) // Optional: Control scaling
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          IconButton.filledTonal(
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder:
-                                      (context) =>
-                                          LeadPdfLoaderPage(lead: widget.lead),
-                                ),
-                              );
-                            },
-                            icon: SvgPicture.asset(
-                              'assets/icons/pdf.svg', // Path to your SVG
-                              height: 20, // Optional: Set size
-                              width: 20, // Optional: Control scaling
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          IconButton.filledTonal(
-                            onPressed: () {},
-                            icon: SvgPicture.asset(
-                              'assets/icons/file.svg', // Path to your SVG
-                              height: 20, // Optional: Set size
-                              width: 20, // Optional: Control scaling
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          IconButton.filledTonal(
-                            onPressed: () {},
-                            icon: SvgPicture.asset(
-                              'assets/icons/location.svg', // Path to your SVG
-                              height: 20, // Optional: Set size
-                              width: 20, // Optional: Control scaling
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ],
                   ),
                 ),
-              ),
-              Card(
-                color: cardColor,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  side: BorderSide(color: borderColor, width: 2),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // CardHeader
-                    Container(
-                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-                      decoration: BoxDecoration(
-                        border: Border(
-                          bottom: BorderSide(color: borderColor, width: 1),
+                Card(
+                  color: cardColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    side: BorderSide(color: borderColor, width: 2),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // CardHeader
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            bottom: BorderSide(color: borderColor, width: 1),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Lead No. ${data!.inquiryNumber}",
+                              style: theme.textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 24,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              "Customer: ${data!.customerCode} - ${data!.customerName}",
+                              style: theme.textTheme.bodySmall,
+                            ),
+                          ],
                         ),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Lead No. ${data!.inquiryNumber}",
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 24,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            "Customer: ${data!.customerCode} - ${data!.customerName}",
-                            style: theme.textTheme.bodySmall,
-                          ),
-                        ],
-                      ),
-                    ),
 
-                    // Customer Information Section
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      "Customer Code",
-                                      style: theme.textTheme.labelSmall,
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text.rich(
-                                      TextSpan(
-                                        text: data!.customerCode,
-                                        style: theme.textTheme.bodyMedium
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      "Customer Name",
-                                      style: theme.textTheme.labelSmall,
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text.rich(
-                                      TextSpan(
-                                        text: data!.customerName,
-                                        style: theme.textTheme.bodyMedium
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Sales Team Section
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                      // Customer Information Section
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
                               children: [
-                                Text(
-                                  "Salesman",
-                                  style: theme.textTheme.labelSmall,
-                                ),
-                                const SizedBox(height: 4),
-                                Text.rich(
-                                  TextSpan(
-                                    text:
-                                        "${data!.salesmanCode} - ${data!.salesmanName}",
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "Region",
-                                  style: theme.textTheme.labelSmall,
-                                ),
-                                const SizedBox(height: 4),
-                                Text.rich(
-                                  TextSpan(
-                                    text:
-                                        "${data!.salesRegionCode} - ${data!.salesRegionCodeDesc}",
-                                    style: theme.textTheme.bodyMedium?.copyWith(
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Inquiry Summary Section
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      "Lead Date",
-                                      style: theme.textTheme.labelSmall,
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text.rich(
-                                      TextSpan(
-                                        text: FormatUtils.formatDateForUser(
-                                          DateTime.parse(data!.inquiryDate),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        "Customer Code",
+                                        style: theme.textTheme.labelSmall,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text.rich(
+                                        TextSpan(
+                                          text: data!.customerCode,
+                                          style: theme.textTheme.bodyMedium
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w500,
+                                              ),
                                         ),
-                                        style: theme.textTheme.bodyMedium
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w500,
-                                            ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 16),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      "Source",
-                                      style: theme.textTheme.labelSmall,
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text.rich(
-                                      TextSpan(
-                                        text: data!.inquirySourceDesc,
-                                        style: theme.textTheme.bodyMedium
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w500,
-                                            ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        "Customer Name",
+                                        style: theme.textTheme.labelSmall,
                                       ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      "Consultant",
-                                      style: theme.textTheme.labelSmall,
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text.rich(
-                                      TextSpan(
-                                        text: data!.consultantFullName,
-                                        style: theme.textTheme.bodyMedium
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w500,
-                                            ),
+                                      const SizedBox(height: 4),
+                                      Text.rich(
+                                        TextSpan(
+                                          text: data!.customerName,
+                                          style: theme.textTheme.bodyMedium
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
-                              ),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      "Group",
-                                      style: theme.textTheme.labelSmall,
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text.rich(
-                                      TextSpan(
-                                        text: data!.inquiryGroup,
-                                        style: theme.textTheme.bodyMedium
-                                            ?.copyWith(
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                        ],
-                      ),
-                    ),
-
-                    // Items Section Header
-                    Container(
-                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-                      decoration: BoxDecoration(
-                        border: Border(
-                          top: BorderSide(color: borderColor, width: 1),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
-                      child: Text("Items", style: theme.textTheme.titleMedium),
-                    ),
 
-                    // Items Section
-                    ...List.generate(data!.inqEntryItemModel.length, (index) {
-                      final item = data!.inqEntryItemModel[index];
-                      return Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
+                      // Sales Team Section
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Salesman",
+                                    style: theme.textTheme.labelSmall,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text.rich(
+                                    TextSpan(
+                                      text:
+                                          "${data!.salesmanCode} - ${data!.salesmanName}",
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Region",
+                                    style: theme.textTheme.labelSmall,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text.rich(
+                                    TextSpan(
+                                      text:
+                                          "${data!.salesRegionCode} - ${data!.salesRegionCodeDesc}",
+                                      style: theme.textTheme.bodyMedium
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // Inquiry Summary Section
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
                         child: Column(
                           children: [
                             Row(
@@ -956,14 +919,38 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        "Item Code/ Name",
+                                        "Lead Date",
                                         style: theme.textTheme.labelSmall,
                                       ),
                                       const SizedBox(height: 4),
                                       Text.rich(
                                         TextSpan(
-                                          text:
-                                              "${item.salesItemCode} - ${item.itemName}",
+                                          text: FormatUtils.formatDateForUser(
+                                            DateTime.parse(data!.inquiryDate),
+                                          ),
+                                          style: theme.textTheme.bodyMedium
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        "Source",
+                                        style: theme.textTheme.labelSmall,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text.rich(
+                                        TextSpan(
+                                          text: data!.inquirySourceDesc,
                                           style: theme.textTheme.bodyMedium
                                               ?.copyWith(
                                                 fontWeight: FontWeight.w500,
@@ -975,7 +962,7 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 16),
                             Row(
                               children: [
                                 Expanded(
@@ -984,15 +971,13 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        "Quantity",
+                                        "Consultant",
                                         style: theme.textTheme.labelSmall,
                                       ),
                                       const SizedBox(height: 4),
                                       Text.rich(
                                         TextSpan(
-                                          text: FormatUtils.formatQuantity(
-                                            item.itemQty,
-                                          ),
+                                          text: data!.consultantFullName,
                                           style: theme.textTheme.bodyMedium
                                               ?.copyWith(
                                                 fontWeight: FontWeight.w500,
@@ -1002,45 +987,19 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
                                     ],
                                   ),
                                 ),
-                                const SizedBox(width: 16),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        "SUOM",
+                                        "Group",
                                         style: theme.textTheme.labelSmall,
                                       ),
                                       const SizedBox(height: 4),
                                       Text.rich(
                                         TextSpan(
-                                          text: item.uom,
-                                          style: theme.textTheme.bodyMedium
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        "Rate",
-                                        style: theme.textTheme.labelSmall,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text.rich(
-                                        TextSpan(
-                                          text: FormatUtils.formatAmount(
-                                            item.basicPrice,
-                                          ),
+                                          text: data!.inquiryGroup,
                                           style: theme.textTheme.bodyMedium
                                               ?.copyWith(
                                                 fontWeight: FontWeight.w500,
@@ -1052,15 +1011,146 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 16),
                           ],
                         ),
-                      );
-                    }),
-                  ],
+                      ),
+
+                      // Items Section Header
+                      Container(
+                        padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+                        decoration: BoxDecoration(
+                          border: Border(
+                            top: BorderSide(color: borderColor, width: 1),
+                          ),
+                        ),
+                        child: Text(
+                          "Items",
+                          style: theme.textTheme.titleMedium,
+                        ),
+                      ),
+
+                      // Items Section
+                      ...List.generate(data!.inqEntryItemModel.length, (index) {
+                        final item = data!.inqEntryItemModel[index];
+                        return Padding(
+                          padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
+                          child: Column(
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          "Item Code/ Name",
+                                          style: theme.textTheme.labelSmall,
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text.rich(
+                                          TextSpan(
+                                            text:
+                                                "${item.salesItemCode} - ${item.itemName}",
+                                            style: theme.textTheme.bodyMedium
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          "Quantity",
+                                          style: theme.textTheme.labelSmall,
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text.rich(
+                                          TextSpan(
+                                            text: FormatUtils.formatQuantity(
+                                              item.itemQty,
+                                            ),
+                                            style: theme.textTheme.bodyMedium
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          "SUOM",
+                                          style: theme.textTheme.labelSmall,
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text.rich(
+                                          TextSpan(
+                                            text: item.uom,
+                                            style: theme.textTheme.bodyMedium
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          "Rate",
+                                          style: theme.textTheme.labelSmall,
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text.rich(
+                                          TextSpan(
+                                            text: FormatUtils.formatAmount(
+                                              item.basicPrice,
+                                            ),
+                                            style: theme.textTheme.bodyMedium
+                                                ?.copyWith(
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                            ],
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

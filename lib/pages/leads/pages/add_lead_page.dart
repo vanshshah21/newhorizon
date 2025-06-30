@@ -195,9 +195,9 @@ class _AddLeadPageState extends State<AddLeadPage> {
       _leadDateError = null;
       if (_leadDate == null ||
           _leadDate!.isBefore(_minDate!) ||
-          _leadDate!.isAfter(_maxDate!)) {
+          _leadDate!.isAfter(_maxDate!.add(Duration(days: 1)))) {
         _leadDateError =
-            'Lead date must be between ${DateFormat.yMd().format(_minDate!)} and ${DateFormat.yMd().format(_maxDate!)}';
+            'Lead date must be between ${(_minDate!)} and ${DateFormat.yMd().format(_maxDate!)}';
         valid = false;
       }
       if (_isAutoNumberGenerated == false) {
@@ -335,8 +335,8 @@ class _AddLeadPageState extends State<AddLeadPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Lead created successfully!')),
       );
-      Navigator.of(context).pop(true); // refresh list
-      return;
+      // Navigator.of(context).pop(true); // refresh list
+      // return;
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

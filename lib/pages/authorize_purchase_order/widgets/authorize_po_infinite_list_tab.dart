@@ -70,63 +70,70 @@ class _AuthorizePOInfiniteListState extends State<AuthorizePOInfiniteList>
   @override
   Widget build(BuildContext context) {
     super.build(context); // for AutomaticKeepAliveClientMixin
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  decoration: const InputDecoration(
-                    labelText: 'Search',
-                    border: OutlineInputBorder(),
-                  ),
-                  onSubmitted: (_) => _onSearch(),
-                  onTapOutside: (event) {
-                    FocusScope.of(context).unfocus();
-                  },
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton.filled(
-                onPressed: _onSearch,
-                icon: const Icon(Icons.search),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: PagingListener<int, POData>(
-            controller: _pagingController,
-            builder:
-                (context, state, fetchNextPage) => PagedListView<int, POData>(
-                  state: state,
-                  fetchNextPage: fetchNextPage,
-                  builderDelegate: PagedChildBuilderDelegate<POData>(
-                    itemBuilder:
-                        (context, po, index) => AuthorizePOCard(
-                          po: po,
-                          onPdfTap: () => widget.onPdfTap(po),
-                          onAuthorizeTap: () async {
-                            final authorized = await widget.onAuthorizeTap(po);
-                            if (authorized) {
-                              _pagingController.refresh();
-                            }
-                          },
-                        ),
-                    noItemsFoundIndicatorBuilder:
-                        (context) =>
-                            const Center(child: Text('No data found.')),
-                    firstPageErrorIndicatorBuilder:
-                        (context) =>
-                            const Center(child: Text('Error loading data.')),
+    return RefreshIndicator(
+      onRefresh: () async {
+        _pagingController.refresh();
+      },
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: const InputDecoration(
+                      labelText: 'Search',
+                      border: OutlineInputBorder(),
+                    ),
+                    onSubmitted: (_) => _onSearch(),
+                    onTapOutside: (event) {
+                      FocusScope.of(context).unfocus();
+                    },
                   ),
                 ),
+                const SizedBox(width: 8),
+                IconButton.filled(
+                  onPressed: _onSearch,
+                  icon: const Icon(Icons.search),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+          Expanded(
+            child: PagingListener<int, POData>(
+              controller: _pagingController,
+              builder:
+                  (context, state, fetchNextPage) => PagedListView<int, POData>(
+                    state: state,
+                    fetchNextPage: fetchNextPage,
+                    builderDelegate: PagedChildBuilderDelegate<POData>(
+                      itemBuilder:
+                          (context, po, index) => AuthorizePOCard(
+                            po: po,
+                            onPdfTap: () => widget.onPdfTap(po),
+                            onAuthorizeTap: () async {
+                              final authorized = await widget.onAuthorizeTap(
+                                po,
+                              );
+                              if (authorized) {
+                                _pagingController.refresh();
+                              }
+                            },
+                          ),
+                      noItemsFoundIndicatorBuilder:
+                          (context) =>
+                              const Center(child: Text('No data found.')),
+                      firstPageErrorIndicatorBuilder:
+                          (context) =>
+                              const Center(child: Text('Error loading data.')),
+                    ),
+                  ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

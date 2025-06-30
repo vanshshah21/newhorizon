@@ -170,6 +170,10 @@ class _AddItemPageState extends State<AddItemPage> {
           _formDirty = true;
         });
       },
+      hideOnEmpty: true,
+      hideOnError: true,
+      hideOnLoading: false,
+      animationDuration: const Duration(milliseconds: 300),
     );
   }
 

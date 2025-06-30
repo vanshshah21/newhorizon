@@ -441,33 +441,64 @@ class SalesOrderItem {
     };
   }
 
-  List<Map<String, dynamic>> toRateStructureDetails() {
-    if (rateStructureRows == null) return [];
+  // List<Map<String, dynamic>> toRateStructureDetails() {
+  //   if (rateStructureRows == null) return [];
 
-    return rateStructureRows!.map((item) {
-      return {
-        "customerItemCode": itemCode,
-        "rateCode": item['rateCode'] ?? item['msprtcd'],
-        "incOrExc": item['incOrExc'] ?? item['mspincexc'],
-        "perOrVal": item['perOrVal'] ?? item['mspperval'],
-        "taxValue":
-            item['taxValue']?.toString() ??
-            item['msprtval']?.toString() ??
-            "0.00",
-        "applicationOn": item['applicableOn'] ?? item['mtrslvlno'] ?? "",
-        "currencyCode": item['curCode'] ?? item['mprcurcode'] ?? "INR",
-        "sequenceNo":
-            item['seqNo']?.toString() ?? item['mspseqno']?.toString() ?? "1",
-        "postnonpost":
-            item['pNYN'] ??
-            item['msppnyn'] == "True" || item['msppnyn'] == true,
-        "rateSturctureCode": rateStructure,
-        "rateAmount": item['rateAmount'] ?? 0,
-        "amendSrNo": 0,
-        "refId": lineNo - 1,
-        "actual": item['atActual'] ?? true,
-        "itmModelRefNo": lineNo,
-      };
-    }).toList();
+  //   return rateStructureRows!.map((item) {
+  //     return {
+  //       "customerItemCode": itemCode,
+  //       "rateCode": item['rateCode'] ?? item['msprtcd'],
+  //       "incOrExc": item['incOrExc'] ?? item['mspincexc'],
+  //       "perOrVal": item['perOrVal'] ?? item['mspperval'],
+  //       "taxValue":
+  //           item['taxValue']?.toString() ??
+  //           item['msprtval']?.toString() ??
+  //           "0.00",
+  //       "applicationOn": item['applicableOn'] ?? item['mtrslvlno'] ?? "",
+  //       "currencyCode": item['curCode'] ?? item['mprcurcode'] ?? "INR",
+  //       "sequenceNo":
+  //           item['seqNo']?.toString() ?? item['mspseqno']?.toString() ?? "1",
+  //       "postnonpost":
+  //           item['pNYN'] ??
+  //           item['msppnyn'] == "True" || item['msppnyn'] == true,
+  //       "rateSturctureCode": rateStructure,
+  //       "rateAmount": item['rateAmount'] ?? 0,
+  //       "amendSrNo": 0,
+  //       "refId": lineNo - 1,
+  //       "actual": item['atActual'] ?? true,
+  //       "itmModelRefNo": lineNo,
+  //     };
+  //   }).toList();
+  // }
+  List<Map<String, dynamic>> toRateStructureDetails() {
+    if (rateStructureRows == null || rateStructureRows!.isEmpty) return [];
+
+    print("Converting rate structure rows: $rateStructureRows"); // Debug log
+
+    return rateStructureRows!
+        .map(
+          (row) => {
+            // Map to the exact C# model properties
+            "CustomerItemCode": itemCode, // XDTDTMCD
+            "RateCode": row['rateCode'] ?? '', // XDTDRATECD
+            "IncOrExc": row['ie'] ?? 'E', // XDTDINCEXC
+            "PerOrVal": row['pv'] ?? 'V', // XDTDPERVAL
+            "TaxValue": (row['taxValue'] ?? 0.0).toDouble(), // XDTDPERCVAL
+            "ApplicationOn": row['applicableOn'] ?? '', // XDTDAPPON
+            "CurrencyCode": "INR", // XDTDCURCODE, MPRCURCODE
+            "SequenceNo": row['sequenceNo'] ?? 0, // XDTDSEQNO
+            "PostNonPost": row['postnonpost'] ?? true, // XDTDPNYN
+            "TaxType": row['mprtaxtyp'] ?? '', // XDTDTAXTYP, MPRTAXTYP
+            "RateSturctureCode": rateStructure, // XDTDRTSTRCD
+            "RateAmount":
+                (row['rateAmount'] ?? 0.0)
+                    .toDouble(), // XDTDRATEAMT - This is the calculated amount
+            "AmendSrNo": 0, // XDTDAMDSRNO
+            // Additional fields that might be needed for processing
+            "itmModelRefNo": lineNo,
+            "refId": 0,
+          },
+        )
+        .toList();
   }
 }

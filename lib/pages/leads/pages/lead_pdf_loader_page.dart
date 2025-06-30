@@ -1,17 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_cached_pdfview/flutter_cached_pdfview.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/lead_data.dart';
 import '../services/lead_service.dart';
 
 class LeadPdfLoaderPage extends StatefulWidget {
   final LeadData lead;
-  // final LeadService service;
 
-  const LeadPdfLoaderPage({
-    required this.lead,
-    // required this.service,
-    super.key,
-  });
+  const LeadPdfLoaderPage({required this.lead, super.key});
 
   @override
   State<LeadPdfLoaderPage> createState() => _LeadPdfLoaderPageState();
@@ -43,12 +39,49 @@ class _LeadPdfLoaderPageState extends State<LeadPdfLoaderPage> {
     }
   }
 
+  Future<void> _downloadPdf() async {
+    if (pdfUrl == null) return;
+
+    try {
+      final uri = Uri.parse(pdfUrl!);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('PDF download started')));
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Cannot open PDF URL')));
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error downloading PDF: $e')));
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (error != null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Lead PDF')),
-        body: Center(child: Text(error!)),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(error!),
+              const SizedBox(height: 16),
+              ElevatedButton(onPressed: _fetchPdf, child: const Text('Retry')),
+            ],
+          ),
+        ),
       );
     }
     if (pdfUrl == null) {
@@ -58,11 +91,33 @@ class _LeadPdfLoaderPageState extends State<LeadPdfLoaderPage> {
       );
     }
     return Scaffold(
-      appBar: AppBar(title: const Text('Lead PDF')),
+      appBar: AppBar(
+        title: Text('Lead ${widget.lead.inquiryNumber}'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download),
+            onPressed: _downloadPdf,
+            tooltip: 'Download PDF',
+          ),
+        ],
+      ),
       body: PDF().fromUrl(
         pdfUrl!,
         placeholder: (progress) => Center(child: Text('$progress %')),
-        errorWidget: (error) => Center(child: Text(error.toString())),
+        errorWidget:
+            (error) => Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text('Error loading PDF: ${error.toString()}'),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _downloadPdf,
+                    child: const Text('Download PDF'),
+                  ),
+                ],
+              ),
+            ),
       ),
     );
   }

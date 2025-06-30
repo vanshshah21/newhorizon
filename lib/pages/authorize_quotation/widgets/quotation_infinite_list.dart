@@ -66,68 +66,75 @@ class _QuotationInfiniteListState extends State<QuotationInfiniteList>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  decoration: const InputDecoration(
-                    labelText: 'Search',
-                    border: OutlineInputBorder(),
-                  ),
-                  onSubmitted: (_) => _onSearch(),
-                  onTapOutside: (event) {
-                    FocusScope.of(context).unfocus();
-                  },
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton.filled(
-                onPressed: _onSearch,
-                icon: const Icon(Icons.search),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: PagingListener<int, QuotationData>(
-            controller: _pagingController,
-            builder:
-                (
-                  context,
-                  state,
-                  fetchNextPage,
-                ) => PagedListView<int, QuotationData>(
-                  state: state,
-                  fetchNextPage: fetchNextPage,
-                  builderDelegate: PagedChildBuilderDelegate<QuotationData>(
-                    invisibleItemsThreshold: 10,
-                    itemBuilder:
-                        (context, qtn, index) => QuotationCard(
-                          qtn: qtn,
-                          onPdfTap: () => widget.onPdfTap(qtn),
-                          onAuthorizeTap: () async {
-                            final authorized = await widget.onAuthorizeTap(qtn);
-                            if (authorized) {
-                              _pagingController.refresh();
-                            }
-                          },
-                        ),
-                    noItemsFoundIndicatorBuilder:
-                        (context) =>
-                            const Center(child: Text('No data found.')),
-                    firstPageErrorIndicatorBuilder:
-                        (context) =>
-                            const Center(child: Text('Error loading data.')),
+    return RefreshIndicator(
+      onRefresh: () async {
+        _pagingController.refresh();
+      },
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: const InputDecoration(
+                      labelText: 'Search',
+                      border: OutlineInputBorder(),
+                    ),
+                    onSubmitted: (_) => _onSearch(),
+                    onTapOutside: (event) {
+                      FocusScope.of(context).unfocus();
+                    },
                   ),
                 ),
+                const SizedBox(width: 8),
+                IconButton.filled(
+                  onPressed: _onSearch,
+                  icon: const Icon(Icons.search),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+          Expanded(
+            child: PagingListener<int, QuotationData>(
+              controller: _pagingController,
+              builder:
+                  (
+                    context,
+                    state,
+                    fetchNextPage,
+                  ) => PagedListView<int, QuotationData>(
+                    state: state,
+                    fetchNextPage: fetchNextPage,
+                    builderDelegate: PagedChildBuilderDelegate<QuotationData>(
+                      invisibleItemsThreshold: 10,
+                      itemBuilder:
+                          (context, qtn, index) => QuotationCard(
+                            qtn: qtn,
+                            onPdfTap: () => widget.onPdfTap(qtn),
+                            onAuthorizeTap: () async {
+                              final authorized = await widget.onAuthorizeTap(
+                                qtn,
+                              );
+                              if (authorized) {
+                                _pagingController.refresh();
+                              }
+                            },
+                          ),
+                      noItemsFoundIndicatorBuilder:
+                          (context) =>
+                              const Center(child: Text('No data found.')),
+                      firstPageErrorIndicatorBuilder:
+                          (context) =>
+                              const Center(child: Text('Error loading data.')),
+                    ),
+                  ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

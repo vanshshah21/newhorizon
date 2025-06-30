@@ -66,67 +66,74 @@ class _SalesOrderInfiniteListState extends State<SalesOrderInfiniteList>
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  decoration: const InputDecoration(
-                    labelText: 'Search',
-                    border: OutlineInputBorder(),
-                  ),
-                  onSubmitted: (_) => _onSearch(),
-                  onTapOutside: (event) {
-                    FocusScope.of(context).unfocus();
-                  },
-                ),
-              ),
-              const SizedBox(width: 8),
-              IconButton.filled(
-                onPressed: _onSearch,
-                icon: const Icon(Icons.search),
-              ),
-            ],
-          ),
-        ),
-        Expanded(
-          child: PagingListener<int, SalesOrderData>(
-            controller: _pagingController,
-            builder:
-                (
-                  context,
-                  state,
-                  fetchNextPage,
-                ) => PagedListView<int, SalesOrderData>(
-                  state: state,
-                  fetchNextPage: fetchNextPage,
-                  builderDelegate: PagedChildBuilderDelegate<SalesOrderData>(
-                    itemBuilder:
-                        (context, so, index) => SalesOrderCard(
-                          so: so,
-                          onPdfTap: () => widget.onPdfTap(so),
-                          onAuthorizeTap: () async {
-                            final authorized = await widget.onAuthorizeTap(so);
-                            if (authorized) {
-                              _pagingController.refresh();
-                            }
-                          },
-                        ),
-                    noItemsFoundIndicatorBuilder:
-                        (context) =>
-                            const Center(child: Text('No data found.')),
-                    firstPageErrorIndicatorBuilder:
-                        (context) =>
-                            const Center(child: Text('Error loading data.')),
+    return RefreshIndicator(
+      onRefresh: () async {
+        _pagingController.refresh();
+      },
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: const InputDecoration(
+                      labelText: 'Search',
+                      border: OutlineInputBorder(),
+                    ),
+                    onSubmitted: (_) => _onSearch(),
+                    onTapOutside: (event) {
+                      FocusScope.of(context).unfocus();
+                    },
                   ),
                 ),
+                const SizedBox(width: 8),
+                IconButton.filled(
+                  onPressed: _onSearch,
+                  icon: const Icon(Icons.search),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+          Expanded(
+            child: PagingListener<int, SalesOrderData>(
+              controller: _pagingController,
+              builder:
+                  (
+                    context,
+                    state,
+                    fetchNextPage,
+                  ) => PagedListView<int, SalesOrderData>(
+                    state: state,
+                    fetchNextPage: fetchNextPage,
+                    builderDelegate: PagedChildBuilderDelegate<SalesOrderData>(
+                      itemBuilder:
+                          (context, so, index) => SalesOrderCard(
+                            so: so,
+                            onPdfTap: () => widget.onPdfTap(so),
+                            onAuthorizeTap: () async {
+                              final authorized = await widget.onAuthorizeTap(
+                                so,
+                              );
+                              if (authorized) {
+                                _pagingController.refresh();
+                              }
+                            },
+                          ),
+                      noItemsFoundIndicatorBuilder:
+                          (context) =>
+                              const Center(child: Text('No data found.')),
+                      firstPageErrorIndicatorBuilder:
+                          (context) =>
+                              const Center(child: Text('Error loading data.')),
+                    ),
+                  ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

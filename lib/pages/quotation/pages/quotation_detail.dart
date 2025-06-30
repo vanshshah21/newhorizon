@@ -1,270 +1,10 @@
-// import 'package:flutter/material.dart';
-// import 'package:intl/intl.dart';
-// import 'package:nhapp/pages/quotation/service/quotation_service.dart';
-// import 'package:nhapp/utils/format_utils.dart';
-// import '../models/quotation_list_item.dart';
-// import '../models/quotation_detail.dart';
-
-// class QuotationDetailPage extends StatefulWidget {
-//   final QuotationListItem quotation;
-//   const QuotationDetailPage({required this.quotation, super.key});
-
-//   @override
-//   State<QuotationDetailPage> createState() => _QuotationDetailPageState();
-// }
-
-// class _QuotationDetailPageState extends State<QuotationDetailPage> {
-//   QuotationDetail? detail;
-//   String? error;
-//   bool loading = true;
-
-//   @override
-//   void initState() {
-//     super.initState();
-//     _fetchDetail();
-//   }
-
-//   Future<void> _fetchDetail() async {
-//     setState(() {
-//       loading = true;
-//       error = null;
-//     });
-//     try {
-//       final service = QuotationService();
-//       final result = await service.fetchQuotationDetail(widget.quotation);
-//       if (!mounted) return;
-//       setState(() {
-//         detail = result;
-//         loading = false;
-//       });
-//     } catch (e) {
-//       if (!mounted) return;
-//       setState(() {
-//         error = 'Error: $e';
-//         loading = false;
-//       });
-//     }
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     final theme = Theme.of(context);
-
-//     if (loading) {
-//       return Scaffold(
-//         appBar: AppBar(title: Text('Quotation Details')),
-//         body: Center(child: CircularProgressIndicator()),
-//       );
-//     }
-//     if (error != null) {
-//       return Scaffold(
-//         appBar: AppBar(title: const Text('Quotation Details')),
-//         body: Center(child: Text(error!)),
-//       );
-//     }
-//     if (detail == null) {
-//       return Scaffold(
-//         appBar: AppBar(title: const Text('Quotation Details')),
-//         body: const Center(child: Text('No data found.')),
-//       );
-//     }
-
-//     final q = detail!.quotationDetails;
-//     final items = detail!.modelDetails;
-
-//     String formatDate(String? dateStr) {
-//       if (dateStr == null || dateStr.isEmpty) return '-';
-//       try {
-//         final dt = DateTime.parse(dateStr);
-//         return DateFormat('dd/MM/yyyy').format(dt);
-//       } catch (_) {
-//         return dateStr;
-//       }
-//     }
-
-//     return Scaffold(
-//       appBar: AppBar(title: const Text('Quotation Details')),
-//       body: SingleChildScrollView(
-//         padding: const EdgeInsets.all(16),
-//         child: Card(
-//           shape: RoundedRectangleBorder(
-//             borderRadius: BorderRadius.circular(16),
-//             side: BorderSide(color: theme.dividerColor, width: 1.5),
-//           ),
-//           child: Padding(
-//             padding: const EdgeInsets.all(20),
-//             child: Column(
-//               crossAxisAlignment: CrossAxisAlignment.stretch,
-//               children: [
-//                 // Header
-//                 Text(
-//                   'Quotation No. ${q['quotationNumber'] ?? widget.quotation.qtnNumber}',
-//                   style: theme.textTheme.titleLarge?.copyWith(
-//                     fontWeight: FontWeight.bold,
-//                   ),
-//                 ),
-//                 const SizedBox(height: 8),
-//                 Text(
-//                   'Customer: ${q['customerCode'] ?? widget.quotation.customerCode} - ${q['customerName'] ?? widget.quotation.customerFullName}',
-//                   style: theme.textTheme.bodyMedium,
-//                 ),
-//                 const SizedBox(height: 8),
-//                 Row(
-//                   children: [
-//                     Expanded(
-//                       child: Text(
-//                         'Date: ${FormatUtils.formatDateForUser(DateTime.parse(widget.quotation.date))}',
-//                         style: theme.textTheme.bodySmall,
-//                       ),
-//                     ),
-//                     Expanded(
-//                       child: Text(
-//                         'Status: ${q['quotationStatus'] ?? widget.quotation.quotationStatus ?? "-"}',
-//                         style: theme.textTheme.bodySmall,
-//                       ),
-//                     ),
-//                   ],
-//                 ),
-//                 const Divider(height: 32),
-
-//                 // Info Grid
-//                 Wrap(
-//                   spacing: 24,
-//                   runSpacing: 12,
-//                   children: [
-//                     _infoTile(
-//                       'Year',
-//                       q['quotationYear'] ?? widget.quotation.qtnYear,
-//                     ),
-//                     _infoTile(
-//                       'Group',
-//                       q['quotationGroup'] ?? widget.quotation.qtnGroup,
-//                     ),
-//                     _infoTile(
-//                       'Site',
-//                       q['siteCode'] ?? widget.quotation.siteCode,
-//                     ),
-//                     _infoTile(
-//                       'Revision',
-//                       (q['revisionNo'] ?? widget.quotation.revisionNo)
-//                           .toString(),
-//                     ),
-//                     _infoTile('Validity', (q['validity'] ?? '-').toString()),
-//                     _infoTile('Currency', q['currencyCode'] ?? '-'),
-//                     _infoTile('GST No.', q['gstNo'] ?? '-'),
-//                   ],
-//                 ),
-//                 const SizedBox(height: 24),
-
-//                 // Items Section
-//                 Text(
-//                   'Items',
-//                   style: theme.textTheme.titleMedium?.copyWith(
-//                     fontWeight: FontWeight.w600,
-//                   ),
-//                 ),
-//                 const SizedBox(height: 8),
-//                 ...items.map((item) => _itemCard(context, item)).toList(),
-
-//                 const SizedBox(height: 24),
-
-//                 // Amounts
-//                 Row(
-//                   children: [
-//                     Expanded(
-//                       child: Text(
-//                         'Total (INR): ${q['totalAmounttAfterTaxDomesticCurrency'] ?? '-'}',
-//                         style: theme.textTheme.bodyLarge?.copyWith(
-//                           fontWeight: FontWeight.bold,
-//                         ),
-//                       ),
-//                     ),
-//                     Expanded(
-//                       child: Text(
-//                         'Total (Customer): ${q['totalAmountAfterTaxCustomerCurrency'] ?? '-'}',
-//                         style: theme.textTheme.bodyLarge?.copyWith(
-//                           fontWeight: FontWeight.bold,
-//                         ),
-//                       ),
-//                     ),
-//                   ],
-//                 ),
-
-//                 // You can add more sections here: Terms, Taxes, Remarks, etc.
-//               ],
-//             ),
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-
-//   Widget _infoTile(String label, String value) {
-//     return SizedBox(
-//       width: 160,
-//       child: Column(
-//         crossAxisAlignment: CrossAxisAlignment.start,
-//         children: [
-//           Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-//           const SizedBox(height: 2),
-//           Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
-//         ],
-//       ),
-//     );
-//   }
-
-//   Widget _itemCard(BuildContext context, Map<String, dynamic> item) {
-//     final theme = Theme.of(context);
-//     return Card(
-//       margin: const EdgeInsets.symmetric(vertical: 6),
-//       elevation: 0,
-//       color: theme.colorScheme.surfaceVariant.withOpacity(0.1),
-//       child: Padding(
-//         padding: const EdgeInsets.all(12),
-//         child: Column(
-//           crossAxisAlignment: CrossAxisAlignment.start,
-//           children: [
-//             Text(
-//               '${item['salesItemCode'] ?? item['itemCode'] ?? '-'} - ${item['itemName'] ?? item['salesItemDesc'] ?? '-'}',
-//               style: theme.textTheme.bodyLarge?.copyWith(
-//                 fontWeight: FontWeight.w600,
-//               ),
-//             ),
-//             const SizedBox(height: 4),
-//             Row(
-//               children: [
-//                 Expanded(
-//                   child: Text('Qty: ${item['qtyIUOM'] ?? item['qty'] ?? '-'}'),
-//                 ),
-//                 Expanded(child: Text('UOM: ${item['uom'] ?? '-'}')),
-//                 Expanded(
-//                   child: Text(
-//                     'Rate: ${item['basicPriceIUOM'] ?? item['rate'] ?? '-'}',
-//                   ),
-//                 ),
-//               ],
-//             ),
-//             if (item['remark'] != null && (item['remark'] as String).isNotEmpty)
-//               Padding(
-//                 padding: const EdgeInsets.only(top: 4),
-//                 child: Text(
-//                   'Remark: ${item['remark']}',
-//                   style: theme.textTheme.bodySmall,
-//                 ),
-//               ),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-// }
-
-//==================================================================================
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:nhapp/pages/quotation/service/quotation_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/quotation_list_item.dart';
 import '../models/quotation_detail.dart';
+import 'quotation_pdf_loader_page.dart';
 
 class QuotationDetailPage extends StatefulWidget {
   final QuotationListItem quotation;
@@ -307,26 +47,120 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
     }
   }
 
+  void _viewPdf() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) => QuotationPdfLoaderPage(quotation: widget.quotation),
+      ),
+    );
+  }
+
+  Future<void> _downloadPdf() async {
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Preparing PDF for download...')),
+      );
+
+      final service = QuotationService();
+      final pdfUrl = await service.fetchQuotationPdfUrl(widget.quotation);
+
+      if (!mounted) return;
+
+      if (pdfUrl.isEmpty) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('PDF not available')));
+        return;
+      }
+
+      // Open PDF URL in external browser for download
+      final uri = Uri.parse(pdfUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('PDF download started')));
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Cannot open PDF URL')));
+      }
+    } catch (e) {
+      debugPrint('Error downloading PDF: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error downloading PDF: $e')));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     if (loading) {
       return Scaffold(
-        appBar: AppBar(title: Text('Quotation Details')),
-        body: Center(child: CircularProgressIndicator()),
+        appBar: AppBar(title: const Text('Quotation Details')),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
     if (error != null) {
       return Scaffold(
-        appBar: AppBar(title: Text('Quotation Details')),
-        body: Center(child: Text(error!)),
+        appBar: AppBar(
+          title: const Text('Quotation Details'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.picture_as_pdf),
+              onPressed: _viewPdf,
+              tooltip: 'View PDF',
+            ),
+            IconButton(
+              icon: const Icon(Icons.download),
+              onPressed: _downloadPdf,
+              tooltip: 'Download PDF',
+            ),
+          ],
+        ),
+        body: RefreshIndicator(
+          onRefresh: _fetchDetail,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Container(
+              height: MediaQuery.of(context).size.height * 0.8,
+              child: Center(child: Text(error!)),
+            ),
+          ),
+        ),
       );
     }
     if (detail == null) {
       return Scaffold(
-        appBar: AppBar(title: Text('Quotation Details')),
-        body: const Center(child: Text('No data found.')),
+        appBar: AppBar(
+          title: const Text('Quotation Details'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.picture_as_pdf),
+              onPressed: _viewPdf,
+              tooltip: 'View PDF',
+            ),
+            IconButton(
+              icon: const Icon(Icons.download),
+              onPressed: _downloadPdf,
+              tooltip: 'Download PDF',
+            ),
+          ],
+        ),
+        body: RefreshIndicator(
+          onRefresh: _fetchDetail,
+          child: const SingleChildScrollView(
+            physics: AlwaysScrollableScrollPhysics(),
+            child: Center(child: Text('No data found.')),
+          ),
+        ),
       );
     }
 
@@ -449,24 +283,42 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
     );
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Quotation Details')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Card(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: theme.dividerColor, width: 1.5),
+      appBar: AppBar(
+        title: const Text('Quotation Details'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            onPressed: _viewPdf,
+            tooltip: 'View PDF',
           ),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                titleSection,
-                infoSection,
-                itemsSection,
-                amountsSection,
-              ],
+          IconButton(
+            icon: const Icon(Icons.download),
+            onPressed: _downloadPdf,
+            tooltip: 'Download PDF',
+          ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: _fetchDetail,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: theme.dividerColor, width: 1.5),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  titleSection,
+                  infoSection,
+                  itemsSection,
+                  amountsSection,
+                ],
+              ),
             ),
           ),
         ),

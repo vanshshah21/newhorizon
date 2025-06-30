@@ -247,8 +247,6 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
     }
   }
 
-  // ...existing code...
-
   Future<void> _onQuotationNumberSelected(
     QuotationNumber quotationNumber,
   ) async {
@@ -291,31 +289,33 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
       // Convert quotation items to sales order items
       int lineNo = 1;
       for (final detail in quotationDetails.modelDetails) {
-        // Calculate discount details
+        // Calculate discount details properly
         String discountType = "None";
         double? discountPercentage;
         double? discountAmount;
 
+        // Look for discount in discountDetails array first
         if (quotationDetails.discountDetail != null &&
             quotationDetails.discountDetail!.isNotEmpty) {
           final discountDetail = quotationDetails.discountDetail!.firstWhere(
-            (d) => d['salesItemCode'] == detail['salesItemCode'],
+            (d) =>
+                d['salesItemCode'] == detail['salesItemCode'] &&
+                d['itmLineNo'] == detail['itemLineNo'],
             orElse: () => {},
           );
 
-          if (discountDetail.isNotEmpty &&
-              (discountDetail['discountValue'] ?? 0) > 0) {
+          if (discountDetail.isNotEmpty) {
+            final discType = discountDetail['discountType'] ?? 'N';
             final discValue = (discountDetail['discountValue'] ?? 0).toDouble();
-            final discType = discountDetail['discountType'] ?? '';
 
-            if (discType == 'Percentage') {
+            if (discType == 'P' && discValue > 0) {
               discountType = 'Percentage';
               discountPercentage = discValue;
-              discountAmount =
-                  ((detail['basicPriceSUOM'] ?? 0).toDouble() *
-                      (detail['qtySUOM'] ?? 0).toDouble()) *
-                  (discValue / 100);
-            } else {
+              final basicAmount =
+                  (detail['basicPriceSUOM'] ?? 0).toDouble() *
+                  (detail['qtySUOM'] ?? 0).toDouble();
+              discountAmount = basicAmount * (discValue / 100);
+            } else if (discType == 'V' && discValue > 0) {
               discountType = 'Value';
               discountAmount = discValue;
               final basicAmount =
@@ -327,12 +327,29 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
           }
         }
 
-        // Calculate tax amount
+        // Fallback: check if discount is in the model detail itself
+        if (discountType == "None" && detail['discountAmt'] != null) {
+          final discAmt = (detail['discountAmt'] ?? 0).toDouble();
+          if (discAmt > 0) {
+            discountType = 'Value';
+            discountAmount = discAmt;
+            final basicAmount =
+                (detail['basicPriceSUOM'] ?? 0).toDouble() *
+                (detail['qtySUOM'] ?? 0).toDouble();
+            discountPercentage =
+                basicAmount > 0 ? (discAmt / basicAmount) * 100 : 0;
+          }
+        }
+
+        // Calculate tax amount from rate structure details
         double taxAmount = 0.0;
-        if (quotationDetails.rateStructDetail != null) {
-          final rateStructDetails = quotationDetails.rateStructDetail!.where(
-            (rs) => rs['customerItemCode'] == detail['salesItemCode'],
-          );
+        if (quotationDetails.rateStructureDetails != null) {
+          final rateStructDetails = quotationDetails.rateStructureDetails!
+              .where(
+                (rs) =>
+                    rs['customerItemCode'] == detail['salesItemCode'] &&
+                    rs['lineNo'] == detail['itemLineNo'],
+              );
           for (final rsDetail in rateStructDetails) {
             taxAmount += (rsDetail['rateAmount'] ?? 0).toDouble();
           }
@@ -351,7 +368,9 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
           rateStructureRows =
               quotationDetails.rateStructureDetails!
                   .where(
-                    (rs) => rs['customerItemCode'] == detail['salesItemCode'],
+                    (rs) =>
+                        rs['customerItemCode'] == detail['salesItemCode'] &&
+                        rs['lineNo'] == detail['itemLineNo'],
                   )
                   .toList();
         }
@@ -385,6 +404,211 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
     }
   }
 
+  // Map<String, dynamic> _buildSubmissionPayload() {
+  //   final userId = _service.tokenDetails['user']['id'] ?? 0;
+  //   final locationId = _service.locationDetails['id'] ?? 0;
+  //   final locationCode = _service.locationDetails['code'] ?? "";
+  //   final companyCode = _service.companyDetails['code'] ?? "";
+  //   final companyId = _service.companyId;
+  //   final docYear = _financeDetails?['financialYear'] ?? "";
+
+  //   // Build model details
+  //   List<Map<String, dynamic>> modelDetails = [];
+  //   List<Map<String, dynamic>> discountDetails = [];
+  //   List<Map<String, dynamic>> rateStructureDetails = [];
+
+  //   for (int i = 0; i < items.length; i++) {
+  //     final item = items[i];
+  //     item.lineNo = i + 1;
+
+  //     final modelDetail = item.toModelDetail();
+  //     modelDetail['custPONumber'] = customerPONumberController.text;
+
+  //     // Add quotation reference if applicable
+  //     if (salesOrderReference == "With Quotation Reference" &&
+  //         selectedQuotationNumber != null) {
+  //       // Find the corresponding quotation item detail
+  //       final quotationItemDetail = quotationItemDetails.firstWhere(
+  //         (qItem) =>
+  //             qItem.salesItemCode == item.itemCode &&
+  //             qItem.quotationId == selectedQuotationNumber!.quotationID,
+  //         orElse: () => quotationItemDetails.first,
+  //       );
+
+  //       modelDetail['quotationId'] = selectedQuotationNumber!.quotationID;
+  //       modelDetail['quotationLineNo'] = quotationItemDetail.itemLineNo;
+  //       modelDetail['quotationAmendNo'] = quotationItemDetail.amendSrNo;
+  //     }
+  //     modelDetails.add(modelDetail);
+
+  //     final discountDetail = item.toDiscountDetail();
+  //     if (discountDetail.isNotEmpty) {
+  //       discountDetails.add(discountDetail);
+  //     }
+
+  //     rateStructureDetails.addAll(item.toRateStructureDetails());
+  //   }
+
+  //   final totalBasic = _calculateTotalBasic();
+  //   final totalDiscount = _calculateTotalDiscount();
+  //   final totalTax = _calculateTotalTax();
+  //   final totalAfterDiscount = totalBasic - totalDiscount;
+  //   final finalAmount = totalAfterDiscount + totalTax;
+
+  //   return {
+  //     "authorizationRequired": "Y",
+  //     "autoNumberRequired": "Y",
+  //     "siteRequired": "Y",
+  //     "authorizationDate": FormatUtils.formatDateForApi(
+  //       selectedDate ?? DateTime.now(),
+  //     ),
+  //     "fromLocationId": locationId,
+  //     "userId": userId,
+  //     "companyId": companyId,
+  //     "companyCode": companyCode,
+  //     "fromLocationCode": locationCode,
+  //     "fromLocationName": _service.locationDetails['name'] ?? "",
+  //     "ip": "",
+  //     "mac": "",
+  //     "docType": "OB",
+  //     "docSubType": "OB",
+  //     "domesticCurrencyCode": "INR",
+  //     "salesOrderDetails": {
+  //       "orderId": 0,
+  //       "customerPONumber": customerPONumberController.text,
+  //       "customerPODate": FormatUtils.formatDateForApi(selectedCustomerPODate!),
+  //       // Prefill quotation details from selected quotation
+  //       "quotationId":
+  //           salesOrderReference == "With Quotation Reference" &&
+  //                   selectedQuotationNumber != null
+  //               ? selectedQuotationNumber!.quotationID
+  //               : 0,
+  //       "quotationYear":
+  //           salesOrderReference == "With Quotation Reference" &&
+  //                   selectedQuotationNumber != null
+  //               ? selectedQuotationNumber!.quotationYear
+  //               : "",
+  //       "quotationGroup":
+  //           salesOrderReference == "With Quotation Reference" &&
+  //                   selectedQuotationNumber != null
+  //               ? selectedQuotationNumber!.quotationGroup
+  //               : "",
+  //       "quotationNumber":
+  //           salesOrderReference == "With Quotation Reference" &&
+  //                   selectedQuotationNumber != null
+  //               ? selectedQuotationNumber!.quotationNumber
+  //               : "",
+  //       "OAFGroup": null,
+  //       "quotationDate":
+  //           salesOrderReference == "With Quotation Reference" &&
+  //                   selectedQuotationNumber != null
+  //               ? FormatUtils.formatDateForApi(
+  //                 selectedQuotationNumber!.quotationDate,
+  //               )
+  //               : null,
+  //       "customerCode": selectedOrderFrom?.customerCode ?? "",
+  //       "customerName": selectedOrderFrom?.customerName ?? "",
+  //       // Prefill salesman from quotation if available
+  //       "salesManCode":
+  //           salesOrderReference == "With Quotation Reference" &&
+  //                   selectedQuotationNumber != null
+  //               ? selectedQuotationNumber!.salesmanCode
+  //               : "",
+  //       "attachFlag": "",
+  //       "totalAmountAfterDiscountCustomerCurrency": totalAfterDiscount
+  //           .toStringAsFixed(2),
+  //       "totalAmountAfterDiscountDomesticCurrency": totalAfterDiscount
+  //           .toStringAsFixed(2),
+  //       "totalAmounttAfterTaxDomesticCurrency": finalAmount.toStringAsFixed(2),
+  //       "totalAmountAfterTaxCustomerCurrency": finalAmount.toStringAsFixed(2),
+  //       "discountType": "V",
+  //       "discountAmount": "0.00",
+  //       "exchangeRate": "1.0000",
+  //       "orderStatus": "O",
+  //       "xobCredit": "",
+  //       "xobcrauth": "",
+  //       "amendSrNo": 0,
+  //       "authBy": userId,
+  //       "authDate": null,
+  //       "ioYear": docYear,
+  //       "ioGroup": documentDetail?.groupCode ?? "SO",
+  //       "ioSiteId": locationId.toString(),
+  //       "ioSiteCode": locationCode,
+  //       "ioDate": FormatUtils.formatDateForApi(selectedDate!),
+  //       "amendYear": "",
+  //       "amendGroup": "",
+  //       "amendSiteId": 0,
+  //       "amendSiteCode": "",
+  //       "amendNumber": "",
+  //       "amendDate": null,
+  //       "amendAuthBy": 0,
+  //       "amendAuthByDate": null,
+  //       "custType": "CU",
+  //       "lcDetail": "F",
+  //       "bgDetail": "F",
+  //       "salesOrderType": "REG",
+  //       "isAgentAssociated":
+  //           salesOrderReference == "With Quotation Reference" &&
+  //           selectedQuotationNumber != null &&
+  //           selectedQuotationNumber!.agentCode.isNotEmpty,
+  //       "custContactPersonId": "",
+  //       "salesOrderRefNo": "",
+  //       "buyerCode": 0,
+  //       "soDeliveryDate": null,
+  //       // Prefill currency from quotation if available
+  //       "currencyCode":
+  //           salesOrderReference == "With Quotation Reference" &&
+  //                   selectedQuotationNumber != null
+  //               ? selectedQuotationNumber!.quotationCurrency
+  //               : "INR",
+  //       "bookCode": "",
+  //       // Prefill agent code from quotation if available
+  //       "agentCode":
+  //           salesOrderReference == "With Quotation Reference" &&
+  //                   selectedQuotationNumber != null
+  //               ? selectedQuotationNumber!.agentCode
+  //               : "",
+  //       "ioNumber": "",
+  //       "modOfDispatchCode": "",
+  //       "isFreeSupply": false,
+  //       "isReturnable": false,
+  //       "isRoadPermitReceived": false,
+  //       "customerLOINumber": "",
+  //       "customerLOIDate": "",
+  //       "isInterBranchTransfer": false,
+  //       "customerPOId": 0,
+  //       // Prefill consultant code from quotation if available
+  //       "consultantCode":
+  //           salesOrderReference == "With Quotation Reference" &&
+  //                   selectedQuotationNumber != null
+  //               ? selectedQuotationNumber!.consultantCode
+  //               : "",
+  //       "billToCode": selectedBillTo?.customerCode ?? "",
+  //       "billToCreditLimit": 0,
+  //       "billToAccBalance": 0,
+  //       "config": "N",
+  //       "projectName": "",
+  //     },
+  //     "modelDetails": modelDetails,
+  //     "discountDetails": discountDetails,
+  //     "rateStructureDetails": rateStructureDetails,
+  //     "deliveryDetails": [],
+  //     "paymentDetails": [],
+  //     "termDetails": [],
+  //     "specificationDetails": [],
+  //     "optionalItemDetails": [],
+  //     "textDetails": [],
+  //     "standardTerms": [],
+  //     "historyDetails": [],
+  //     "addOnDetails": [],
+  //     "subItemDetails": [],
+  //     "noteDetails": [],
+  //     "projectLotDetails": [],
+  //     "equipmentAttributeDetails": [],
+  //     "technicalspec": [],
+  //     "msctechspecifications": true,
+  //   };
+  // }
   Map<String, dynamic> _buildSubmissionPayload() {
     final userId = _service.tokenDetails['user']['id'] ?? 0;
     final locationId = _service.locationDetails['id'] ?? 0;
@@ -397,6 +621,7 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
     List<Map<String, dynamic>> modelDetails = [];
     List<Map<String, dynamic>> discountDetails = [];
     List<Map<String, dynamic>> rateStructureDetails = [];
+    List<Map<String, dynamic>> deliveryDetails = [];
 
     for (int i = 0; i < items.length; i++) {
       final item = items[i];
@@ -428,6 +653,35 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
       }
 
       rateStructureDetails.addAll(item.toRateStructureDetails());
+
+      // Create delivery detail for each item
+      final deliveryDetail = {
+        "modelNo": "", // XORDMDLNO
+        "itemCode": item.itemCode, // XORDSITMCD
+        "itemOrderQty": item.qty, // XORDITMQTY
+        "orderType": "REG", // XORDTYP
+        "qtySUOM": item.qty, // XORDDLVQTY
+        "deliveryDate": FormatUtils.formatDateForApi(
+          selectedDate!,
+        ), // XORDDLVDT
+        "expectedInstallationDate": FormatUtils.formatDateForApi(
+          selectedDate!.add(const Duration(days: 1)),
+        ), // ExpInstalDt, XORDEXPINSTALDT
+        "amendSrNo": 0, // XORDAMDSRNO
+        "commitedDelDate": null, // XORDCDDT
+        "shipmentCode": "CADD", // XODShipCd in future using api
+        "amendYear": "", // XORDAMDYEAR
+        "amendGroup": "", // XORDAMDGRP
+        "amendSiteId": 0, // XORDAMDSITEID
+        "amendNumber": "", // XORDAMDNO
+        "amendDate": null, // XORDAMDDT
+        "amendAuthDate": null, // XORDAMDAUDT
+        "oafQty": 0.0, // XORDOAFQTY
+        "sjoQty": 0.0, // XORDSJOQTY
+        "lineId": 0, // XORDLINEID
+        "itemLineNo": item.lineNo, // XORDITMLINENO
+      };
+      deliveryDetails.add(deliveryDetail);
     }
 
     final totalBasic = _calculateTotalBasic();
@@ -455,10 +709,10 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
       "docSubType": "OB",
       "domesticCurrencyCode": "INR",
       "salesOrderDetails": {
+        // ...existing salesOrderDetails...
         "orderId": 0,
         "customerPONumber": customerPONumberController.text,
         "customerPODate": FormatUtils.formatDateForApi(selectedCustomerPODate!),
-        // Prefill quotation details from selected quotation
         "quotationId":
             salesOrderReference == "With Quotation Reference" &&
                     selectedQuotationNumber != null
@@ -489,7 +743,6 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
                 : null,
         "customerCode": selectedOrderFrom?.customerCode ?? "",
         "customerName": selectedOrderFrom?.customerName ?? "",
-        // Prefill salesman from quotation if available
         "salesManCode":
             salesOrderReference == "With Quotation Reference" &&
                     selectedQuotationNumber != null
@@ -536,14 +789,12 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
         "salesOrderRefNo": "",
         "buyerCode": 0,
         "soDeliveryDate": null,
-        // Prefill currency from quotation if available
         "currencyCode":
             salesOrderReference == "With Quotation Reference" &&
                     selectedQuotationNumber != null
                 ? selectedQuotationNumber!.quotationCurrency
                 : "INR",
         "bookCode": "",
-        // Prefill agent code from quotation if available
         "agentCode":
             salesOrderReference == "With Quotation Reference" &&
                     selectedQuotationNumber != null
@@ -558,7 +809,6 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
         "customerLOIDate": "",
         "isInterBranchTransfer": false,
         "customerPOId": 0,
-        // Prefill consultant code from quotation if available
         "consultantCode":
             salesOrderReference == "With Quotation Reference" &&
                     selectedQuotationNumber != null
@@ -573,7 +823,7 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
       "modelDetails": modelDetails,
       "discountDetails": discountDetails,
       "rateStructureDetails": rateStructureDetails,
-      "deliveryDetails": [],
+      "DeliveryDetails": deliveryDetails, // Updated to use the populated list
       "paymentDetails": [],
       "termDetails": [],
       "specificationDetails": [],
