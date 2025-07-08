@@ -77,6 +77,26 @@ class Inquiry {
   }
 }
 
+class DiscountCode {
+  final String code;
+  final String description;
+  final String codeFullName;
+
+  DiscountCode({
+    required this.code,
+    required this.description,
+    required this.codeFullName,
+  });
+
+  factory DiscountCode.fromJson(Map<String, dynamic> json) {
+    return DiscountCode(
+      code: json['code'] ?? '',
+      description: json['description'] ?? '',
+      codeFullName: json['codeFullName'] ?? '',
+    );
+  }
+}
+
 class DocumentDetail {
   final String documentString;
   final String lastSrNo;
@@ -84,6 +104,13 @@ class DocumentDetail {
   final int locationId;
   final String locationCode;
   final String locationName;
+  final String isDefault;
+  final bool isLocationRequired;
+  final bool isAutoNumberGenerated;
+  final bool isAutorisationRequired;
+  final String groupDescription;
+  final String locationFullName;
+  final String groupFullName;
 
   DocumentDetail({
     required this.documentString,
@@ -92,6 +119,13 @@ class DocumentDetail {
     required this.locationId,
     required this.locationCode,
     required this.locationName,
+    required this.isDefault,
+    required this.isLocationRequired,
+    required this.isAutoNumberGenerated,
+    required this.isAutorisationRequired,
+    required this.groupDescription,
+    required this.locationFullName,
+    required this.groupFullName,
   });
 
   factory DocumentDetail.fromJson(Map<String, dynamic> json) {
@@ -102,6 +136,13 @@ class DocumentDetail {
       locationId: json['locationId'] ?? 0,
       locationCode: json['locationCode'] ?? '',
       locationName: json['locationName'] ?? '',
+      isDefault: json['isDefault'] ?? '',
+      isLocationRequired: json['isLocationRequired'] ?? false,
+      isAutoNumberGenerated: json['isAutoNumberGenerated'] ?? false,
+      isAutorisationRequired: json['isAutorisationRequired'] ?? false,
+      groupDescription: json['groupDescription'] ?? '',
+      locationFullName: json['locationFullName'] ?? '',
+      groupFullName: json['groupFullName'] ?? '',
     );
   }
 }
@@ -161,6 +202,7 @@ class QuotationItem {
   final String discountType;
   final double? discountPercentage;
   final double? discountAmount;
+  final String? discountCode; // This field already exists
   final String rateStructure;
   final double? taxAmount;
   final double totalAmount;
@@ -178,6 +220,7 @@ class QuotationItem {
     required this.discountType,
     this.discountPercentage,
     this.discountAmount,
+    this.discountCode,
     required this.rateStructure,
     this.taxAmount,
     required this.totalAmount,
@@ -248,24 +291,24 @@ class QuotationItem {
   }
 
   Map<String, dynamic> toDiscountDetail() {
-    if (discountType == "None" || (discountAmount ?? 0) == 0)
-      return {
-        "salesItemCode": itemCode,
-        "currencyCode": "INR",
-        "discountCode": discountType == "Percentage" ? "001" : "01",
-        "discountType": discountType,
-        "discountValue": discountPercentage ?? (discountAmount ?? 0),
-        "amendSrNo": "0",
-        "itmLineNo": lineNo,
-      };
-    ;
+    // Only create discount detail if there's actually a discount
+    if (discountType == "None" || (discountAmount ?? 0) <= 0) {
+      return {};
+    }
 
     return {
       "salesItemCode": itemCode,
       "currencyCode": "INR",
-      "discountCode": discountType == "Percentage" ? "001" : "01",
+      "discountCode":
+          discountCode ??
+          (discountType == "Percentage"
+              ? "DISC"
+              : "01"), // Use selected code or fallback
       "discountType": discountType,
-      "discountValue": discountPercentage ?? (discountAmount ?? 0),
+      "discountValue":
+          discountType == "Percentage"
+              ? (discountPercentage ?? 0) // Use percentage value
+              : (discountAmount ?? 0), // Use absolute amount
       "amendSrNo": "0",
       "itmLineNo": lineNo,
     };
@@ -360,145 +403,292 @@ class QuotationDetails {
   }
 }
 
-// ...existing code...
-
 class QuotationEditData {
-  final String quotationNumber;
-  final int quotationId;
-  final String customerCode;
-  final String customerName;
-  final String billToCustomerCode;
-  final String billToCustomerName;
-  final String salesmanCode;
-  final String subject;
-  final DateTime quotationDate;
-  final String quotationBase;
-  final int? inquiryId;
-  final String inquiryNumber;
-  final List<QuotationItem> items;
-  final String quotationYear;
-  final String quotationGroup;
-  final int quotationSiteId;
+  final List<Map<String, dynamic>>? quotationDetails;
+  final List<Map<String, dynamic>>? modelDetails;
+  final List<Map<String, dynamic>>? discountDetails;
+  final List<Map<String, dynamic>>? rateStructureDetails;
+  final List<Map<String, dynamic>>? termDetails;
+  final List<Map<String, dynamic>>? subItemDetails;
+  final List<Map<String, dynamic>>? attachmentDetails;
+  final List<Map<String, dynamic>>? historyDetails;
+  final List<Map<String, dynamic>>? addOnDetails;
+  final List<Map<String, dynamic>>? standardTerms;
+  final List<Map<String, dynamic>>? noteDetails;
+  final List<Map<String, dynamic>>? quotationRemarks;
+  final List<Map<String, dynamic>>? equipmentAttributeDetails;
+  final List<Map<String, dynamic>>? quotationTextDetails;
+  final List<Map<String, dynamic>>? technicalspec;
+  final List<Map<String, dynamic>>? lastSalesRecords;
+  final List<Map<String, dynamic>>? lastPORecords;
+
+  // Computed properties for backward compatibility
+  String get quotationNumber =>
+      quotationDetails?.isNotEmpty == true
+          ? quotationDetails!.first['quotationNumber']?.toString() ?? ''
+          : '';
+
+  int get quotationId =>
+      quotationDetails?.isNotEmpty == true
+          ? quotationDetails!.first['quotationId'] ?? 0
+          : 0;
+
+  String get customerCode =>
+      quotationDetails?.isNotEmpty == true
+          ? quotationDetails!.first['customerCode'] ?? ''
+          : '';
+
+  String get customerName =>
+      quotationDetails?.isNotEmpty == true
+          ? quotationDetails!.first['customerName'] ?? ''
+          : '';
+
+  String get billToCustomerCode =>
+      quotationDetails?.isNotEmpty == true
+          ? quotationDetails!.first['billToCustomerCode'] ?? ''
+          : '';
+
+  String get billToCustomerName =>
+      quotationDetails?.isNotEmpty == true
+          ? quotationDetails!.first['billToCustomerName'] ?? ''
+          : '';
+
+  String get salesmanCode =>
+      quotationDetails?.isNotEmpty == true
+          ? quotationDetails!.first['salesPersonCode'] ?? ''
+          : '';
+
+  String get subject =>
+      quotationDetails?.isNotEmpty == true
+          ? quotationDetails!.first['subject'] ?? ''
+          : '';
+
+  DateTime get quotationDate =>
+      quotationDetails?.isNotEmpty == true
+          ? DateTime.tryParse(quotationDetails!.first['quotationDate'] ?? '') ??
+              DateTime.now()
+          : DateTime.now();
+
+  String get quotationBase =>
+      quotationDetails?.isNotEmpty == true
+          ? _mapQuotationBase(quotationDetails!.first['quotationGroup'] ?? '')
+          : 'R';
+
+  int? get inquiryId =>
+      quotationDetails?.isNotEmpty == true
+          ? quotationDetails!.first['inquiryId']
+          : null;
+
+  String get inquiryNumber =>
+      quotationDetails?.isNotEmpty == true
+          ? quotationDetails!.first['inquiryNumber'] ?? ''
+          : '';
+
+  String get quotationYear =>
+      quotationDetails?.isNotEmpty == true
+          ? quotationDetails!.first['quotationYear'] ?? ''
+          : '';
+
+  String get quotationGroup =>
+      quotationDetails?.isNotEmpty == true
+          ? quotationDetails!.first['quotationGroup'] ?? ''
+          : '';
+
+  int get quotationSiteId =>
+      quotationDetails?.isNotEmpty == true
+          ? quotationDetails!.first['quotationSiteId'] ?? 0
+          : 0;
 
   QuotationEditData({
-    required this.quotationNumber,
-    required this.quotationId,
-    required this.customerCode,
-    required this.customerName,
-    required this.billToCustomerCode,
-    required this.billToCustomerName,
-    required this.salesmanCode,
-    required this.subject,
-    required this.quotationDate,
-    required this.quotationBase,
-    this.inquiryId,
-    required this.inquiryNumber,
-    required this.items,
-    required this.quotationYear,
-    required this.quotationGroup,
-    required this.quotationSiteId,
+    this.quotationDetails,
+    this.modelDetails,
+    this.discountDetails,
+    this.rateStructureDetails,
+    this.termDetails,
+    this.subItemDetails,
+    this.attachmentDetails,
+    this.historyDetails,
+    this.addOnDetails,
+    this.standardTerms,
+    this.noteDetails,
+    this.quotationRemarks,
+    this.equipmentAttributeDetails,
+    this.quotationTextDetails,
+    this.technicalspec,
+    this.lastSalesRecords,
+    this.lastPORecords,
   });
 
   factory QuotationEditData.fromJson(Map<String, dynamic> json) {
-    List<QuotationItem> items = [];
-    if (json['itemDetails'] != null) {
-      for (int i = 0; i < json['itemDetails'].length; i++) {
-        final item = json['itemDetails'][i];
-
-        // Process discount details
-        String discountType = "None";
-        double? discountPercentage;
-        double? discountAmount;
-
-        if (json['discountDetails'] != null) {
-          final discountDetail =
-              (json['discountDetails'] as List)
-                  .where((d) => d['itmLineNo'] == (i + 1))
-                  .firstOrNull;
-
-          if (discountDetail != null &&
-              (discountDetail['discountValue'] ?? 0) > 0) {
-            final discValue = (discountDetail['discountValue'] ?? 0).toDouble();
-            final discType = discountDetail['discountType'] ?? '';
-
-            if (discType == 'Percentage') {
-              discountType = 'Percentage';
-              discountPercentage = discValue;
-              discountAmount =
-                  ((item['basicPriceSUOM'] ?? 0).toDouble() *
-                      (item['qtySUOM'] ?? 0).toDouble()) *
-                  (discValue / 100);
-            } else {
-              discountType = 'Value';
-              discountAmount = discValue;
-              final basicAmount =
-                  (item['basicPriceSUOM'] ?? 0).toDouble() *
-                  (item['qtySUOM'] ?? 0).toDouble();
-              discountPercentage =
-                  basicAmount > 0 ? (discValue / basicAmount) * 100 : 0;
-            }
-          }
-        }
-
-        // Process rate structure details
-        List<Map<String, dynamic>>? rateStructureRows;
-        if (json['rateStructureDetails'] != null) {
-          rateStructureRows =
-              (json['rateStructureDetails'] as List)
-                  .where((r) => r['itmModelRefNo'] == (i + 1))
-                  .map((r) => Map<String, dynamic>.from(r))
-                  .toList();
-        }
-
-        // Calculate tax amount
-        double taxAmount = 0.0;
-        if (rateStructureRows != null) {
-          for (final rsDetail in rateStructureRows) {
-            taxAmount += (rsDetail['rateAmount'] ?? 0).toDouble();
-          }
-        }
-
-        items.add(
-          QuotationItem(
-            itemName: item['salesItemDesc'] ?? '',
-            itemCode: item['salesItemCode'] ?? '',
-            qty: (item['qtySUOM'] ?? 0).toDouble(),
-            basicRate: (item['basicPriceSUOM'] ?? 0).toDouble(),
-            uom: item['uom'] ?? 'NOS',
-            discountType: discountType,
-            discountPercentage: discountPercentage,
-            discountAmount: discountAmount,
-            rateStructure: item['rateStructureCode'] ?? '',
-            taxAmount: taxAmount,
-            totalAmount:
-                (item['itemAmountAfterDisc'] ?? 0).toDouble() + taxAmount,
-            rateStructureRows: rateStructureRows,
-            lineNo: i + 1,
-            hsnCode: item['hsnCode'] ?? '',
-            isFromInquiry: false,
-          ),
-        );
-      }
-    }
+    final data = json['data'] ?? json;
 
     return QuotationEditData(
-      quotationNumber: json['quotationNumber']?.toString() ?? '',
-      quotationId: json['quotationId'] ?? 0,
-      customerCode: json['customerCode'] ?? '',
-      customerName: json['customerName'] ?? '',
-      billToCustomerCode: json['billToCustomerCode'] ?? '',
-      billToCustomerName: json['billToCustomerName'] ?? '',
-      salesmanCode: json['salesPersonCode'] ?? '',
-      subject: json['subject'] ?? '',
-      quotationDate:
-          DateTime.tryParse(json['quotationDate'] ?? '') ?? DateTime.now(),
-      quotationBase: json['quotationBase'] ?? 'R',
-      inquiryId: json['inquiryId'],
-      inquiryNumber: json['inquiryNumber'] ?? '',
-      items: items,
-      quotationYear: json['quotationYear'] ?? '',
-      quotationGroup: json['quotationGroup'] ?? '',
-      quotationSiteId: json['quotationSiteId'] ?? 0,
+      quotationDetails:
+          data['quotationDetails'] != null
+              ? List<Map<String, dynamic>>.from(data['quotationDetails'])
+              : null,
+      modelDetails:
+          data['modelDetails'] != null
+              ? List<Map<String, dynamic>>.from(data['modelDetails'])
+              : null,
+      discountDetails:
+          data['discountDetails'] != null
+              ? List<Map<String, dynamic>>.from(data['discountDetails'])
+              : null,
+      rateStructureDetails:
+          data['rateStructureDetails'] != null
+              ? List<Map<String, dynamic>>.from(data['rateStructureDetails'])
+              : null,
+      termDetails:
+          data['termDetails'] != null
+              ? List<Map<String, dynamic>>.from(data['termDetails'])
+              : null,
+      subItemDetails:
+          data['subItemDetails'] != null
+              ? List<Map<String, dynamic>>.from(data['subItemDetails'])
+              : null,
+      attachmentDetails:
+          data['attachmentDetails'] != null
+              ? List<Map<String, dynamic>>.from(data['attachmentDetails'])
+              : null,
+      historyDetails:
+          data['historyDetails'] != null
+              ? List<Map<String, dynamic>>.from(data['historyDetails'])
+              : null,
+      addOnDetails:
+          data['addOnDetails'] != null
+              ? List<Map<String, dynamic>>.from(data['addOnDetails'])
+              : null,
+      standardTerms:
+          data['standardTerms'] != null
+              ? List<Map<String, dynamic>>.from(data['standardTerms'])
+              : null,
+      noteDetails:
+          data['noteDetails'] != null
+              ? List<Map<String, dynamic>>.from(data['noteDetails'])
+              : null,
+      quotationRemarks:
+          data['quotationRemarks'] != null
+              ? List<Map<String, dynamic>>.from(data['quotationRemarks'])
+              : null,
+      equipmentAttributeDetails:
+          data['equipmentAttributeDetails'] != null
+              ? List<Map<String, dynamic>>.from(
+                data['equipmentAttributeDetails'],
+              )
+              : null,
+      quotationTextDetails:
+          data['quotationTextDetails'] != null
+              ? List<Map<String, dynamic>>.from(data['quotationTextDetails'])
+              : null,
+      technicalspec:
+          data['technicalspec'] != null
+              ? List<Map<String, dynamic>>.from(data['technicalspec'])
+              : null,
+      lastSalesRecords:
+          data['lastSalesRecords'] != null
+              ? List<Map<String, dynamic>>.from(data['lastSalesRecords'])
+              : null,
+      lastPORecords:
+          data['lastPORecords'] != null
+              ? List<Map<String, dynamic>>.from(data['lastPORecords'])
+              : null,
     );
+  }
+
+  // Helper method to map quotation group to quotation base
+  String _mapQuotationBase(String quotationGroup) {
+    switch (quotationGroup.toUpperCase()) {
+      case 'SQ':
+        return 'R'; // Regular
+      case 'IQ':
+        return 'I'; // Inquiry
+      default:
+        return 'R';
+    }
+  }
+
+  // Get items as QuotationItem objects
+  List<QuotationItem> get items {
+    if (modelDetails == null || modelDetails!.isEmpty) return [];
+
+    List<QuotationItem> quotationItems = [];
+
+    for (int i = 0; i < modelDetails!.length; i++) {
+      final modelDetail = modelDetails![i];
+
+      // Calculate discount details
+      String discountType = "None";
+      double? discountPercentage;
+      double? discountAmount = modelDetail['discountAmt']?.toDouble() ?? 0.0;
+      String? discountCode;
+
+      // Get discount code from discount details if available
+      if (discountDetails != null && discountDetails!.isNotEmpty) {
+        final itemDiscountDetail = discountDetails!.firstWhere(
+          (discount) => discount['itmLineNo'] == modelDetail['itemLineNo'],
+          orElse: () => <String, dynamic>{},
+        );
+        if (itemDiscountDetail.isNotEmpty) {
+          discountCode = itemDiscountDetail['discountCode'];
+        }
+      }
+
+      if (discountAmount! > 0) {
+        final basicAmount =
+            (modelDetail['basicPriceSUOM']?.toDouble() ?? 0.0) *
+            (modelDetail['qtySUOM']?.toDouble() ?? 0.0);
+        if (basicAmount > 0) {
+          discountType = "Value";
+          discountPercentage = (discountAmount! / basicAmount) * 100;
+        }
+      }
+
+      // Get rate structure details for this item
+      final itemRateStructureDetails =
+          rateStructureDetails
+              ?.where((rs) => rs['lineNo'] == modelDetail['itemLineNo'])
+              .toList() ??
+          [];
+
+      // Calculate tax amount from rate structure details
+      double taxAmount = 0.0;
+      for (final rsDetail in itemRateStructureDetails) {
+        taxAmount += (rsDetail['rateAmount']?.toDouble() ?? 0.0);
+      }
+
+      // Calculate correct total amount using the same logic as ad_qote.dart
+      final basicAmount =
+          (modelDetail['basicPriceSUOM']?.toDouble() ?? 0.0) *
+          (modelDetail['qtySUOM']?.toDouble() ?? 0.0);
+      final netAmount = basicAmount - discountAmount;
+      final totalAmount = netAmount + taxAmount;
+
+      final item = QuotationItem(
+        itemName: modelDetail['salesItemDesc'] ?? '',
+        itemCode: modelDetail['salesItemCode'] ?? '',
+        qty: modelDetail['qtySUOM']?.toDouble() ?? 0.0,
+        basicRate: modelDetail['basicPriceSUOM']?.toDouble() ?? 0.0,
+        uom: modelDetail['uom'] ?? 'NOS',
+        discountType: discountType,
+        discountPercentage: discountPercentage,
+        discountAmount: discountAmount > 0 ? discountAmount : null,
+        discountCode: discountCode, // Include discount code from API data
+        rateStructure: modelDetail['rateStructureCode'] ?? '',
+        taxAmount: taxAmount,
+        totalAmount: totalAmount, // Use calculated total amount
+        rateStructureRows:
+            itemRateStructureDetails.isNotEmpty
+                ? List<Map<String, dynamic>>.from(itemRateStructureDetails)
+                : null,
+        lineNo: modelDetail['itemLineNo'] ?? (i + 1),
+        hsnCode: modelDetail['hsnCode'] ?? '',
+        isFromInquiry: (inquiryId ?? 0) > 0,
+      );
+
+      quotationItems.add(item);
+    }
+
+    return quotationItems;
   }
 }

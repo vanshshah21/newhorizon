@@ -55,9 +55,11 @@
 //   DateTime? startDate;
 //   DateTime? endDate;
 //   late Map<String, dynamic>? _financeDetails;
+//   bool _isDuplicateAllowed = false;
 
-//   // Quotation related fields
+//   // Quotation related fields - Updated to match add_so.dart
 //   List<QuotationNumber> quotationNumbers = [];
+//   List<QuotationItemDetail> quotationItemDetails = [];
 //   QuotationNumber? selectedQuotationNumber;
 //   bool _loadingQuotationDetails = false;
 
@@ -76,7 +78,21 @@
 //     await _loadFinancePeriod();
 //     await _loadRateStructures();
 //     await _loadSalesOrderDetails();
+//     await _loadSalesPolicy();
 //     setState(() => _isLoading = false);
+//   }
+
+//   Future<void> _loadSalesPolicy() async {
+//     try {
+//       final salesPolicy = await _service.getSalesPolicy();
+//       _isDuplicateAllowed =
+//           salesPolicy['allowduplictae'] ??
+//           salesPolicy['allowduplicate'] ??
+//           false;
+//     } catch (e) {
+//       debugPrint("Error loading sales policy: $e");
+//       _isDuplicateAllowed = false; // Default to not allowing duplicates
+//     }
 //   }
 
 //   Future<void> _loadFinancePeriod() async {
@@ -153,7 +169,7 @@
 //     // Set customer PO number
 //     customerPONumberController.text = soDetails['customerPONumber'] ?? '';
 
-//     // Set quotation reference
+//     // Set quotation reference - Updated to match new structure
 //     if (soDetails['quotationNumber'] != null &&
 //         soDetails['quotationNumber'].toString().isNotEmpty &&
 //         soDetails['quotationNumber'] != '0') {
@@ -161,15 +177,31 @@
 //       quotationNumberController.text = soDetails['quotationNumber'];
 
 //       selectedQuotationNumber = QuotationNumber(
+//         select: false,
+//         customerCode: soDetails['customerCode'] ?? '',
 //         quotationID: soDetails['quotationId'] ?? 0,
-//         quotationNumber: soDetails['quotationNumber'] ?? '',
-//         quotationYear: soDetails['quotationYear'] ?? '',
-//         quotationGroup: soDetails['quotationGroup'] ?? '',
+//         qtnNumber: soDetails['quotationNumber'] ?? '',
 //         quotationDate:
 //             soDetails['quotationDate'] != null &&
 //                     soDetails['quotationDate'] != '0001-01-01T00:00:00'
 //                 ? DateTime.parse(soDetails['quotationDate'])
 //                 : DateTime.now(),
+//         revisionNo: 0,
+//         revisionDate: null,
+//         quotationCurrency: 'INR',
+//         agentCode: '',
+//         inquiryNo: '',
+//         inquiryDate: null,
+//         salesmanCode: '',
+//         salesmanName: '',
+//         consultantCode: '',
+//         consultantName: '',
+//         gstno: '',
+//         quotationYear: soDetails['quotationYear'] ?? '',
+//         quotationGroup: soDetails['quotationGroup'] ?? '',
+//         quotationNumber: soDetails['quotationNumber'] ?? '',
+//         quotationSiteCode: '',
+//         quotationSiteId: 0,
 //       );
 //     }
 
@@ -272,118 +304,150 @@
 //     });
 //   }
 
+//   // Updated to match add_so.dart structure
 //   Future<void> _loadQuotationNumbers(String customerCode) async {
 //     try {
-//       quotationNumbers = await _service.fetchQuotationNumberList(customerCode);
+//       final quotationListResponse = await _service.fetchQuotationNumberList(
+//         customerCode,
+//       );
+
+//       quotationNumbers = quotationListResponse.quotationDetails;
+//       quotationItemDetails = quotationListResponse.quotationItemDetails;
+
 //       setState(() {});
 //     } catch (e) {
 //       _showError("Error loading quotation numbers: ${e.toString()}");
 //     }
 //   }
 
+//   // Updated to match add_so.dart structure
 //   Future<void> _onQuotationNumberSelected(
 //     QuotationNumber quotationNumber,
 //   ) async {
 //     setState(() {
 //       selectedQuotationNumber = quotationNumber;
-//       quotationNumberController.text = quotationNumber.quotationNumber;
+//       quotationNumberController.text = quotationNumber.qtnNumber;
 //       _loadingQuotationDetails = true;
 //       items.clear();
 //     });
 
 //     try {
+//       // Filter items for the selected quotation
+//       final selectedQuotationItems =
+//           quotationItemDetails
+//               .where((item) => item.quotationId == quotationNumber.quotationID)
+//               .toList();
+
+//       // Build request body for fetching quotation details
+//       final requestBody = {
+//         "DisplayMaxRecords": 1000,
+//         "QuotationDetails": [
+//           {"QuotationId": quotationNumber.quotationID},
+//         ],
+//         "ItemDetails":
+//             selectedQuotationItems
+//                 .map(
+//                   (item) => {
+//                     "SalesItemCode": item.salesItemCode,
+//                     "QuotationId": item.quotationId,
+//                     "itemLineNo": item.itemLineNo,
+//                   },
+//                 )
+//                 .toList(),
+//       };
+
 //       final quotationDetails = await _service.fetchQuotationDetails(
-//         quotationNumber.quotationNumber,
+//         requestBody,
 //       );
 
 //       // Convert quotation items to sales order items
 //       int lineNo = 1;
-//       for (final detail in quotationDetails.itemDetail) {
-//         // Calculate discount details
-//         String discountType = "None";
-//         double? discountPercentage;
-//         double? discountAmount;
+//       // for (final detail in quotationDetails.itemDetail) {
+//       //   // Calculate discount details
+//       //   String discountType = "None";
+//       //   double? discountPercentage;
+//       //   double? discountAmount;
 
-//         if (quotationDetails.discountDetail != null &&
-//             quotationDetails.discountDetail!.isNotEmpty) {
-//           final discountDetail = quotationDetails.discountDetail!.firstWhere(
-//             (d) => d['salesItemCode'] == detail['salesItemCode'],
-//             orElse: () => {},
-//           );
+//       //   if (quotationDetails.discountDetail != null &&
+//       //       quotationDetails.discountDetail!.isNotEmpty) {
+//       //     final discountDetail = quotationDetails.discountDetail!.firstWhere(
+//       //       (d) => d['salesItemCode'] == detail['salesItemCode'],
+//       //       orElse: () => {},
+//       //     );
 
-//           if (discountDetail.isNotEmpty &&
-//               (discountDetail['discountValue'] ?? 0) > 0) {
-//             final discValue = (discountDetail['discountValue'] ?? 0).toDouble();
-//             final discType = discountDetail['discountType'] ?? '';
+//       //     if (discountDetail.isNotEmpty &&
+//       //         (discountDetail['discountValue'] ?? 0) > 0) {
+//       //       final discValue = (discountDetail['discountValue'] ?? 0).toDouble();
+//       //       final discType = discountDetail['discountType'] ?? '';
 
-//             if (discType == 'Percentage') {
-//               discountType = 'Percentage';
-//               discountPercentage = discValue;
-//               discountAmount =
-//                   ((detail['basicPriceSUOM'] ?? 0).toDouble() *
-//                       (detail['qtySUOM'] ?? 0).toDouble()) *
-//                   (discValue / 100);
-//             } else {
-//               discountType = 'Value';
-//               discountAmount = discValue;
-//               final basicAmount =
-//                   (detail['basicPriceSUOM'] ?? 0).toDouble() *
-//                   (detail['qtySUOM'] ?? 0).toDouble();
-//               discountPercentage =
-//                   basicAmount > 0 ? (discValue / basicAmount) * 100 : 0;
-//             }
-//           }
-//         }
+//       //       if (discType == 'Percentage') {
+//       //         discountType = 'Percentage';
+//       //         discountPercentage = discValue;
+//       //         discountAmount =
+//       //             ((detail['basicPriceSUOM'] ?? 0).toDouble() *
+//       //                 (detail['qtySUOM'] ?? 0).toDouble()) *
+//       //             (discValue / 100);
+//       //       } else {
+//       //         discountType = 'Value';
+//       //         discountAmount = discValue;
+//       //         final basicAmount =
+//       //             (detail['basicPriceSUOM'] ?? 0).toDouble() *
+//       //             (detail['qtySUOM'] ?? 0).toDouble();
+//       //         discountPercentage =
+//       //             basicAmount > 0 ? (discValue / basicAmount) * 100 : 0;
+//       //       }
+//       //     }
+//       //   }
 
-//         // Calculate tax amount
-//         double taxAmount = 0.0;
-//         if (quotationDetails.rateStructDetail != null) {
-//           final rateStructDetails = quotationDetails.rateStructDetail!.where(
-//             (rs) => rs['customerItemCode'] == detail['salesItemCode'],
-//           );
-//           for (final rsDetail in rateStructDetails) {
-//             taxAmount += (rsDetail['rateAmount'] ?? 0).toDouble();
-//           }
-//         }
+//       //   // Calculate tax amount
+//       //   double taxAmount = 0.0;
+//       //   if (quotationDetails.rateStructDetail != null) {
+//       //     final rateStructDetails = quotationDetails.rateStructDetail!.where(
+//       //       (rs) => rs['customerItemCode'] == detail['salesItemCode'],
+//       //     );
+//       //     for (final rsDetail in rateStructDetails) {
+//       //       taxAmount += (rsDetail['rateAmount'] ?? 0).toDouble();
+//       //     }
+//       //   }
 
-//         // Calculate total amount
-//         final basicRate = (detail['basicPriceSUOM'] ?? 0).toDouble();
-//         final qty = (detail['qtySUOM'] ?? 0).toDouble();
-//         final basicAmount = basicRate * qty;
-//         final discountedAmount = basicAmount - (discountAmount ?? 0);
-//         final totalAmount = discountedAmount + taxAmount;
+//       //   // Calculate total amount
+//       //   final basicRate = (detail['basicPriceSUOM'] ?? 0).toDouble();
+//       //   final qty = (detail['qtySUOM'] ?? 0).toDouble();
+//       //   final basicAmount = basicRate * qty;
+//       //   final discountedAmount = basicAmount - (discountAmount ?? 0);
+//       //   final totalAmount = discountedAmount + taxAmount;
 
-//         // Get rate structure rows for this item
-//         List<Map<String, dynamic>> rateStructureRows = [];
-//         if (quotationDetails.rateStructDetail != null) {
-//           rateStructureRows =
-//               quotationDetails.rateStructDetail!
-//                   .where(
-//                     (rs) => rs['customerItemCode'] == detail['salesItemCode'],
-//                   )
-//                   .toList();
-//         }
+//       //   // Get rate structure rows for this item
+//       //   List<Map<String, dynamic>> rateStructureRows = [];
+//       //   if (quotationDetails.rateStructDetail != null) {
+//       //     rateStructureRows =
+//       //         quotationDetails.rateStructDetail!
+//       //             .where(
+//       //               (rs) => rs['customerItemCode'] == detail['salesItemCode'],
+//       //             )
+//       //             .toList();
+//       //   }
 
-//         items.add(
-//           SalesOrderItem(
-//             itemName: detail['salesItemDesc'] ?? '',
-//             itemCode: detail['salesItemCode'] ?? '',
-//             qty: qty,
-//             basicRate: basicRate,
-//             uom: detail['uom'] ?? 'NOS',
-//             discountType: discountType,
-//             discountPercentage: discountPercentage,
-//             discountAmount: discountAmount,
-//             rateStructure: detail['rateStructureCode'] ?? '',
-//             taxAmount: taxAmount,
-//             totalAmount: totalAmount,
-//             rateStructureRows: rateStructureRows,
-//             lineNo: lineNo,
-//             hsnCode: detail['hsnCode'] ?? '',
-//           ),
-//         );
-//         lineNo++;
-//       }
+//       //   items.add(
+//       //     SalesOrderItem(
+//       //       itemName: detail['salesItemDesc'] ?? '',
+//       //       itemCode: detail['salesItemCode'] ?? '',
+//       //       qty: qty,
+//       //       basicRate: basicRate,
+//       //       uom: detail['uom'] ?? 'NOS',
+//       //       discountType: discountType,
+//       //       discountPercentage: discountPercentage,
+//       //       discountAmount: discountAmount,
+//       //       rateStructure: detail['rateStructureCode'] ?? '',
+//       //       taxAmount: taxAmount,
+//       //       totalAmount: totalAmount,
+//       //       rateStructureRows: rateStructureRows,
+//       //       lineNo: lineNo,
+//       //       hsnCode: detail['hsnCode'] ?? '',
+//       //     ),
+//       //   );
+//       //   lineNo++;
+//       // }
 
 //       setState(() {});
 //     } catch (e) {
@@ -401,6 +465,8 @@
 //             (context) => AddSalesOrderItemPage(
 //               service: _service,
 //               rateStructures: rateStructures,
+//               existingItems: items, // Pass existing items
+//               isDuplicateAllowed: _isDuplicateAllowed, // Pass duplicate flag
 //             ),
 //       ),
 //     );
@@ -506,10 +572,10 @@
 //       modelDetail['custPONumber'] = customerPONumberController.text;
 //       modelDetail['orderId'] = int.parse(originalOrderId);
 
-//       // Add quotation reference if applicable
+//       // Add quotation reference if applicable - Updated field names
 //       if (salesOrderReference == "With Quotation Reference" &&
 //           selectedQuotationNumber != null) {
-//         modelDetail['quotationId'] = selectedQuotationNumber!.quotationId;
+//         modelDetail['quotationId'] = selectedQuotationNumber!.quotationID;
 //         modelDetail['quotationLineNo'] = item.lineNo;
 //         modelDetail['quotationAmendNo'] = 0;
 //       }
@@ -555,7 +621,7 @@
 //         "quotationId":
 //             salesOrderReference == "With Quotation Reference" &&
 //                     selectedQuotationNumber != null
-//                 ? selectedQuotationNumber!.quotationId
+//                 ? selectedQuotationNumber!.quotationID
 //                 : 0,
 //         "quotationYear":
 //             salesOrderReference == "With Quotation Reference" &&
@@ -647,6 +713,47 @@
 //     };
 //   }
 
+//   // Future<void> _updateSalesOrder() async {
+//   //   if (!_formKey.currentState!.validate()) return;
+//   //   if (selectedOrderFrom == null) {
+//   //     _showError("Please select Order From customer");
+//   //     return;
+//   //   }
+//   //   if (selectedBillTo == null) {
+//   //     _showError("Please select Bill To customer");
+//   //     return;
+//   //   }
+//   //   if (customerPONumberController.text.isEmpty) {
+//   //     _showError("Please enter Customer PO Number");
+//   //     return;
+//   //   }
+//   //   if (selectedCustomerPODate == null) {
+//   //     _showError("Please select Customer PO Date");
+//   //     return;
+//   //   }
+//   //   if (items.isEmpty) {
+//   //     _showError("Please add at least one item");
+//   //     return;
+//   //   }
+
+//   //   setState(() => _submitting = true);
+
+//   //   try {
+//   //     final payload = _buildUpdatePayload();
+//   //     final response = await _service.updateSalesOrder(payload);
+
+//   //     if (response['success'] == true) {
+//   //       _showSuccess(response['message'] ?? "Sales Order updated successfully");
+//   //       Navigator.pop(context, true);
+//   //     } else {
+//   //       _showError(response['errorMessage'] ?? "Failed to update sales order");
+//   //     }
+//   //   } catch (e) {
+//   //     _showError("Error during update: ${e.toString()}");
+//   //   } finally {
+//   //     setState(() => _submitting = false);
+//   //   }
+//   // }
 //   Future<void> _updateSalesOrder() async {
 //     if (!_formKey.currentState!.validate()) return;
 //     if (selectedOrderFrom == null) {
@@ -678,7 +785,7 @@
 
 //       if (response['success'] == true) {
 //         _showSuccess(response['message'] ?? "Sales Order updated successfully");
-//         Navigator.pop(context, true);
+//         Navigator.pop(context, true); // Return true to indicate success
 //       } else {
 //         _showError(response['errorMessage'] ?? "Failed to update sales order");
 //       }
@@ -800,6 +907,7 @@
 //                     // Clear quotation data when switching
 //                     if (val == "Without Quotation Reference") {
 //                       quotationNumbers.clear();
+//                       quotationItemDetails.clear();
 //                       selectedQuotationNumber = null;
 //                       quotationNumberController.clear();
 //                     } else if (selectedOrderFrom != null) {
@@ -891,6 +999,7 @@
 //     );
 //   }
 
+//   // Updated to match add_so.dart structure
 //   Widget _buildQuotationNumberField() {
 //     return DropdownButtonFormField<QuotationNumber>(
 //       decoration: const InputDecoration(
@@ -903,10 +1012,7 @@
 //           quotationNumbers.map((quotation) {
 //             return DropdownMenuItem<QuotationNumber>(
 //               value: quotation,
-//               child: Text(
-//                 "${quotation.quotationNumber} - ${FormatUtils.formatDateForUser(quotation.quotationDate)}",
-//                 overflow: TextOverflow.ellipsis,
-//               ),
+//               child: Text(quotation.qtnNumber, overflow: TextOverflow.ellipsis),
 //             );
 //           }).toList(),
 //       onChanged:
@@ -1230,6 +1336,7 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
   DateTime? startDate;
   DateTime? endDate;
   late Map<String, dynamic>? _financeDetails;
+  bool _isDuplicateAllowed = false;
 
   // Quotation related fields - Updated to match add_so.dart
   List<QuotationNumber> quotationNumbers = [];
@@ -1252,7 +1359,21 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
     await _loadFinancePeriod();
     await _loadRateStructures();
     await _loadSalesOrderDetails();
+    await _loadSalesPolicy();
     setState(() => _isLoading = false);
+  }
+
+  Future<void> _loadSalesPolicy() async {
+    try {
+      final salesPolicy = await _service.getSalesPolicy();
+      _isDuplicateAllowed =
+          salesPolicy['allowduplictae'] ??
+          salesPolicy['allowduplicate'] ??
+          false;
+    } catch (e) {
+      debugPrint("Error loading sales policy: $e");
+      _isDuplicateAllowed = false; // Default to not allowing duplicates
+    }
   }
 
   Future<void> _loadFinancePeriod() async {
@@ -1374,6 +1495,7 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
       String discountType = "None";
       double? discountPercentage;
       double? discountAmount;
+      String? discountCode;
 
       final discount = discountDetails.firstWhere(
         (d) => d['itemCode'] == model['salesItemCode'],
@@ -1382,6 +1504,8 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
 
       if (discount.isNotEmpty) {
         final discType = discount['discountType'] ?? 'None';
+        discountCode = discount['discountCode']; // Get the discount code
+
         if (discType != 'None' && discType != 'N') {
           if (discType == 'Percentage' || discType == 'P') {
             discountType = 'Percentage';
@@ -1430,6 +1554,7 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
           discountType: discountType,
           discountPercentage: discountPercentage,
           discountAmount: discountAmount,
+          discountCode: discountCode, // Add this
           rateStructure: model['rateStructureCode'] ?? '',
           taxAmount: taxAmount,
           totalAmount: totalAmount,
@@ -1510,7 +1635,7 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
                   (item) => {
                     "SalesItemCode": item.salesItemCode,
                     "QuotationId": item.quotationId,
-                    "itemLineNo": item.itemLineNo,
+                    "itmLineNo": item.itemLineNo,
                   },
                 )
                 .toList(),
@@ -1522,92 +1647,116 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
 
       // Convert quotation items to sales order items
       int lineNo = 1;
-      // for (final detail in quotationDetails.itemDetail) {
-      //   // Calculate discount details
-      //   String discountType = "None";
-      //   double? discountPercentage;
-      //   double? discountAmount;
+      for (final detail in quotationDetails.modelDetails) {
+        // Calculate discount details properly
+        String discountType = "None";
+        double? discountPercentage;
+        double? discountAmount;
+        String? discountCode;
 
-      //   if (quotationDetails.discountDetail != null &&
-      //       quotationDetails.discountDetail!.isNotEmpty) {
-      //     final discountDetail = quotationDetails.discountDetail!.firstWhere(
-      //       (d) => d['salesItemCode'] == detail['salesItemCode'],
-      //       orElse: () => {},
-      //     );
+        // Look for discount in discountDetails array first
+        if (quotationDetails.discountDetail != null &&
+            quotationDetails.discountDetail!.isNotEmpty) {
+          final discountDetail = quotationDetails.discountDetail!.firstWhere(
+            (d) =>
+                d['salesItemCode'] == detail['salesItemCode'] &&
+                d['itmLineNo'] == detail['itemLineNo'],
+            orElse: () => {},
+          );
 
-      //     if (discountDetail.isNotEmpty &&
-      //         (discountDetail['discountValue'] ?? 0) > 0) {
-      //       final discValue = (discountDetail['discountValue'] ?? 0).toDouble();
-      //       final discType = discountDetail['discountType'] ?? '';
+          if (discountDetail.isNotEmpty) {
+            final discType = discountDetail['discountType'] ?? 'N';
+            final discValue = (discountDetail['discountValue'] ?? 0).toDouble();
+            discountCode = discountDetail['discountCode']; // Get discount code
 
-      //       if (discType == 'Percentage') {
-      //         discountType = 'Percentage';
-      //         discountPercentage = discValue;
-      //         discountAmount =
-      //             ((detail['basicPriceSUOM'] ?? 0).toDouble() *
-      //                 (detail['qtySUOM'] ?? 0).toDouble()) *
-      //             (discValue / 100);
-      //       } else {
-      //         discountType = 'Value';
-      //         discountAmount = discValue;
-      //         final basicAmount =
-      //             (detail['basicPriceSUOM'] ?? 0).toDouble() *
-      //             (detail['qtySUOM'] ?? 0).toDouble();
-      //         discountPercentage =
-      //             basicAmount > 0 ? (discValue / basicAmount) * 100 : 0;
-      //       }
-      //     }
-      //   }
+            if (discType == 'P' && discValue > 0) {
+              discountType = 'Percentage';
+              discountPercentage = discValue;
+              final basicAmount =
+                  (detail['basicPriceSUOM'] ?? 0).toDouble() *
+                  (detail['qtySUOM'] ?? 0).toDouble();
+              discountAmount = basicAmount * (discValue / 100);
+            } else if (discType == 'V' && discValue > 0) {
+              discountType = 'Value';
+              discountAmount = discValue;
+              final basicAmount =
+                  (detail['basicPriceSUOM'] ?? 0).toDouble() *
+                  (detail['qtySUOM'] ?? 0).toDouble();
+              discountPercentage =
+                  basicAmount > 0 ? (discValue / basicAmount) * 100 : 0;
+            }
+          }
+        }
 
-      //   // Calculate tax amount
-      //   double taxAmount = 0.0;
-      //   if (quotationDetails.rateStructDetail != null) {
-      //     final rateStructDetails = quotationDetails.rateStructDetail!.where(
-      //       (rs) => rs['customerItemCode'] == detail['salesItemCode'],
-      //     );
-      //     for (final rsDetail in rateStructDetails) {
-      //       taxAmount += (rsDetail['rateAmount'] ?? 0).toDouble();
-      //     }
-      //   }
+        // Fallback: check if discount is in the model detail itself
+        if (discountType == "None" && detail['discountAmt'] != null) {
+          final discAmt = (detail['discountAmt'] ?? 0).toDouble();
+          if (discAmt > 0) {
+            discountType = 'Value';
+            discountAmount = discAmt;
+            final basicAmount =
+                (detail['basicPriceSUOM'] ?? 0).toDouble() *
+                (detail['qtySUOM'] ?? 0).toDouble();
+            discountPercentage =
+                basicAmount > 0 ? (discAmt / basicAmount) * 100 : 0;
+          }
+        }
 
-      //   // Calculate total amount
-      //   final basicRate = (detail['basicPriceSUOM'] ?? 0).toDouble();
-      //   final qty = (detail['qtySUOM'] ?? 0).toDouble();
-      //   final basicAmount = basicRate * qty;
-      //   final discountedAmount = basicAmount - (discountAmount ?? 0);
-      //   final totalAmount = discountedAmount + taxAmount;
+        // Calculate tax amount from rate structure details
+        double taxAmount = 0.0;
+        if (quotationDetails.rateStructureDetails != null) {
+          final rateStructDetails = quotationDetails.rateStructureDetails!
+              .where(
+                (rs) =>
+                    rs['customerItemCode'] == detail['salesItemCode'] &&
+                    rs['lineNo'] == detail['itemLineNo'],
+              );
+          for (final rsDetail in rateStructDetails) {
+            taxAmount += (rsDetail['rateAmount'] ?? 0).toDouble();
+          }
+        }
 
-      //   // Get rate structure rows for this item
-      //   List<Map<String, dynamic>> rateStructureRows = [];
-      //   if (quotationDetails.rateStructDetail != null) {
-      //     rateStructureRows =
-      //         quotationDetails.rateStructDetail!
-      //             .where(
-      //               (rs) => rs['customerItemCode'] == detail['salesItemCode'],
-      //             )
-      //             .toList();
-      //   }
+        // Calculate total amount
+        final basicRate = (detail['basicPriceSUOM'] ?? 0).toDouble();
+        final qty = (detail['qtySUOM'] ?? 0).toDouble();
+        final basicAmount = basicRate * qty;
+        final discountedAmount = basicAmount - (discountAmount ?? 0);
+        final totalAmount = discountedAmount + taxAmount;
 
-      //   items.add(
-      //     SalesOrderItem(
-      //       itemName: detail['salesItemDesc'] ?? '',
-      //       itemCode: detail['salesItemCode'] ?? '',
-      //       qty: qty,
-      //       basicRate: basicRate,
-      //       uom: detail['uom'] ?? 'NOS',
-      //       discountType: discountType,
-      //       discountPercentage: discountPercentage,
-      //       discountAmount: discountAmount,
-      //       rateStructure: detail['rateStructureCode'] ?? '',
-      //       taxAmount: taxAmount,
-      //       totalAmount: totalAmount,
-      //       rateStructureRows: rateStructureRows,
-      //       lineNo: lineNo,
-      //       hsnCode: detail['hsnCode'] ?? '',
-      //     ),
-      //   );
-      //   lineNo++;
-      // }
+        // Get rate structure rows for this item
+        List<Map<String, dynamic>> rateStructureRows = [];
+        if (quotationDetails.rateStructureDetails != null) {
+          rateStructureRows =
+              quotationDetails.rateStructureDetails!
+                  .where(
+                    (rs) =>
+                        rs['customerItemCode'] == detail['salesItemCode'] &&
+                        rs['lineNo'] == detail['itemLineNo'],
+                  )
+                  .toList();
+        }
+
+        items.add(
+          SalesOrderItem(
+            itemName: detail['salesItemDesc'] ?? '',
+            itemCode: detail['salesItemCode'] ?? '',
+            qty: qty,
+            basicRate: basicRate,
+            uom: detail['uom'] ?? 'NOS',
+            discountType: discountType,
+            discountPercentage: discountPercentage,
+            discountAmount: discountAmount,
+            discountCode: discountCode, // Add this
+            rateStructure: detail['rateStructureCode'] ?? '',
+            taxAmount: taxAmount,
+            totalAmount: totalAmount,
+            rateStructureRows: rateStructureRows,
+            lineNo: lineNo,
+            hsnCode: detail['hsnCode'] ?? '',
+          ),
+        );
+        lineNo++;
+      }
 
       setState(() {});
     } catch (e) {
@@ -1625,6 +1774,8 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
             (context) => AddSalesOrderItemPage(
               service: _service,
               rateStructures: rateStructures,
+              existingItems: items, // Pass existing items
+              isDuplicateAllowed: _isDuplicateAllowed, // Pass duplicate flag
             ),
       ),
     );
@@ -1677,38 +1828,6 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
     });
   }
 
-  Future<void> _selectDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: selectedDate ?? DateTime.now(),
-      firstDate:
-          startDate ?? DateTime.now().subtract(const Duration(days: 365)),
-      lastDate: endDate ?? DateTime.now().add(const Duration(days: 365)),
-    );
-    if (picked != null) {
-      setState(() {
-        selectedDate = picked;
-        dateController.text = FormatUtils.formatDateForUser(picked);
-      });
-    }
-  }
-
-  Future<void> _selectCustomerPODate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: selectedCustomerPODate ?? DateTime.now(),
-      firstDate:
-          startDate ?? DateTime.now().subtract(const Duration(days: 365)),
-      lastDate: endDate ?? DateTime.now().add(const Duration(days: 365)),
-    );
-    if (picked != null) {
-      setState(() {
-        selectedCustomerPODate = picked;
-        customerPODateController.text = FormatUtils.formatDateForUser(picked);
-      });
-    }
-  }
-
   Map<String, dynamic> _buildUpdatePayload() {
     final userId = _service.tokenDetails['user']['id'] ?? 0;
     final locationId = _service.locationDetails['id'] ?? 0;
@@ -1721,6 +1840,7 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
     List<Map<String, dynamic>> modelDetails = [];
     List<Map<String, dynamic>> discountDetails = [];
     List<Map<String, dynamic>> rateStructureDetails = [];
+    List<Map<String, dynamic>> deliveryDetails = [];
 
     for (int i = 0; i < items.length; i++) {
       final item = items[i];
@@ -1733,9 +1853,36 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
       // Add quotation reference if applicable - Updated field names
       if (salesOrderReference == "With Quotation Reference" &&
           selectedQuotationNumber != null) {
+        // Find the corresponding quotation item detail
+        final quotationItemDetail = quotationItemDetails.firstWhere(
+          (qItem) =>
+              qItem.salesItemCode == item.itemCode &&
+              qItem.quotationId == selectedQuotationNumber!.quotationID,
+          orElse:
+              () =>
+                  quotationItemDetails.isNotEmpty
+                      ? quotationItemDetails.first
+                      : QuotationItemDetail(
+                        select: false,
+                        salesItemCode: '',
+                        salesItemDesc: '',
+                        uom: '',
+                        itemQtySUOM: 0,
+                        itemRate: 0,
+                        itemValue: 0,
+                        quotationId: 0,
+                        itemLineNo: 0,
+                        currencyCode: '',
+                        quotationStatus: '',
+                        conversionFactor: 1,
+                        amendSrNo: 0,
+                        agentCode: '',
+                      ),
+        );
+
         modelDetail['quotationId'] = selectedQuotationNumber!.quotationID;
-        modelDetail['quotationLineNo'] = item.lineNo;
-        modelDetail['quotationAmendNo'] = 0;
+        modelDetail['quotationLineNo'] = quotationItemDetail.itemLineNo;
+        modelDetail['quotationAmendNo'] = quotationItemDetail.amendSrNo;
       }
       modelDetails.add(modelDetail);
 
@@ -1746,6 +1893,35 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
       }
 
       rateStructureDetails.addAll(item.toRateStructureDetails());
+
+      // Create delivery detail for each item
+      final deliveryDetail = {
+        "modelNo": "", // XORDMDLNO
+        "itemCode": item.itemCode, // XORDSITMCD
+        "itemOrderQty": item.qty, // XORDITMQTY
+        "orderType": "REG", // XORDTYP
+        "qtySUOM": item.qty, // XORDDLVQTY
+        "deliveryDate": FormatUtils.formatDateForApi(
+          selectedDate!,
+        ), // XORDDLVDT
+        "expectedInstallationDate": FormatUtils.formatDateForApi(
+          selectedDate!.add(const Duration(days: 1)),
+        ), // ExpInstalDt, XORDEXPINSTALDT
+        "amendSrNo": 0, // XORDAMDSRNO
+        "commitedDelDate": null, // XORDCDDT
+        "shipmentCode": "CADD", // XODShipCd in future using api
+        "amendYear": "", // XORDAMDYEAR
+        "amendGroup": "", // XORDAMDGRP
+        "amendSiteId": 0, // XORDAMDSITEID
+        "amendNumber": "", // XORDAMDNO
+        "amendDate": null, // XORDAMDDT
+        "amendAuthDate": null, // XORDAMDAUDT
+        "oafQty": 0.0, // XORDOAFQTY
+        "sjoQty": 0.0, // XORDSJOQTY
+        "lineId": 0, // XORDLINEID
+        "itemLineNo": item.lineNo, // XORDITMLINENO
+      };
+      deliveryDetails.add(deliveryDetail);
     }
 
     final totalBasic = _calculateTotalBasic();
@@ -1805,7 +1981,11 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
                 : null,
         "customerCode": selectedOrderFrom?.customerCode ?? "",
         "customerName": selectedOrderFrom?.customerName ?? "",
-        "salesManCode": "",
+        "salesManCode":
+            salesOrderReference == "With Quotation Reference" &&
+                    selectedQuotationNumber != null
+                ? selectedQuotationNumber!.salesmanCode
+                : "",
         "attachFlag": "",
         "totalAmountAfterDiscountCustomerCurrency": totalAfterDiscount
             .toStringAsFixed(2),
@@ -1816,7 +1996,7 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
         "discountType": "V",
         "discountAmount": "0.00",
         "exchangeRate": "1.0000",
-        "orderStatus": "O",
+        "OrderStatus": "O",
         "ioYear": widget.ioYear,
         "ioGroup": widget.ioGroup,
         "ioSiteId": locationId.toString(),
@@ -1824,18 +2004,29 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
         "ioNumber": widget.ioNumber,
         "ioDate": FormatUtils.formatDateForApi(selectedDate!),
         "billToCode": selectedBillTo?.customerCode ?? "",
-        "currencyCode": "INR",
+        "currencyCode":
+            salesOrderReference == "With Quotation Reference" &&
+                    selectedQuotationNumber != null
+                ? selectedQuotationNumber!.quotationCurrency
+                : "INR",
         "salesOrderType": "REG",
         "custType": "CU",
         "lcDetail": "F",
         "bgDetail": "F",
-        "isAgentAssociated": false,
+        "isAgentAssociated":
+            salesOrderReference == "With Quotation Reference" &&
+            selectedQuotationNumber != null &&
+            selectedQuotationNumber!.agentCode.isNotEmpty,
         "custContactPersonId": "",
         "salesOrderRefNo": "",
         "buyerCode": 0,
         "soDeliveryDate": null,
         "bookCode": "",
-        "agentCode": "",
+        "agentCode":
+            salesOrderReference == "With Quotation Reference" &&
+                    selectedQuotationNumber != null
+                ? selectedQuotationNumber!.agentCode
+                : "",
         "modOfDispatchCode": "",
         "isFreeSupply": false,
         "isReturnable": false,
@@ -1844,7 +2035,11 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
         "customerLOIDate": "",
         "isInterBranchTransfer": false,
         "customerPOId": 0,
-        "consultantCode": "",
+        "consultantCode":
+            salesOrderReference == "With Quotation Reference" &&
+                    selectedQuotationNumber != null
+                ? selectedQuotationNumber!.consultantCode
+                : "",
         "billToCreditLimit": 0,
         "billToAccBalance": 0,
         "config": "N",
@@ -1853,7 +2048,7 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
       "modelDetails": modelDetails,
       "discountDetails": discountDetails,
       "rateStructureDetails": rateStructureDetails,
-      "deliveryDetails": [],
+      "DeliveryDetails": deliveryDetails, // Updated to use the populated list
       "paymentDetails": [],
       "termDetails": [],
       "specificationDetails": [],
@@ -1881,6 +2076,11 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
       _showError("Please select Bill To customer");
       return;
     }
+    if (salesOrderReference == "With Quotation Reference" &&
+        selectedQuotationNumber == null) {
+      _showError("Please select Quotation Number");
+      return;
+    }
     if (customerPONumberController.text.isEmpty) {
       _showError("Please enter Customer PO Number");
       return;
@@ -1902,7 +2102,7 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
 
       if (response['success'] == true) {
         _showSuccess(response['message'] ?? "Sales Order updated successfully");
-        Navigator.pop(context, true);
+        Navigator.pop(context, true); // Return true to indicate success
       } else {
         _showError(response['errorMessage'] ?? "Failed to update sales order");
       }
@@ -2116,7 +2316,6 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
     );
   }
 
-  // Updated to match add_so.dart structure
   Widget _buildQuotationNumberField() {
     return DropdownButtonFormField<QuotationNumber>(
       decoration: const InputDecoration(
@@ -2157,7 +2356,23 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
         border: OutlineInputBorder(),
         suffixIcon: Icon(Icons.calendar_today),
       ),
-      onTap: _submitting ? null : _selectDate,
+      onTap:
+          _submitting
+              ? null
+              : () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: selectedDate ?? DateTime.now(),
+                  firstDate: startDate ?? DateTime(2000),
+                  lastDate: endDate ?? DateTime.now(),
+                );
+                if (picked != null) {
+                  setState(() {
+                    selectedDate = picked;
+                    dateController.text = FormatUtils.formatDateForUser(picked);
+                  });
+                }
+              },
       validator:
           (val) => val == null || val.isEmpty ? "Date is required" : null,
     );
@@ -2189,7 +2404,24 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
         border: OutlineInputBorder(),
         suffixIcon: Icon(Icons.calendar_today),
       ),
-      onTap: _submitting ? null : _selectCustomerPODate,
+      onTap:
+          _submitting
+              ? null
+              : () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: selectedCustomerPODate ?? DateTime.now(),
+                  firstDate: startDate ?? DateTime(2000),
+                  lastDate: selectedDate ?? DateTime.now(),
+                );
+                if (picked != null) {
+                  setState(() {
+                    selectedCustomerPODate = picked;
+                    customerPODateController
+                        .text = FormatUtils.formatDateForUser(picked);
+                  });
+                }
+              },
       validator:
           (val) =>
               val == null || val.isEmpty

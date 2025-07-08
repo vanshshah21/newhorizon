@@ -139,8 +139,10 @@ class SalesOrderService {
     _dio.options.headers['companyid'] = companyId;
     _dio.options.headers['Authorization'] = 'Bearer $token';
 
+    final endpoint = "/api/SalesOrder/salesOrderDeleteEntry";
+
     final response = await _dio.delete(
-      'http://$url/api/SalesOrder/salesOrderDeleteEntry',
+      'http://$url$endpoint',
       queryParameters: {'orderId': orderId},
     );
     debugPrint(
@@ -154,9 +156,56 @@ class SalesOrderService {
     }
   }
 
-  Future<SalesOrderDetailsResponse> fetchSalesOrderDetails(
-    SalesOrder salesOrder,
-  ) async {
+  // Future fetchSalesOrderDetails(SalesOrder salesOrder) async {
+  //   try {
+  //     final url = await StorageUtils.readValue("url");
+  //     final companyDetails = await StorageUtils.readJson('selected_company');
+  //     if (companyDetails == null) throw Exception("Company not set");
+
+  //     final locationDetails = await StorageUtils.readJson('selected_location');
+  //     if (locationDetails == null) {
+  //       throw Exception("Location details not found");
+  //     }
+
+  //     final tokenDetails = await StorageUtils.readJson('session_token');
+  //     if (tokenDetails == null) throw Exception("Session token not found");
+
+  //     final companyId = companyDetails['id'];
+  //     final token = tokenDetails['token']['value'];
+  //     final locationId = locationDetails['id'];
+
+  //     _dio.options.headers['Content-Type'] = 'application/json';
+  //     _dio.options.headers['Accept'] = 'application/json';
+  //     _dio.options.headers['companyid'] = companyId;
+  //     _dio.options.headers['Authorization'] = 'Bearer $token';
+
+  //     final body = {
+  //       "IOYear": salesOrder.ioYear,
+  //       "ioGroup": salesOrder.ioGroup,
+  //       "IOSiteCode": salesOrder.siteCode,
+  //       "ioNumber": salesOrder.ioNumber,
+  //       "locid": salesOrder.siteId,
+  //       "mode": "SEARCH",
+  //       "AuthReq": "Y",
+  //       "IsInterBranchTransfer": false,
+  //       "locationId": locationId,
+  //       "compantid": companyId,
+  //       "DomCurrency": "INR",
+  //     };
+
+  //     final response = await _dio.post(
+  //       "http://$url/api/SalesOrder/salesOrderGetDetails",
+  //       data: body,
+  //     );
+
+  //     return SalesOrderDetail.fromJson(response.data);
+  //   } catch (e) {
+  //     print('Error fetching sales order details: $e');
+  //     rethrow;
+  //   }
+  // }
+
+  Future<SalesOrderDetail> fetchSalesOrderDetails(SalesOrder salesOrder) async {
     try {
       final url = await StorageUtils.readValue("url");
       final companyDetails = await StorageUtils.readJson('selected_company');
@@ -184,7 +233,7 @@ class SalesOrderService {
         "ioGroup": salesOrder.ioGroup,
         "IOSiteCode": salesOrder.siteCode,
         "ioNumber": salesOrder.ioNumber,
-        "locid": salesOrder.siteId,
+        "locid": locationId,
         "mode": "SEARCH",
         "AuthReq": "Y",
         "IsInterBranchTransfer": false,
@@ -198,9 +247,15 @@ class SalesOrderService {
         data: body,
       );
 
-      return SalesOrderDetailsResponse.fromJson(response.data);
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return SalesOrderDetail.fromJson(response.data['data']);
+      } else {
+        throw Exception(
+          'Failed to fetch sales order details: ${response.data['message'] ?? 'Unknown error'}',
+        );
+      }
     } catch (e) {
-      print('Error fetching sales order details: $e');
+      debugPrint('Error fetching sales order details: $e');
       rethrow;
     }
   }

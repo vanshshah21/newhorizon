@@ -1,3 +1,1126 @@
+// import 'package:flutter/material.dart';
+// import 'package:flutter_typeahead/flutter_typeahead.dart';
+// import 'package:nhapp/pages/sales_order/models/add_sales_order.dart';
+// import 'package:nhapp/pages/sales_order/pages/add_item.dart';
+// import 'package:nhapp/pages/sales_order/service/add_service.dart';
+// import 'package:nhapp/utils/format_utils.dart';
+// import 'package:nhapp/utils/storage_utils.dart';
+// import 'package:file_picker/file_picker.dart';
+
+// class AddSalesOrderPage extends StatefulWidget {
+//   const AddSalesOrderPage({super.key});
+
+//   @override
+//   State<AddSalesOrderPage> createState() => _AddSalesOrderPageState();
+// }
+
+// class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
+//   late SalesOrderService _service;
+//   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
+//   final TextEditingController orderFromController = TextEditingController();
+//   final TextEditingController billToController = TextEditingController();
+//   final TextEditingController dateController = TextEditingController();
+//   final TextEditingController customerPONumberController =
+//       TextEditingController();
+//   final TextEditingController customerPODateController =
+//       TextEditingController();
+//   final TextEditingController quotationNumberController =
+//       TextEditingController();
+
+//   String salesOrderReference = "Without Quotation Reference";
+//   Customer? selectedOrderFrom;
+//   Customer? selectedBillTo;
+//   DateTime? selectedDate;
+//   DateTime? selectedCustomerPODate;
+//   List<RateStructure> rateStructures = [];
+//   List<SalesOrderItem> items = [];
+//   List<PlatformFile> attachments = [];
+//   DocumentDetail? documentDetail;
+//   bool _isLoading = true;
+//   bool _submitting = false;
+//   DateTime? startDate;
+//   DateTime? endDate;
+//   late Map<String, dynamic>? _financeDetails;
+
+//   List<QuotationNumber> quotationNumbers = [];
+//   List<QuotationItemDetail> quotationItemDetails = [];
+//   QuotationNumber? selectedQuotationNumber;
+//   bool _loadingQuotationDetails = false;
+//   bool _isDuplicateAllowed = false;
+//   List<DiscountCode> discountCodes = [];
+
+//   @override
+//   void initState() {
+//     super.initState();
+//     _initializeForm();
+//   }
+
+//   Future<void> _initializeForm() async {
+//     _service = await SalesOrderService.create();
+//     await _loadFinancePeriod();
+//     await _loadRateStructures();
+//     await _loadDiscountCodes();
+//     await _loadDocumentDetail();
+//     await _loadSalesPolicy();
+//     setState(() => _isLoading = false);
+//   }
+
+//   Future<void> _loadDiscountCodes() async {
+//     try {
+//       discountCodes = await _service.fetchDiscountCodes();
+//     } catch (e) {
+//       debugPrint("Error loading discount codes: $e");
+//       discountCodes = []; // Default to empty list if there's an error
+//     }
+//   }
+
+//   Future<void> _loadSalesPolicy() async {
+//     try {
+//       final salesPolicy = await _service.getSalesPolicy();
+//       _isDuplicateAllowed =
+//           salesPolicy['allowduplictae'] ??
+//           salesPolicy['allowduplicate'] ??
+//           false;
+//     } catch (e) {
+//       debugPrint("Error loading sales policy: $e");
+//       _isDuplicateAllowed = false; // Default to not allowing duplicates
+//     }
+//   }
+
+//   Future<void> _loadFinancePeriod() async {
+//     _financeDetails = await StorageUtils.readJson('finance_period');
+//     if (_financeDetails != null) {
+//       startDate = DateTime.parse(_financeDetails!['periodSDt']);
+//       endDate = DateTime.parse(_financeDetails!['periodEDt']);
+//       final now = DateTime.now();
+//       selectedDate = now.isAfter(endDate!) ? endDate : now;
+//       selectedCustomerPODate = selectedDate;
+//       dateController.text = FormatUtils.formatDateForUser(selectedDate!);
+//       customerPODateController.text = FormatUtils.formatDateForUser(
+//         selectedCustomerPODate!,
+//       );
+//     }
+//   }
+
+//   Future<void> _loadRateStructures() async {
+//     rateStructures = await _service.fetchRateStructures();
+//   }
+
+//   Future<void> _loadDocumentDetail() async {
+//     documentDetail = await _service.fetchDefaultDocumentDetail("OB");
+//   }
+
+//   Future<void> _onOrderFromSelected(Customer customer) async {
+//     setState(() {
+//       selectedOrderFrom = customer;
+//       orderFromController.text = customer.customerName;
+//       billToController.text = customer.customerName;
+//       selectedBillTo = customer;
+//       quotationNumbers.clear();
+//       selectedQuotationNumber = null;
+//       quotationNumberController.clear();
+//       items.clear();
+//     });
+
+//     // Load quotation numbers if quotation reference is selected
+//     if (salesOrderReference == "With Quotation Reference") {
+//       await _loadQuotationNumbers(customer.customerCode);
+//     }
+//   }
+
+//   Future<void> _onBillToSelected(Customer customer) async {
+//     setState(() {
+//       selectedBillTo = customer;
+//       billToController.text = customer.customerName;
+//     });
+//   }
+
+//   Future<void> _loadQuotationNumbers(String customerCode) async {
+//     try {
+//       final quotationListResponse = await _service.fetchQuotationNumberList(
+//         customerCode,
+//       );
+
+//       quotationNumbers = quotationListResponse.quotationDetails;
+//       quotationItemDetails = quotationListResponse.quotationItemDetails;
+
+//       setState(() {});
+//     } catch (e) {
+//       _showError("Error loading quotation numbers: ${e.toString()}");
+//     }
+//   }
+
+//   Future<void> _onQuotationNumberSelected(
+//     QuotationNumber quotationNumber,
+//   ) async {
+//     setState(() {
+//       selectedQuotationNumber = quotationNumber;
+//       quotationNumberController.text = quotationNumber.qtnNumber;
+//       _loadingQuotationDetails = true;
+//       items.clear();
+//     });
+
+//     try {
+//       // Filter items for the selected quotation
+//       final selectedQuotationItems =
+//           quotationItemDetails
+//               .where((item) => item.quotationId == quotationNumber.quotationID)
+//               .toList();
+
+//       // Build request body for fetching quotation details
+//       final requestBody = {
+//         "DisplayMaxRecords": 1000,
+//         "QuotationDetails": [
+//           {"QuotationId": quotationNumber.quotationID},
+//         ],
+//         "ItemDetails":
+//             selectedQuotationItems
+//                 .map(
+//                   (item) => {
+//                     "SalesItemCode": item.salesItemCode,
+//                     "QuotationId": item.quotationId,
+//                     "itmLineNo": item.itemLineNo,
+//                   },
+//                 )
+//                 .toList(),
+//       };
+
+//       final quotationDetails = await _service.fetchQuotationDetails(
+//         requestBody,
+//       );
+
+//       // Convert quotation items to sales order items
+//       int lineNo = 1;
+//       for (final detail in quotationDetails.modelDetails) {
+//         // Calculate discount details properly
+//         String discountType = "None";
+//         double? discountPercentage;
+//         double? discountAmount;
+
+//         // Look for discount in discountDetails array first
+//         if (quotationDetails.discountDetail != null &&
+//             quotationDetails.discountDetail!.isNotEmpty) {
+//           final discountDetail = quotationDetails.discountDetail!.firstWhere(
+//             (d) =>
+//                 d['salesItemCode'] == detail['salesItemCode'] &&
+//                 d['itmLineNo'] == detail['itemLineNo'],
+//             orElse: () => {},
+//           );
+
+//           if (discountDetail.isNotEmpty) {
+//             final discType = discountDetail['discountType'] ?? 'N';
+//             final discValue = (discountDetail['discountValue'] ?? 0).toDouble();
+
+//             if (discType == 'P' && discValue > 0) {
+//               discountType = 'Percentage';
+//               discountPercentage = discValue;
+//               final basicAmount =
+//                   (detail['basicPriceSUOM'] ?? 0).toDouble() *
+//                   (detail['qtySUOM'] ?? 0).toDouble();
+//               discountAmount = basicAmount * (discValue / 100);
+//             } else if (discType == 'V' && discValue > 0) {
+//               discountType = 'Value';
+//               discountAmount = discValue;
+//               final basicAmount =
+//                   (detail['basicPriceSUOM'] ?? 0).toDouble() *
+//                   (detail['qtySUOM'] ?? 0).toDouble();
+//               discountPercentage =
+//                   basicAmount > 0 ? (discValue / basicAmount) * 100 : 0;
+//             }
+//           }
+//         }
+
+//         // Fallback: check if discount is in the model detail itself
+//         if (discountType == "None" && detail['discountAmt'] != null) {
+//           final discAmt = (detail['discountAmt'] ?? 0).toDouble();
+//           if (discAmt > 0) {
+//             discountType = 'Value';
+//             discountAmount = discAmt;
+//             final basicAmount =
+//                 (detail['basicPriceSUOM'] ?? 0).toDouble() *
+//                 (detail['qtySUOM'] ?? 0).toDouble();
+//             discountPercentage =
+//                 basicAmount > 0 ? (discAmt / basicAmount) * 100 : 0;
+//           }
+//         }
+
+//         // Calculate tax amount from rate structure details
+//         double taxAmount = 0.0;
+//         if (quotationDetails.rateStructureDetails != null) {
+//           final rateStructDetails = quotationDetails.rateStructureDetails!
+//               .where(
+//                 (rs) =>
+//                     rs['customerItemCode'] == detail['salesItemCode'] &&
+//                     rs['lineNo'] == detail['itemLineNo'],
+//               );
+//           for (final rsDetail in rateStructDetails) {
+//             taxAmount += (rsDetail['rateAmount'] ?? 0).toDouble();
+//           }
+//         }
+
+//         // Calculate total amount
+//         final basicRate = (detail['basicPriceSUOM'] ?? 0).toDouble();
+//         final qty = (detail['qtySUOM'] ?? 0).toDouble();
+//         final basicAmount = basicRate * qty;
+//         final discountedAmount = basicAmount - (discountAmount ?? 0);
+//         final totalAmount = discountedAmount + taxAmount;
+
+//         // Get rate structure rows for this item
+//         List<Map<String, dynamic>> rateStructureRows = [];
+//         if (quotationDetails.rateStructureDetails != null) {
+//           rateStructureRows =
+//               quotationDetails.rateStructureDetails!
+//                   .where(
+//                     (rs) =>
+//                         rs['customerItemCode'] == detail['salesItemCode'] &&
+//                         rs['lineNo'] == detail['itemLineNo'],
+//                   )
+//                   .toList();
+//         }
+
+//         items.add(
+//           SalesOrderItem(
+//             itemName: detail['salesItemDesc'] ?? '',
+//             itemCode: detail['salesItemCode'] ?? '',
+//             qty: qty,
+//             basicRate: basicRate,
+//             uom: detail['uom'] ?? 'NOS',
+//             discountType: discountType,
+//             discountPercentage: discountPercentage,
+//             discountAmount: discountAmount,
+//             rateStructure: detail['rateStructureCode'] ?? '',
+//             taxAmount: taxAmount,
+//             totalAmount: totalAmount,
+//             rateStructureRows: rateStructureRows,
+//             lineNo: lineNo,
+//             hsnCode: detail['hsnCode'] ?? '',
+//           ),
+//         );
+//         lineNo++;
+//       }
+
+//       setState(() {});
+//     } catch (e) {
+//       _showError("Error loading quotation details: ${e.toString()}");
+//     } finally {
+//       setState(() => _loadingQuotationDetails = false);
+//     }
+//   }
+
+//   Map<String, dynamic> _buildSubmissionPayload() {
+//     final userId = _service.tokenDetails['user']['id'] ?? 0;
+//     final locationId = _service.locationDetails['id'] ?? 0;
+//     final locationCode = _service.locationDetails['code'] ?? "";
+//     final companyCode = _service.companyDetails['code'] ?? "";
+//     final companyId = _service.companyId;
+//     final docYear = _financeDetails?['financialYear'] ?? "";
+
+//     // Build model details
+//     List<Map<String, dynamic>> modelDetails = [];
+//     List<Map<String, dynamic>> discountDetails = [];
+//     List<Map<String, dynamic>> rateStructureDetails = [];
+//     List<Map<String, dynamic>> deliveryDetails = [];
+
+//     for (int i = 0; i < items.length; i++) {
+//       final item = items[i];
+//       item.lineNo = i + 1;
+
+//       final modelDetail = item.toModelDetail();
+//       modelDetail['custPONumber'] = customerPONumberController.text;
+
+//       // Add quotation reference if applicable
+//       if (salesOrderReference == "With Quotation Reference" &&
+//           selectedQuotationNumber != null) {
+//         // Find the corresponding quotation item detail
+//         final quotationItemDetail = quotationItemDetails.firstWhere(
+//           (qItem) =>
+//               qItem.salesItemCode == item.itemCode &&
+//               qItem.quotationId == selectedQuotationNumber!.quotationID,
+//           orElse: () => quotationItemDetails.first,
+//         );
+
+//         modelDetail['quotationId'] = selectedQuotationNumber!.quotationID;
+//         modelDetail['quotationLineNo'] = quotationItemDetail.itemLineNo;
+//         modelDetail['quotationAmendNo'] = quotationItemDetail.amendSrNo;
+//       }
+//       modelDetails.add(modelDetail);
+
+//       final discountDetail = item.toDiscountDetail();
+//       if (discountDetail.isNotEmpty) {
+//         discountDetails.add(discountDetail);
+//       }
+
+//       rateStructureDetails.addAll(item.toRateStructureDetails());
+
+//       // Create delivery detail for each item
+//       final deliveryDetail = {
+//         "modelNo": "", // XORDMDLNO
+//         "itemCode": item.itemCode, // XORDSITMCD
+//         "itemOrderQty": item.qty, // XORDITMQTY
+//         "orderType": "REG", // XORDTYP
+//         "qtySUOM": item.qty, // XORDDLVQTY
+//         "deliveryDate": FormatUtils.formatDateForApi(
+//           selectedDate!,
+//         ), // XORDDLVDT
+//         "expectedInstallationDate": FormatUtils.formatDateForApi(
+//           selectedDate!.add(const Duration(days: 1)),
+//         ), // ExpInstalDt, XORDEXPINSTALDT
+//         "amendSrNo": 0, // XORDAMDSRNO
+//         "commitedDelDate": null, // XORDCDDT
+//         "shipmentCode": "CADD", // XODShipCd in future using api
+//         "amendYear": "", // XORDAMDYEAR
+//         "amendGroup": "", // XORDAMDGRP
+//         "amendSiteId": 0, // XORDAMDSITEID
+//         "amendNumber": "", // XORDAMDNO
+//         "amendDate": null, // XORDAMDDT
+//         "amendAuthDate": null, // XORDAMDAUDT
+//         "oafQty": 0.0, // XORDOAFQTY
+//         "sjoQty": 0.0, // XORDSJOQTY
+//         "lineId": 0, // XORDLINEID
+//         "itemLineNo": item.lineNo, // XORDITMLINENO
+//       };
+//       deliveryDetails.add(deliveryDetail);
+//     }
+
+//     final totalBasic = _calculateTotalBasic();
+//     final totalDiscount = _calculateTotalDiscount();
+//     final totalTax = _calculateTotalTax();
+//     final totalAfterDiscount = totalBasic - totalDiscount;
+//     final finalAmount = totalAfterDiscount + totalTax;
+
+//     return {
+//       "authorizationRequired": "Y",
+//       "autoNumberRequired": "Y",
+//       "siteRequired": "Y",
+//       "authorizationDate": FormatUtils.formatDateForApi(
+//         selectedDate ?? DateTime.now(),
+//       ),
+//       "fromLocationId": locationId,
+//       "userId": userId,
+//       "companyId": companyId,
+//       "companyCode": companyCode,
+//       "fromLocationCode": locationCode,
+//       "fromLocationName": _service.locationDetails['name'] ?? "",
+//       "ip": "",
+//       "mac": "",
+//       "docType": "OB",
+//       "docSubType": "OB",
+//       "domesticCurrencyCode": "INR",
+//       "salesOrderDetails": {
+//         // ...existing salesOrderDetails...
+//         "orderId": 0,
+//         "customerPONumber": customerPONumberController.text,
+//         "customerPODate": FormatUtils.formatDateForApi(selectedCustomerPODate!),
+//         "quotationId":
+//             salesOrderReference == "With Quotation Reference" &&
+//                     selectedQuotationNumber != null
+//                 ? selectedQuotationNumber!.quotationID
+//                 : 0,
+//         "quotationYear":
+//             salesOrderReference == "With Quotation Reference" &&
+//                     selectedQuotationNumber != null
+//                 ? selectedQuotationNumber!.quotationYear
+//                 : "",
+//         "quotationGroup":
+//             salesOrderReference == "With Quotation Reference" &&
+//                     selectedQuotationNumber != null
+//                 ? selectedQuotationNumber!.quotationGroup
+//                 : "",
+//         "quotationNumber":
+//             salesOrderReference == "With Quotation Reference" &&
+//                     selectedQuotationNumber != null
+//                 ? selectedQuotationNumber!.quotationNumber
+//                 : "",
+//         "OAFGroup": null,
+//         "quotationDate":
+//             salesOrderReference == "With Quotation Reference" &&
+//                     selectedQuotationNumber != null
+//                 ? FormatUtils.formatDateForApi(
+//                   selectedQuotationNumber!.quotationDate,
+//                 )
+//                 : null,
+//         "customerCode": selectedOrderFrom?.customerCode ?? "",
+//         "customerName": selectedOrderFrom?.customerName ?? "",
+//         "salesManCode":
+//             salesOrderReference == "With Quotation Reference" &&
+//                     selectedQuotationNumber != null
+//                 ? selectedQuotationNumber!.salesmanCode
+//                 : "",
+//         "attachFlag": "",
+//         "totalAmountAfterDiscountCustomerCurrency": totalAfterDiscount
+//             .toStringAsFixed(2),
+//         "totalAmountAfterDiscountDomesticCurrency": totalAfterDiscount
+//             .toStringAsFixed(2),
+//         "totalAmounttAfterTaxDomesticCurrency": finalAmount.toStringAsFixed(2),
+//         "totalAmountAfterTaxCustomerCurrency": finalAmount.toStringAsFixed(2),
+//         "discountType": "V",
+//         "discountAmount": "0.00",
+//         "exchangeRate": "1.0000",
+//         "OrderStatus": "O",
+//         "xobCredit": "",
+//         "xobcrauth": "",
+//         "amendSrNo": 0,
+//         "authBy": userId,
+//         "authDate": null,
+//         "ioYear": docYear,
+//         "ioGroup": documentDetail?.groupCode ?? "SO",
+//         "ioSiteId": locationId.toString(),
+//         "ioSiteCode": locationCode,
+//         "ioDate": FormatUtils.formatDateForApi(selectedDate!),
+//         "amendYear": "",
+//         "amendGroup": "",
+//         "amendSiteId": 0,
+//         "amendSiteCode": "",
+//         "amendNumber": "",
+//         "amendDate": null,
+//         "amendAuthBy": 0,
+//         "amendAuthByDate": null,
+//         "custType": "CU",
+//         "lcDetail": "F",
+//         "bgDetail": "F",
+//         "salesOrderType": "REG",
+//         "isAgentAssociated":
+//             salesOrderReference == "With Quotation Reference" &&
+//             selectedQuotationNumber != null &&
+//             selectedQuotationNumber!.agentCode.isNotEmpty,
+//         "custContactPersonId": "",
+//         "salesOrderRefNo": "",
+//         "buyerCode": 0,
+//         "soDeliveryDate": null,
+//         "currencyCode":
+//             salesOrderReference == "With Quotation Reference" &&
+//                     selectedQuotationNumber != null
+//                 ? selectedQuotationNumber!.quotationCurrency
+//                 : "INR",
+//         "bookCode": "",
+//         "agentCode":
+//             salesOrderReference == "With Quotation Reference" &&
+//                     selectedQuotationNumber != null
+//                 ? selectedQuotationNumber!.agentCode
+//                 : "",
+//         "ioNumber": "",
+//         "modOfDispatchCode": "",
+//         "isFreeSupply": false,
+//         "isReturnable": false,
+//         "isRoadPermitReceived": false,
+//         "customerLOINumber": "",
+//         "customerLOIDate": "",
+//         "isInterBranchTransfer": false,
+//         "customerPOId": 0,
+//         "consultantCode":
+//             salesOrderReference == "With Quotation Reference" &&
+//                     selectedQuotationNumber != null
+//                 ? selectedQuotationNumber!.consultantCode
+//                 : "",
+//         "billToCode": selectedBillTo?.customerCode ?? "",
+//         "billToCreditLimit": 0,
+//         "billToAccBalance": 0,
+//         "config": "N",
+//         "projectName": "",
+//       },
+//       "modelDetails": modelDetails,
+//       "discountDetails": discountDetails,
+//       "rateStructureDetails": rateStructureDetails,
+//       "DeliveryDetails": deliveryDetails, // Updated to use the populated list
+//       "paymentDetails": [],
+//       "termDetails": [],
+//       "specificationDetails": [],
+//       "optionalItemDetails": [],
+//       "textDetails": [],
+//       "standardTerms": [],
+//       "historyDetails": [],
+//       "addOnDetails": [],
+//       "subItemDetails": [],
+//       "noteDetails": [],
+//       "projectLotDetails": [],
+//       "equipmentAttributeDetails": [],
+//       "technicalspec": [],
+//       "msctechspecifications": true,
+//     };
+//   }
+
+//   Future<void> _showAddItemPage() async {
+//     final result = await Navigator.push<SalesOrderItem>(
+//       context,
+//       MaterialPageRoute(
+//         builder:
+//             (context) => AddSalesOrderItemPage(
+//               service: _service,
+//               rateStructures: rateStructures,
+//               existingItems: items,
+//               isDuplicateAllowed: _isDuplicateAllowed,
+//             ),
+//       ),
+//     );
+//     if (result != null) {
+//       setState(() {
+//         result.lineNo = items.length + 1;
+//         items.add(result);
+//       });
+//     }
+//   }
+
+//   void _removeItem(int index) {
+//     setState(() {
+//       items.removeAt(index);
+//       // Re-assign line numbers
+//       for (int i = 0; i < items.length; i++) {
+//         items[i].lineNo = i + 1;
+//       }
+//     });
+//   }
+
+//   double _calculateTotalBasic() {
+//     return items.fold(0.0, (sum, item) => sum + (item.basicRate * item.qty));
+//   }
+
+//   double _calculateTotalDiscount() {
+//     return items.fold(0.0, (sum, item) => sum + (item.discountAmount ?? 0.0));
+//   }
+
+//   double _calculateTotalTax() {
+//     return items.fold(0.0, (sum, item) => sum + (item.taxAmount ?? 0.0));
+//   }
+
+//   double _calculateTotalAmount() {
+//     return items.fold(0.0, (sum, item) => sum + item.totalAmount);
+//   }
+
+//   Future<void> _pickFiles() async {
+//     final result = await FilePicker.platform.pickFiles(allowMultiple: true);
+//     if (result != null) {
+//       setState(() {
+//         attachments.addAll(result.files);
+//       });
+//     }
+//   }
+
+//   void _removeAttachment(int index) {
+//     setState(() {
+//       attachments.removeAt(index);
+//     });
+//   }
+
+//   Future<void> _submitSalesOrder() async {
+//     if (!_formKey.currentState!.validate()) return;
+//     if (selectedOrderFrom == null) {
+//       _showError("Please select Order From customer");
+//       return;
+//     }
+//     if (selectedBillTo == null) {
+//       _showError("Please select Bill To customer");
+//       return;
+//     }
+//     if (salesOrderReference == "With Quotation Reference" &&
+//         selectedQuotationNumber == null) {
+//       _showError("Please select Quotation Number");
+//       return;
+//     }
+//     if (customerPONumberController.text.isEmpty) {
+//       _showError("Please enter Customer PO Number");
+//       return;
+//     }
+//     if (selectedCustomerPODate == null) {
+//       _showError("Please select Customer PO Date");
+//       return;
+//     }
+//     if (items.isEmpty) {
+//       _showError("Please add at least one item");
+//       return;
+//     }
+
+//     setState(() => _submitting = true);
+
+//     try {
+//       final payload = _buildSubmissionPayload();
+//       final response = await _service.submitSalesOrder(payload);
+
+//       if (response['success'] == true) {
+//         _showSuccess(
+//           response['message'] ?? "Sales Order submitted successfully",
+//         );
+//         Navigator.pop(context, true);
+//       } else {
+//         _showError(response['errorMessage'] ?? "Failed to submit sales order");
+//       }
+//     } catch (e) {
+//       _showError("Error during submission: ${e.toString()}");
+//     } finally {
+//       setState(() => _submitting = false);
+//     }
+//   }
+
+//   void _showError(String message) {
+//     ScaffoldMessenger.of(context).showSnackBar(
+//       SnackBar(content: Text(message), backgroundColor: Colors.red),
+//     );
+//   }
+
+//   void _showSuccess(String message) {
+//     ScaffoldMessenger.of(context).showSnackBar(
+//       SnackBar(content: Text(message), backgroundColor: Colors.green),
+//     );
+//   }
+
+//   @override
+//   void dispose() {
+//     orderFromController.dispose();
+//     billToController.dispose();
+//     dateController.dispose();
+//     customerPONumberController.dispose();
+//     customerPODateController.dispose();
+//     quotationNumberController.dispose();
+//     super.dispose();
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       appBar: AppBar(title: const Text("Add Sales Order"), elevation: 1),
+//       body:
+//           _isLoading
+//               ? const Center(child: CircularProgressIndicator())
+//               : Form(
+//                 key: _formKey,
+//                 child: SingleChildScrollView(
+//                   padding: const EdgeInsets.all(16),
+//                   child: Column(
+//                     crossAxisAlignment: CrossAxisAlignment.start,
+//                     children: [
+//                       _buildSalesOrderReferenceDropdown(),
+//                       const SizedBox(height: 16),
+//                       _buildOrderFromField(),
+//                       const SizedBox(height: 16),
+//                       _buildBillToField(),
+//                       const SizedBox(height: 16),
+//                       // ADD THIS CONDITIONAL BLOCK FOR QUOTATION NUMBER
+//                       if (salesOrderReference ==
+//                           "With Quotation Reference") ...[
+//                         _buildQuotationNumberField(),
+//                         const SizedBox(height: 16),
+//                       ],
+//                       _buildDateField(),
+//                       const SizedBox(height: 16),
+//                       _buildCustomerPONumberField(),
+//                       const SizedBox(height: 16),
+//                       _buildCustomerPODateField(),
+//                       const SizedBox(height: 16),
+//                       // ADD LOADING INDICATOR FOR QUOTATION DETAILS
+//                       if (_loadingQuotationDetails)
+//                         const Center(
+//                           child: Padding(
+//                             padding: EdgeInsets.all(16.0),
+//                             child: CircularProgressIndicator(),
+//                           ),
+//                         ),
+//                       if (items.isNotEmpty) ...[
+//                         _buildItemsList(),
+//                         const SizedBox(height: 16),
+//                       ],
+//                       // CONDITIONALLY SHOW ADD ITEM BUTTON
+//                       if (salesOrderReference == "Without Quotation Reference")
+//                         _buildAddItemButton(),
+//                       if (items.isNotEmpty) ...[
+//                         const SizedBox(height: 16),
+//                         _buildTotalCard(),
+//                       ],
+//                       const SizedBox(height: 24),
+//                       _buildAttachmentSection(),
+//                       const SizedBox(height: 24),
+//                       _buildSubmitButton(),
+//                     ],
+//                   ),
+//                 ),
+//               ),
+//     );
+//   }
+
+//   Widget _buildSalesOrderReferenceDropdown() {
+//     return DropdownButtonFormField<String>(
+//       decoration: const InputDecoration(
+//         labelText: "Sales Order Reference",
+//         border: OutlineInputBorder(),
+//       ),
+//       value: salesOrderReference,
+//       items:
+//           ["Without Quotation Reference", "With Quotation Reference"]
+//               .map(
+//                 (option) => DropdownMenuItem<String>(
+//                   value: option,
+//                   child: Text(option),
+//                 ),
+//               )
+//               .toList(),
+//       onChanged:
+//           _submitting
+//               ? null
+//               : (val) {
+//                 if (val != null) {
+//                   setState(() {
+//                     salesOrderReference = val;
+//                     // Clear all related fields
+//                     items.clear();
+//                     quotationNumbers.clear();
+//                     selectedQuotationNumber = null;
+//                     quotationNumberController.clear();
+//                   });
+
+//                   // Load quotation numbers if customer is already selected and "With Quotation Reference" is chosen
+//                   if (val == "With Quotation Reference" &&
+//                       selectedOrderFrom != null) {
+//                     _loadQuotationNumbers(selectedOrderFrom!.customerCode);
+//                   }
+//                 }
+//               },
+//       validator:
+//           (val) => val == null ? "Sales Order Reference is required" : null,
+//     );
+//   }
+
+//   Widget _buildQuotationNumberField() {
+//     return DropdownButtonFormField<QuotationNumber>(
+//       decoration: const InputDecoration(
+//         labelText: "Quotation Number",
+//         border: OutlineInputBorder(),
+//       ),
+//       value: selectedQuotationNumber,
+//       isExpanded: true,
+//       items:
+//           quotationNumbers.map((quotation) {
+//             return DropdownMenuItem<QuotationNumber>(
+//               value: quotation,
+//               child: Text(quotation.qtnNumber, overflow: TextOverflow.ellipsis),
+//             );
+//           }).toList(),
+//       onChanged:
+//           _submitting || _loadingQuotationDetails
+//               ? null
+//               : (val) {
+//                 if (val != null) {
+//                   _onQuotationNumberSelected(val);
+//                 }
+//               },
+//       validator:
+//           salesOrderReference == "With Quotation Reference"
+//               ? (val) => val == null ? "Quotation Number is required" : null
+//               : null,
+//     );
+//   }
+
+//   Widget _buildOrderFromField() {
+//     return TypeAheadField<Customer>(
+//       debounceDuration: const Duration(milliseconds: 400),
+//       controller: orderFromController,
+//       builder: (context, controller, focusNode) {
+//         return TextFormField(
+//           controller: controller,
+//           focusNode: focusNode,
+//           enabled: !_submitting,
+//           decoration: const InputDecoration(
+//             labelText: "Order From",
+//             border: OutlineInputBorder(),
+//           ),
+//           validator:
+//               (val) =>
+//                   val == null || val.isEmpty ? "Order From is required" : null,
+//         );
+//       },
+//       suggestionsCallback:
+//           _submitting
+//               ? (pattern) async => []
+//               : (pattern) async {
+//                 if (pattern.length < 4) return [];
+//                 try {
+//                   return await _service.fetchCustomerSuggestions(pattern);
+//                 } catch (e) {
+//                   return [];
+//                 }
+//               },
+//       itemBuilder: (context, suggestion) {
+//         return ListTile(
+//           title: Text(suggestion.customerName),
+//           subtitle: Text(suggestion.customerCode),
+//         );
+//       },
+//       onSelected: _submitting ? null : _onOrderFromSelected,
+//     );
+//   }
+
+//   Widget _buildBillToField() {
+//     return TypeAheadField<Customer>(
+//       debounceDuration: const Duration(milliseconds: 400),
+//       controller: billToController,
+//       builder: (context, controller, focusNode) {
+//         return TextFormField(
+//           controller: controller,
+//           focusNode: focusNode,
+//           enabled: !_submitting,
+//           decoration: const InputDecoration(
+//             labelText: "Bill To",
+//             border: OutlineInputBorder(),
+//           ),
+//           validator:
+//               (val) =>
+//                   val == null || val.isEmpty ? "Bill To is required" : null,
+//         );
+//       },
+//       suggestionsCallback:
+//           _submitting
+//               ? (pattern) async => []
+//               : (pattern) async {
+//                 if (pattern.length < 4) return [];
+//                 try {
+//                   return await _service.fetchCustomerSuggestions(pattern);
+//                 } catch (e) {
+//                   return [];
+//                 }
+//               },
+//       itemBuilder: (context, suggestion) {
+//         return ListTile(
+//           title: Text(suggestion.customerName),
+//           subtitle: Text(suggestion.customerCode),
+//         );
+//       },
+//       onSelected: _submitting ? null : _onBillToSelected,
+//     );
+//   }
+
+//   Widget _buildDateField() {
+//     return TextFormField(
+//       controller: dateController,
+//       decoration: const InputDecoration(
+//         labelText: "Date",
+//         suffixIcon: Icon(Icons.calendar_today),
+//         border: OutlineInputBorder(),
+//       ),
+//       readOnly: true,
+//       enabled: !_submitting,
+//       onTap:
+//           _submitting
+//               ? null
+//               : () async {
+//                 final picked = await showDatePicker(
+//                   context: context,
+//                   initialDate: selectedDate ?? DateTime.now(),
+//                   firstDate: startDate ?? DateTime(2000),
+//                   lastDate: endDate ?? DateTime.now(),
+//                 );
+//                 if (picked != null) {
+//                   setState(() {
+//                     selectedDate = picked;
+//                     dateController.text = FormatUtils.formatDateForUser(picked);
+//                   });
+//                 }
+//               },
+//       validator:
+//           (val) => val == null || val.isEmpty ? "Date is required" : null,
+//     );
+//   }
+
+//   Widget _buildCustomerPONumberField() {
+//     return TextFormField(
+//       controller: customerPONumberController,
+//       enabled: !_submitting,
+//       decoration: const InputDecoration(
+//         labelText: "Customer PO Number",
+//         border: OutlineInputBorder(),
+//       ),
+//       validator:
+//           (val) =>
+//               val == null || val.isEmpty
+//                   ? "Customer PO Number is required"
+//                   : null,
+//     );
+//   }
+
+//   Widget _buildCustomerPODateField() {
+//     return TextFormField(
+//       controller: customerPODateController,
+//       decoration: const InputDecoration(
+//         labelText: "Customer PO Date",
+//         suffixIcon: Icon(Icons.calendar_today),
+//         border: OutlineInputBorder(),
+//       ),
+//       readOnly: true,
+//       enabled: !_submitting,
+//       onTap:
+//           _submitting
+//               ? null
+//               : () async {
+//                 final picked = await showDatePicker(
+//                   context: context,
+//                   initialDate: selectedCustomerPODate ?? DateTime.now(),
+//                   firstDate: startDate ?? DateTime(2000),
+//                   lastDate: selectedDate ?? DateTime.now(),
+//                 );
+//                 if (picked != null) {
+//                   setState(() {
+//                     selectedCustomerPODate = picked;
+//                     customerPODateController
+//                         .text = FormatUtils.formatDateForUser(picked);
+//                   });
+//                 }
+//               },
+//       validator:
+//           (val) =>
+//               val == null || val.isEmpty
+//                   ? "Customer PO Date is required"
+//                   : null,
+//     );
+//   }
+
+//   Widget _buildAddItemButton() {
+//     return SizedBox(
+//       width: double.infinity,
+//       child: ElevatedButton.icon(
+//         onPressed: _submitting ? null : _showAddItemPage,
+//         icon: const Icon(Icons.add),
+//         label: const Text("Add New Item"),
+//       ),
+//     );
+//   }
+
+//   Widget _buildItemsList() {
+//     return Column(
+//       crossAxisAlignment: CrossAxisAlignment.start,
+//       children: [
+//         const Text(
+//           "Items:",
+//           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+//         ),
+//         const SizedBox(height: 8),
+//         ListView.builder(
+//           shrinkWrap: true,
+//           physics: const NeverScrollableScrollPhysics(),
+//           itemCount: items.length,
+//           itemBuilder: (context, index) {
+//             final item = items[index];
+//             return Card(
+//               child: ListTile(
+//                 title: Text(item.itemName),
+//                 subtitle: Text(
+//                   "Qty: ${item.qty} ${item.uom}\nRate: ₹${item.basicRate.toStringAsFixed(2)}\nTotal: ₹${item.totalAmount.toStringAsFixed(2)}",
+//                 ),
+//                 trailing: IconButton(
+//                   icon: const Icon(Icons.delete, color: Colors.red),
+//                   onPressed: _submitting ? null : () => _removeItem(index),
+//                 ),
+//               ),
+//             );
+//           },
+//         ),
+//       ],
+//     );
+//   }
+
+//   Widget _buildTotalCard() {
+//     final totalBasic = _calculateTotalBasic();
+//     final totalDiscount = _calculateTotalDiscount();
+//     final totalTax = _calculateTotalTax();
+//     final netAmount = totalBasic - totalDiscount;
+//     final finalAmount = netAmount + totalTax;
+
+//     return Card(
+//       child: Padding(
+//         padding: const EdgeInsets.all(16),
+//         child: Column(
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           children: [
+//             const Text(
+//               "Total Summary",
+//               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+//             ),
+//             const SizedBox(height: 12),
+//             Row(
+//               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//               children: [
+//                 const Text("Basic Amount:"),
+//                 Text("₹${totalBasic.toStringAsFixed(2)}"),
+//               ],
+//             ),
+//             Row(
+//               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//               children: [
+//                 const Text("Discount Value:"),
+//                 Text("₹${totalDiscount.toStringAsFixed(2)}"),
+//               ],
+//             ),
+//             Row(
+//               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//               children: [
+//                 const Text("Tax Amount:"),
+//                 Text("₹${totalTax.toStringAsFixed(2)}"),
+//               ],
+//             ),
+//             const Divider(),
+//             Row(
+//               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//               children: [
+//                 const Text(
+//                   "Total Amount:",
+//                   style: TextStyle(fontWeight: FontWeight.bold),
+//                 ),
+//                 Text(
+//                   "₹${finalAmount.toStringAsFixed(2)}",
+//                   style: const TextStyle(fontWeight: FontWeight.bold),
+//                 ),
+//               ],
+//             ),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _buildAttachmentSection() {
+//     return Column(
+//       crossAxisAlignment: CrossAxisAlignment.start,
+//       children: [
+//         Row(
+//           children: [
+//             ElevatedButton.icon(
+//               onPressed: _submitting ? null : _pickFiles,
+//               icon: const Icon(Icons.attach_file),
+//               label: const Text('Add Attachment'),
+//             ),
+//             const SizedBox(width: 8),
+//             Text('${attachments.length} file(s) selected'),
+//           ],
+//         ),
+//         ...attachments.asMap().entries.map((entry) {
+//           final idx = entry.key;
+//           final file = entry.value;
+//           return ListTile(
+//             title: Text(file.name),
+//             trailing: IconButton(
+//               icon: const Icon(Icons.delete),
+//               onPressed: _submitting ? null : () => _removeAttachment(idx),
+//             ),
+//           );
+//         }),
+//       ],
+//     );
+//   }
+
+//   Widget _buildSubmitButton() {
+//     return SizedBox(
+//       width: double.infinity,
+//       child: ElevatedButton(
+//         onPressed: _submitting ? null : _submitSalesOrder,
+//         child:
+//             _submitting
+//                 ? const SizedBox(
+//                   width: 16,
+//                   height: 16,
+//                   child: CircularProgressIndicator(strokeWidth: 2),
+//                 )
+//                 : const Text("Submit Sales Order"),
+//       ),
+//     );
+//   }
+// }
+
 import 'package:flutter/material.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:nhapp/pages/sales_order/models/add_sales_order.dart';
@@ -47,6 +1170,8 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
   List<QuotationItemDetail> quotationItemDetails = [];
   QuotationNumber? selectedQuotationNumber;
   bool _loadingQuotationDetails = false;
+  bool _isDuplicateAllowed = false;
+  List<DiscountCode> discountCodes = [];
 
   @override
   void initState() {
@@ -58,8 +1183,32 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
     _service = await SalesOrderService.create();
     await _loadFinancePeriod();
     await _loadRateStructures();
+    await _loadDiscountCodes();
     await _loadDocumentDetail();
+    await _loadSalesPolicy();
     setState(() => _isLoading = false);
+  }
+
+  Future<void> _loadDiscountCodes() async {
+    try {
+      discountCodes = await _service.fetchDiscountCodes();
+    } catch (e) {
+      debugPrint("Error loading discount codes: $e");
+      discountCodes = []; // Default to empty list if there's an error
+    }
+  }
+
+  Future<void> _loadSalesPolicy() async {
+    try {
+      final salesPolicy = await _service.getSalesPolicy();
+      _isDuplicateAllowed =
+          salesPolicy['allowduplictae'] ??
+          salesPolicy['allowduplicate'] ??
+          false;
+    } catch (e) {
+      debugPrint("Error loading sales policy: $e");
+      _isDuplicateAllowed = false; // Default to not allowing duplicates
+    }
   }
 
   Future<void> _loadFinancePeriod() async {
@@ -110,128 +1259,6 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
     });
   }
 
-  // Future<void> _loadQuotationNumbers(String customerCode) async {
-  //   try {
-  //     quotationDetails = await _service.fetchQuotationNumberList(customerCode);
-  //     quotationNumbers =
-  //         quotationDetails.map((q) => q.quotationNumber).toList();
-  //     setState(() {});
-  //   } catch (e) {
-  //     _showError("Error loading quotation numbers: ${e.toString()}");
-  //   }
-  // }
-
-  // Future<void> _onQuotationNumberSelected(
-  //   QuotationNumber quotationNumber,
-  // ) async {
-  //   setState(() {
-  //     selectedQuotationNumber = quotationNumber;
-  //     quotationNumberController.text = quotationNumber.quotationNumber;
-  //     _loadingQuotationDetails = true;
-  //     items.clear();
-  //   });
-
-  //   try {
-  //     final quotationDetails = await _service.fetchQuotationDetails(
-  //       quotationNumber.quotationNumber,
-  //     );
-
-  //     // Convert quotation items to sales order items
-  //     int lineNo = 1;
-  //     for (final detail in quotationDetails.itemDetail) {
-  //       // Calculate discount details
-  //       String discountType = "None";
-  //       double? discountPercentage;
-  //       double? discountAmount;
-
-  //       if (quotationDetails.discountDetail != null &&
-  //           quotationDetails.discountDetail!.isNotEmpty) {
-  //         final discountDetail = quotationDetails.discountDetail!.firstWhere(
-  //           (d) => d['salesItemCode'] == detail['salesItemCode'],
-  //           orElse: () => {},
-  //         );
-
-  //         if (discountDetail.isNotEmpty &&
-  //             (discountDetail['discountValue'] ?? 0) > 0) {
-  //           final discValue = (discountDetail['discountValue'] ?? 0).toDouble();
-  //           final discType = discountDetail['discountType'] ?? '';
-
-  //           if (discType == 'Percentage') {
-  //             discountType = 'Percentage';
-  //             discountPercentage = discValue;
-  //             discountAmount =
-  //                 ((detail['basicPriceSUOM'] ?? 0).toDouble() *
-  //                     (detail['qtySUOM'] ?? 0).toDouble()) *
-  //                 (discValue / 100);
-  //           } else {
-  //             discountType = 'Value';
-  //             discountAmount = discValue;
-  //             final basicAmount =
-  //                 (detail['basicPriceSUOM'] ?? 0).toDouble() *
-  //                 (detail['qtySUOM'] ?? 0).toDouble();
-  //             discountPercentage =
-  //                 basicAmount > 0 ? (discValue / basicAmount) * 100 : 0;
-  //           }
-  //         }
-  //       }
-
-  //       // Calculate tax amount
-  //       double taxAmount = 0.0;
-  //       if (quotationDetails.rateStructDetail != null) {
-  //         final rateStructDetails = quotationDetails.rateStructDetail!.where(
-  //           (rs) => rs['customerItemCode'] == detail['salesItemCode'],
-  //         );
-  //         for (final rsDetail in rateStructDetails) {
-  //           taxAmount += (rsDetail['rateAmount'] ?? 0).toDouble();
-  //         }
-  //       }
-
-  //       // Calculate total amount
-  //       final basicRate = (detail['basicPriceSUOM'] ?? 0).toDouble();
-  //       final qty = (detail['qtySUOM'] ?? 0).toDouble();
-  //       final basicAmount = basicRate * qty;
-  //       final discountedAmount = basicAmount - (discountAmount ?? 0);
-  //       final totalAmount = discountedAmount + taxAmount;
-
-  //       // Get rate structure rows for this item
-  //       List<Map<String, dynamic>> rateStructureRows = [];
-  //       if (quotationDetails.rateStructDetail != null) {
-  //         rateStructureRows =
-  //             quotationDetails.rateStructDetail!
-  //                 .where(
-  //                   (rs) => rs['customerItemCode'] == detail['salesItemCode'],
-  //                 )
-  //                 .toList();
-  //       }
-
-  //       items.add(
-  //         SalesOrderItem(
-  //           itemName: detail['salesItemDesc'] ?? '',
-  //           itemCode: detail['salesItemCode'] ?? '',
-  //           qty: qty,
-  //           basicRate: basicRate,
-  //           uom: detail['uom'] ?? 'NOS',
-  //           discountType: discountType,
-  //           discountPercentage: discountPercentage,
-  //           discountAmount: discountAmount,
-  //           rateStructure: detail['rateStructureCode'] ?? '',
-  //           taxAmount: taxAmount,
-  //           totalAmount: totalAmount,
-  //           rateStructureRows: rateStructureRows,
-  //           lineNo: lineNo,
-  //           hsnCode: detail['hsnCode'] ?? '',
-  //         ),
-  //       );
-  //       lineNo++;
-  //     }
-
-  //     setState(() {});
-  //   } catch (e) {
-  //     _showError("Error loading quotation details: ${e.toString()}");
-  //   } finally {
-  //     setState(() => _loadingQuotationDetails = false);
-  //   }
-  // }
   Future<void> _loadQuotationNumbers(String customerCode) async {
     try {
       final quotationListResponse = await _service.fetchQuotationNumberList(
@@ -293,6 +1320,7 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
         String discountType = "None";
         double? discountPercentage;
         double? discountAmount;
+        String? discountCode;
 
         // Look for discount in discountDetails array first
         if (quotationDetails.discountDetail != null &&
@@ -307,6 +1335,7 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
           if (discountDetail.isNotEmpty) {
             final discType = discountDetail['discountType'] ?? 'N';
             final discValue = (discountDetail['discountValue'] ?? 0).toDouble();
+            discountCode = discountDetail['discountCode'];
 
             if (discType == 'P' && discValue > 0) {
               discountType = 'Percentage';
@@ -341,29 +1370,16 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
           }
         }
 
-        // Calculate tax amount from rate structure details
-        double taxAmount = 0.0;
-        if (quotationDetails.rateStructureDetails != null) {
-          final rateStructDetails = quotationDetails.rateStructureDetails!
-              .where(
-                (rs) =>
-                    rs['customerItemCode'] == detail['salesItemCode'] &&
-                    rs['lineNo'] == detail['itemLineNo'],
-              );
-          for (final rsDetail in rateStructDetails) {
-            taxAmount += (rsDetail['rateAmount'] ?? 0).toDouble();
-          }
-        }
-
-        // Calculate total amount
+        // Calculate amounts
         final basicRate = (detail['basicPriceSUOM'] ?? 0).toDouble();
         final qty = (detail['qtySUOM'] ?? 0).toDouble();
         final basicAmount = basicRate * qty;
         final discountedAmount = basicAmount - (discountAmount ?? 0);
-        final totalAmount = discountedAmount + taxAmount;
 
-        // Get rate structure rows for this item
+        // Calculate tax amount from rate structure details - FIXED
+        double taxAmount = 0.0;
         List<Map<String, dynamic>> rateStructureRows = [];
+
         if (quotationDetails.rateStructureDetails != null) {
           rateStructureRows =
               quotationDetails.rateStructureDetails!
@@ -373,7 +1389,15 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
                         rs['lineNo'] == detail['itemLineNo'],
                   )
                   .toList();
+
+          // Calculate tax amount using the discounted amount as base
+          for (final rsDetail in rateStructureRows) {
+            final rateAmount = (rsDetail['rateAmount'] ?? 0).toDouble();
+            taxAmount += rateAmount;
+          }
         }
+
+        final totalAmount = discountedAmount + taxAmount;
 
         items.add(
           SalesOrderItem(
@@ -385,6 +1409,7 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
             discountType: discountType,
             discountPercentage: discountPercentage,
             discountAmount: discountAmount,
+            discountCode: discountCode,
             rateStructure: detail['rateStructureCode'] ?? '',
             taxAmount: taxAmount,
             totalAmount: totalAmount,
@@ -404,211 +1429,6 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
     }
   }
 
-  // Map<String, dynamic> _buildSubmissionPayload() {
-  //   final userId = _service.tokenDetails['user']['id'] ?? 0;
-  //   final locationId = _service.locationDetails['id'] ?? 0;
-  //   final locationCode = _service.locationDetails['code'] ?? "";
-  //   final companyCode = _service.companyDetails['code'] ?? "";
-  //   final companyId = _service.companyId;
-  //   final docYear = _financeDetails?['financialYear'] ?? "";
-
-  //   // Build model details
-  //   List<Map<String, dynamic>> modelDetails = [];
-  //   List<Map<String, dynamic>> discountDetails = [];
-  //   List<Map<String, dynamic>> rateStructureDetails = [];
-
-  //   for (int i = 0; i < items.length; i++) {
-  //     final item = items[i];
-  //     item.lineNo = i + 1;
-
-  //     final modelDetail = item.toModelDetail();
-  //     modelDetail['custPONumber'] = customerPONumberController.text;
-
-  //     // Add quotation reference if applicable
-  //     if (salesOrderReference == "With Quotation Reference" &&
-  //         selectedQuotationNumber != null) {
-  //       // Find the corresponding quotation item detail
-  //       final quotationItemDetail = quotationItemDetails.firstWhere(
-  //         (qItem) =>
-  //             qItem.salesItemCode == item.itemCode &&
-  //             qItem.quotationId == selectedQuotationNumber!.quotationID,
-  //         orElse: () => quotationItemDetails.first,
-  //       );
-
-  //       modelDetail['quotationId'] = selectedQuotationNumber!.quotationID;
-  //       modelDetail['quotationLineNo'] = quotationItemDetail.itemLineNo;
-  //       modelDetail['quotationAmendNo'] = quotationItemDetail.amendSrNo;
-  //     }
-  //     modelDetails.add(modelDetail);
-
-  //     final discountDetail = item.toDiscountDetail();
-  //     if (discountDetail.isNotEmpty) {
-  //       discountDetails.add(discountDetail);
-  //     }
-
-  //     rateStructureDetails.addAll(item.toRateStructureDetails());
-  //   }
-
-  //   final totalBasic = _calculateTotalBasic();
-  //   final totalDiscount = _calculateTotalDiscount();
-  //   final totalTax = _calculateTotalTax();
-  //   final totalAfterDiscount = totalBasic - totalDiscount;
-  //   final finalAmount = totalAfterDiscount + totalTax;
-
-  //   return {
-  //     "authorizationRequired": "Y",
-  //     "autoNumberRequired": "Y",
-  //     "siteRequired": "Y",
-  //     "authorizationDate": FormatUtils.formatDateForApi(
-  //       selectedDate ?? DateTime.now(),
-  //     ),
-  //     "fromLocationId": locationId,
-  //     "userId": userId,
-  //     "companyId": companyId,
-  //     "companyCode": companyCode,
-  //     "fromLocationCode": locationCode,
-  //     "fromLocationName": _service.locationDetails['name'] ?? "",
-  //     "ip": "",
-  //     "mac": "",
-  //     "docType": "OB",
-  //     "docSubType": "OB",
-  //     "domesticCurrencyCode": "INR",
-  //     "salesOrderDetails": {
-  //       "orderId": 0,
-  //       "customerPONumber": customerPONumberController.text,
-  //       "customerPODate": FormatUtils.formatDateForApi(selectedCustomerPODate!),
-  //       // Prefill quotation details from selected quotation
-  //       "quotationId":
-  //           salesOrderReference == "With Quotation Reference" &&
-  //                   selectedQuotationNumber != null
-  //               ? selectedQuotationNumber!.quotationID
-  //               : 0,
-  //       "quotationYear":
-  //           salesOrderReference == "With Quotation Reference" &&
-  //                   selectedQuotationNumber != null
-  //               ? selectedQuotationNumber!.quotationYear
-  //               : "",
-  //       "quotationGroup":
-  //           salesOrderReference == "With Quotation Reference" &&
-  //                   selectedQuotationNumber != null
-  //               ? selectedQuotationNumber!.quotationGroup
-  //               : "",
-  //       "quotationNumber":
-  //           salesOrderReference == "With Quotation Reference" &&
-  //                   selectedQuotationNumber != null
-  //               ? selectedQuotationNumber!.quotationNumber
-  //               : "",
-  //       "OAFGroup": null,
-  //       "quotationDate":
-  //           salesOrderReference == "With Quotation Reference" &&
-  //                   selectedQuotationNumber != null
-  //               ? FormatUtils.formatDateForApi(
-  //                 selectedQuotationNumber!.quotationDate,
-  //               )
-  //               : null,
-  //       "customerCode": selectedOrderFrom?.customerCode ?? "",
-  //       "customerName": selectedOrderFrom?.customerName ?? "",
-  //       // Prefill salesman from quotation if available
-  //       "salesManCode":
-  //           salesOrderReference == "With Quotation Reference" &&
-  //                   selectedQuotationNumber != null
-  //               ? selectedQuotationNumber!.salesmanCode
-  //               : "",
-  //       "attachFlag": "",
-  //       "totalAmountAfterDiscountCustomerCurrency": totalAfterDiscount
-  //           .toStringAsFixed(2),
-  //       "totalAmountAfterDiscountDomesticCurrency": totalAfterDiscount
-  //           .toStringAsFixed(2),
-  //       "totalAmounttAfterTaxDomesticCurrency": finalAmount.toStringAsFixed(2),
-  //       "totalAmountAfterTaxCustomerCurrency": finalAmount.toStringAsFixed(2),
-  //       "discountType": "V",
-  //       "discountAmount": "0.00",
-  //       "exchangeRate": "1.0000",
-  //       "orderStatus": "O",
-  //       "xobCredit": "",
-  //       "xobcrauth": "",
-  //       "amendSrNo": 0,
-  //       "authBy": userId,
-  //       "authDate": null,
-  //       "ioYear": docYear,
-  //       "ioGroup": documentDetail?.groupCode ?? "SO",
-  //       "ioSiteId": locationId.toString(),
-  //       "ioSiteCode": locationCode,
-  //       "ioDate": FormatUtils.formatDateForApi(selectedDate!),
-  //       "amendYear": "",
-  //       "amendGroup": "",
-  //       "amendSiteId": 0,
-  //       "amendSiteCode": "",
-  //       "amendNumber": "",
-  //       "amendDate": null,
-  //       "amendAuthBy": 0,
-  //       "amendAuthByDate": null,
-  //       "custType": "CU",
-  //       "lcDetail": "F",
-  //       "bgDetail": "F",
-  //       "salesOrderType": "REG",
-  //       "isAgentAssociated":
-  //           salesOrderReference == "With Quotation Reference" &&
-  //           selectedQuotationNumber != null &&
-  //           selectedQuotationNumber!.agentCode.isNotEmpty,
-  //       "custContactPersonId": "",
-  //       "salesOrderRefNo": "",
-  //       "buyerCode": 0,
-  //       "soDeliveryDate": null,
-  //       // Prefill currency from quotation if available
-  //       "currencyCode":
-  //           salesOrderReference == "With Quotation Reference" &&
-  //                   selectedQuotationNumber != null
-  //               ? selectedQuotationNumber!.quotationCurrency
-  //               : "INR",
-  //       "bookCode": "",
-  //       // Prefill agent code from quotation if available
-  //       "agentCode":
-  //           salesOrderReference == "With Quotation Reference" &&
-  //                   selectedQuotationNumber != null
-  //               ? selectedQuotationNumber!.agentCode
-  //               : "",
-  //       "ioNumber": "",
-  //       "modOfDispatchCode": "",
-  //       "isFreeSupply": false,
-  //       "isReturnable": false,
-  //       "isRoadPermitReceived": false,
-  //       "customerLOINumber": "",
-  //       "customerLOIDate": "",
-  //       "isInterBranchTransfer": false,
-  //       "customerPOId": 0,
-  //       // Prefill consultant code from quotation if available
-  //       "consultantCode":
-  //           salesOrderReference == "With Quotation Reference" &&
-  //                   selectedQuotationNumber != null
-  //               ? selectedQuotationNumber!.consultantCode
-  //               : "",
-  //       "billToCode": selectedBillTo?.customerCode ?? "",
-  //       "billToCreditLimit": 0,
-  //       "billToAccBalance": 0,
-  //       "config": "N",
-  //       "projectName": "",
-  //     },
-  //     "modelDetails": modelDetails,
-  //     "discountDetails": discountDetails,
-  //     "rateStructureDetails": rateStructureDetails,
-  //     "deliveryDetails": [],
-  //     "paymentDetails": [],
-  //     "termDetails": [],
-  //     "specificationDetails": [],
-  //     "optionalItemDetails": [],
-  //     "textDetails": [],
-  //     "standardTerms": [],
-  //     "historyDetails": [],
-  //     "addOnDetails": [],
-  //     "subItemDetails": [],
-  //     "noteDetails": [],
-  //     "projectLotDetails": [],
-  //     "equipmentAttributeDetails": [],
-  //     "technicalspec": [],
-  //     "msctechspecifications": true,
-  //   };
-  // }
   Map<String, dynamic> _buildSubmissionPayload() {
     final userId = _service.tokenDetails['user']['id'] ?? 0;
     final locationId = _service.locationDetails['id'] ?? 0;
@@ -638,7 +1458,26 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
           (qItem) =>
               qItem.salesItemCode == item.itemCode &&
               qItem.quotationId == selectedQuotationNumber!.quotationID,
-          orElse: () => quotationItemDetails.first,
+          orElse:
+              () =>
+                  quotationItemDetails.isNotEmpty
+                      ? quotationItemDetails.first
+                      : QuotationItemDetail(
+                        select: false,
+                        salesItemCode: '',
+                        salesItemDesc: '',
+                        uom: '',
+                        itemQtySUOM: 0,
+                        itemRate: 0,
+                        itemValue: 0,
+                        quotationId: 0,
+                        itemLineNo: 0,
+                        currencyCode: '',
+                        quotationStatus: '',
+                        conversionFactor: 1,
+                        amendSrNo: 0,
+                        agentCode: '',
+                      ),
         );
 
         modelDetail['quotationId'] = selectedQuotationNumber!.quotationID;
@@ -709,7 +1548,6 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
       "docSubType": "OB",
       "domesticCurrencyCode": "INR",
       "salesOrderDetails": {
-        // ...existing salesOrderDetails...
         "orderId": 0,
         "customerPONumber": customerPONumberController.text,
         "customerPODate": FormatUtils.formatDateForApi(selectedCustomerPODate!),
@@ -758,7 +1596,7 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
         "discountType": "V",
         "discountAmount": "0.00",
         "exchangeRate": "1.0000",
-        "orderStatus": "O",
+        "OrderStatus": "O",
         "xobCredit": "",
         "xobcrauth": "",
         "amendSrNo": 0,
@@ -847,8 +1685,10 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
       MaterialPageRoute(
         builder:
             (context) => AddSalesOrderItemPage(
-              service: _service,
               rateStructures: rateStructures,
+              service: _service,
+              existingItems: items, // Pass existing items
+              isDuplicateAllowed: _isDuplicateAllowed, // Pass duplicate flag
             ),
       ),
     );
@@ -900,288 +1740,6 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
       attachments.removeAt(index);
     });
   }
-
-  // Map<String, dynamic> _buildSubmissionPayload() {
-  //   final userId = _service.tokenDetails['user']['id'] ?? 0;
-  //   final locationId = _service.locationDetails['id'] ?? 0;
-  //   final locationCode = _service.locationDetails['code'] ?? "";
-  //   final companyCode = _service.companyDetails['code'] ?? "";
-  //   final companyId = _service.companyId;
-  //   final docYear = _financeDetails?['financialYear'] ?? "";
-
-  //   // Build model details
-  //   List<Map<String, dynamic>> modelDetails = [];
-  //   List<Map<String, dynamic>> discountDetails = [];
-  //   List<Map<String, dynamic>> rateStructureDetails = [];
-
-  //   for (int i = 0; i < items.length; i++) {
-  //     final item = items[i];
-  //     item.lineNo = i + 1;
-
-  //     final modelDetail = item.toModelDetail();
-  //     modelDetail['custPONumber'] = customerPONumberController.text;
-
-  //     // Add quotation reference if applicable
-  //     if (salesOrderReference == "With Quotation Reference" &&
-  //         selectedQuotationNumber != null) {
-  //       modelDetail['quotationId'] = selectedQuotationNumber!.quotationID;
-  //       modelDetail['quotationLineNo'] = item.lineNo;
-  //       modelDetail['quotationAmendNo'] = 0;
-  //     }
-  //     modelDetails.add(modelDetail);
-
-  //     final discountDetail = item.toDiscountDetail();
-  //     if (discountDetail.isNotEmpty) {
-  //       discountDetails.add(discountDetail);
-  //     }
-
-  //     rateStructureDetails.addAll(item.toRateStructureDetails());
-  //   }
-
-  //   final totalBasic = _calculateTotalBasic();
-  //   final totalDiscount = _calculateTotalDiscount();
-  //   final totalTax = _calculateTotalTax();
-  //   final totalAfterDiscount = totalBasic - totalDiscount;
-  //   final finalAmount = totalAfterDiscount + totalTax;
-
-  //   // return {
-  //   //   "authorizationRequired": "Y",
-  //   //   "autoNumberRequired": "Y",
-  //   //   "siteRequired": "Y",
-  //   //   "authorizationDate": FormatUtils.formatDateForApi(
-  //   //     selectedDate ?? DateTime.now(),
-  //   //   ),
-  //   //   "fromLocationId": locationId,
-  //   //   "userId": userId,
-  //   //   "companyId": companyId,
-  //   //   "companyCode": companyCode,
-  //   //   "fromLocationCode": locationCode,
-  //   //   "fromLocationName": _service.locationDetails['name'] ?? "",
-  //   //   "ip": "",
-  //   //   "mac": "",
-  //   //   "docType": "OB",
-  //   //   "docSubType": "OB",
-  //   //   "domesticCurrencyCode": "INR",
-  //   //   "salesOrderDetails": {
-  //   //     "orderId": 0,
-  //   //     "customerPONumber": customerPONumberController.text,
-  //   //     "customerPODate": FormatUtils.formatDateForApi(selectedCustomerPODate!),
-  //   //     "quotationId": 0,
-  //   //     "quotationYear": "",
-  //   //     "quotationGroup": "",
-  //   //     "quotationNumber": "",
-  //   //     "OAFGroup": null,
-  //   //     "quotationDate": null,
-  //   //     "customerCode": selectedOrderFrom?.customerCode ?? "",
-  //   //     "customerName": selectedOrderFrom?.customerName ?? "",
-  //   //     "salesManCode": "",
-  //   //     "attachFlag": "",
-  //   //     "totalAmountAfterDiscountCustomerCurrency": totalAfterDiscount
-  //   //         .toStringAsFixed(2),
-  //   //     "totalAmountAfterDiscountDomesticCurrency": totalAfterDiscount
-  //   //         .toStringAsFixed(2),
-  //   //     "totalAmounttAfterTaxDomesticCurrency": finalAmount.toStringAsFixed(2),
-  //   //     "totalAmountAfterTaxCustomerCurrency": finalAmount.toStringAsFixed(2),
-  //   //     "discountType": "V",
-  //   //     "discountAmount": "0.00",
-  //   //     "exchangeRate": "1.0000",
-  //   //     "orderStatus": "O",
-  //   //     "xobCredit": "",
-  //   //     "xobcrauth": "",
-  //   //     "amendSrNo": 0,
-  //   //     "authBy": userId,
-  //   //     "authDate": null,
-  //   //     "ioYear": docYear,
-  //   //     "ioGroup": documentDetail?.groupCode ?? "SO",
-  //   //     "ioSiteId": locationId.toString(),
-  //   //     "ioSiteCode": locationCode,
-  //   //     "ioDate": FormatUtils.formatDateForApi(selectedDate!),
-  //   //     "amendYear": "",
-  //   //     "amendGroup": "",
-  //   //     "amendSiteId": 0,
-  //   //     "amendSiteCode": "",
-  //   //     "amendNumber": "",
-  //   //     "amendDate": null,
-  //   //     "amendAuthBy": 0,
-  //   //     "amendAuthByDate": null,
-  //   //     "custType": "CU",
-  //   //     "lcDetail": "F",
-  //   //     "bgDetail": "F",
-  //   //     "salesOrderType": "REG",
-  //   //     "isAgentAssociated": false,
-  //   //     "custContactPersonId": "",
-  //   //     "salesOrderRefNo": "",
-  //   //     "buyerCode": 0,
-  //   //     "soDeliveryDate": null,
-  //   //     "currencyCode": "INR",
-  //   //     "bookCode": "",
-  //   //     "agentCode": "",
-  //   //     "ioNumber": "",
-  //   //     "modOfDispatchCode": "",
-  //   //     "isFreeSupply": false,
-  //   //     "isReturnable": false,
-  //   //     "isRoadPermitReceived": false,
-  //   //     "customerLOINumber": "",
-  //   //     "customerLOIDate": "",
-  //   //     "isInterBranchTransfer": false,
-  //   //     "customerPOId": 0,
-  //   //     "consultantCode": "",
-  //   //     "billToCode": selectedBillTo?.customerCode ?? "",
-  //   //     "billToCreditLimit": 0,
-  //   //     "billToAccBalance": 0,
-  //   //     "config": "N",
-  //   //     "projectName": "",
-  //   //   },
-  //   //   "modelDetails": modelDetails,
-  //   //   "discountDetails": discountDetails,
-  //   //   "rateStructureDetails": rateStructureDetails,
-  //   //   "deliveryDetails": [],
-  //   //   "paymentDetails": [],
-  //   //   "termDetails": [],
-  //   //   "specificationDetails": [],
-  //   //   "optionalItemDetails": [],
-  //   //   "textDetails": [],
-  //   //   "standardTerms": [],
-  //   //   "historyDetails": [],
-  //   //   "addOnDetails": [],
-  //   //   "subItemDetails": [],
-  //   //   "noteDetails": [],
-  //   //   "projectLotDetails": [],
-  //   //   "equipmentAttributeDetails": [],
-  //   //   "technicalspec": [],
-  //   //   "msctechspecifications": true,
-  //   // };
-
-  //   return {
-  //     "authorizationRequired": "Y",
-  //     "autoNumberRequired": "Y",
-  //     "siteRequired": "Y",
-  //     "authorizationDate": FormatUtils.formatDateForApi(
-  //       selectedDate ?? DateTime.now(),
-  //     ),
-  //     "fromLocationId": locationId,
-  //     "userId": userId,
-  //     "companyId": companyId,
-  //     "companyCode": companyCode,
-  //     "fromLocationCode": locationCode,
-  //     "fromLocationName": _service.locationDetails['name'] ?? "",
-  //     "ip": "",
-  //     "mac": "",
-  //     "docType": "OB",
-  //     "docSubType": "OB",
-  //     "domesticCurrencyCode": "INR",
-  //     "salesOrderDetails": {
-  //       "orderId": 0,
-  //       "customerPONumber": customerPONumberController.text,
-  //       "customerPODate": FormatUtils.formatDateForApi(selectedCustomerPODate!),
-  //       "quotationId":
-  //           salesOrderReference == "With Quotation Reference" &&
-  //                   selectedQuotationNumber != null
-  //               ? selectedQuotationNumber!.quotationID
-  //               : 0,
-  //       "quotationYear":
-  //           salesOrderReference == "With Quotation Reference" &&
-  //                   selectedQuotationNumber != null
-  //               ? selectedQuotationNumber!.quotationYear
-  //               : "",
-  //       "quotationGroup":
-  //           salesOrderReference == "With Quotation Reference" &&
-  //                   selectedQuotationNumber != null
-  //               ? selectedQuotationNumber!.quotationGroup
-  //               : "",
-  //       "quotationNumber":
-  //           salesOrderReference == "With Quotation Reference" &&
-  //                   selectedQuotationNumber != null
-  //               ? selectedQuotationNumber!.quotationNumber
-  //               : "",
-  //       "OAFGroup": null,
-  //       "quotationDate":
-  //           salesOrderReference == "With Quotation Reference" &&
-  //                   selectedQuotationNumber != null
-  //               ? FormatUtils.formatDateForApi(
-  //                 selectedQuotationNumber!.quotationDate,
-  //               )
-  //               : null,
-  //       "customerCode": selectedOrderFrom?.customerCode ?? "",
-  //       "customerName": selectedOrderFrom?.customerName ?? "",
-  //       "salesManCode": "",
-  //       "attachFlag": "",
-  //       "totalAmountAfterDiscountCustomerCurrency": totalAfterDiscount
-  //           .toStringAsFixed(2),
-  //       "totalAmountAfterDiscountDomesticCurrency": totalAfterDiscount
-  //           .toStringAsFixed(2),
-  //       "totalAmounttAfterTaxDomesticCurrency": finalAmount.toStringAsFixed(2),
-  //       "totalAmountAfterTaxCustomerCurrency": finalAmount.toStringAsFixed(2),
-  //       "discountType": "V",
-  //       "discountAmount": "0.00",
-  //       "exchangeRate": "1.0000",
-  //       "orderStatus": "O",
-  //       "xobCredit": "",
-  //       "xobcrauth": "",
-  //       "amendSrNo": 0,
-  //       "authBy": userId,
-  //       "authDate": null,
-  //       "ioYear": docYear,
-  //       "ioGroup": documentDetail?.groupCode ?? "SO",
-  //       "ioSiteId": locationId.toString(),
-  //       "ioSiteCode": locationCode,
-  //       "ioDate": FormatUtils.formatDateForApi(selectedDate!),
-  //       "amendYear": "",
-  //       "amendGroup": "",
-  //       "amendSiteId": 0,
-  //       "amendSiteCode": "",
-  //       "amendNumber": "",
-  //       "amendDate": null,
-  //       "amendAuthBy": 0,
-  //       "amendAuthByDate": null,
-  //       "custType": "CU",
-  //       "lcDetail": "F",
-  //       "bgDetail": "F",
-  //       "salesOrderType": "REG",
-  //       "isAgentAssociated": false,
-  //       "custContactPersonId": "",
-  //       "salesOrderRefNo": "",
-  //       "buyerCode": 0,
-  //       "soDeliveryDate": null,
-  //       "currencyCode": "INR",
-  //       "bookCode": "",
-  //       "agentCode": "",
-  //       "ioNumber": "",
-  //       "modOfDispatchCode": "",
-  //       "isFreeSupply": false,
-  //       "isReturnable": false,
-  //       "isRoadPermitReceived": false,
-  //       "customerLOINumber": "",
-  //       "customerLOIDate": "",
-  //       "isInterBranchTransfer": false,
-  //       "customerPOId": 0,
-  //       "consultantCode": "",
-  //       "billToCode": selectedBillTo?.customerCode ?? "",
-  //       "billToCreditLimit": 0,
-  //       "billToAccBalance": 0,
-  //       "config": "N",
-  //       "projectName": "",
-  //     },
-  //     "modelDetails": modelDetails,
-  //     "discountDetails": discountDetails,
-  //     "rateStructureDetails": rateStructureDetails,
-  //     "deliveryDetails": [],
-  //     "paymentDetails": [],
-  //     "termDetails": [],
-  //     "specificationDetails": [],
-  //     "optionalItemDetails": [],
-  //     "textDetails": [],
-  //     "standardTerms": [],
-  //     "historyDetails": [],
-  //     "addOnDetails": [],
-  //     "subItemDetails": [],
-  //     "noteDetails": [],
-  //     "projectLotDetails": [],
-  //     "equipmentAttributeDetails": [],
-  //     "technicalspec": [],
-  //     "msctechspecifications": true,
-  //   };
-  // }
 
   Future<void> _submitSalesOrder() async {
     if (!_formKey.currentState!.validate()) return;
@@ -1358,39 +1916,6 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
           (val) => val == null ? "Sales Order Reference is required" : null,
     );
   }
-
-  // Widget _buildQuotationNumberField() {
-  //   return DropdownButtonFormField<QuotationNumber>(
-  //     decoration: const InputDecoration(
-  //       labelText: "Quotation Number",
-  //       border: OutlineInputBorder(),
-  //     ),
-  //     value: selectedQuotationNumber,
-  //     isExpanded: true,
-  //     items:
-  //         quotationNumbers.map((quotation) {
-  //           return DropdownMenuItem<String>(
-  //             value: quotation,
-  //             child: Text(
-  //               "${quotation.quotationNumber}",
-  //               overflow: TextOverflow.ellipsis,
-  //             ),
-  //           );
-  //         }).toList(),
-  //     onChanged:
-  //         _submitting || _loadingQuotationDetails
-  //             ? null
-  //             : (val) {
-  //               if (val != null) {
-  //                 _onQuotationNumberSelected(val);
-  //               }
-  //             },
-  //     validator:
-  //         salesOrderReference == "With Quotation Reference"
-  //             ? (val) => val == null ? "Quotation Number is required" : null
-  //             : null,
-  //   );
-  // }
 
   Widget _buildQuotationNumberField() {
     return DropdownButtonFormField<QuotationNumber>(
@@ -1614,7 +2139,7 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
               child: ListTile(
                 title: Text(item.itemName),
                 subtitle: Text(
-                  "Qty: ${item.qty} ${item.uom}\nRate: ₹${item.basicRate.toStringAsFixed(2)}\nTotal: ₹${item.totalAmount.toStringAsFixed(2)}",
+                  "Qty: ${item.qty} ${item.uom}\nRate: ₹${item.basicRate.toStringAsFixed(2)}\nTax: ₹${(item.taxAmount ?? 0).toStringAsFixed(2)}\nTotal: ₹${item.totalAmount.toStringAsFixed(2)}",
                 ),
                 trailing: IconButton(
                   icon: const Icon(Icons.delete, color: Colors.red),

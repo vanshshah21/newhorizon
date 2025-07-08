@@ -521,6 +521,12 @@ class SalesOrderService {
     if (companyDetails == null) throw Exception("Company not set");
     if (locationDetails == null) throw Exception("Location not set");
     if (tokenDetails == null) throw Exception("Session token not found");
+    final domCurrency = await StorageUtils.readJson('domestic_currency');
+    if (domCurrency == null) throw Exception("Domestic currency not set");
+
+    final currencyCode = domCurrency['domCurCode'] ?? 'INR';
+    final domCurDesc = domCurrency['domCurDesc'] ?? 'Indian Rupee';
+    final domCurNomin = domCurrency['domCurNomin'] ?? 'INR';
 
     final companyId = companyDetails['id'];
     final companyCode = companyDetails['code'];
@@ -546,9 +552,9 @@ class SalesOrderService {
       "intCompId": companyId,
       "companyData": companyDetails,
       "userid": userId,
-      "strDomCurrency": "INR",
-      "strDomCurrencyDNOMITN": "INR",
-      "strDomCurrencyDesc": "Indian Rupee",
+      "strDomCurrency": currencyCode,
+      "strDomCurrencyDNOMITN": domCurNomin,
+      "strDomCurrencyDesc": domCurDesc,
       "FormID": "06106",
       "reportselection": "withvalue",
       "techspec": "multiline",

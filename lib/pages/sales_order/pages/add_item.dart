@@ -1,3 +1,589 @@
+// import 'package:flutter/material.dart';
+// import 'package:flutter_typeahead/flutter_typeahead.dart';
+// import 'package:nhapp/pages/sales_order/models/add_sales_order.dart';
+// import 'package:nhapp/pages/sales_order/service/add_service.dart';
+
+// class AddSalesOrderItemPage extends StatefulWidget {
+//   final SalesOrderService service;
+//   final SalesOrderItem? item;
+//   final List<RateStructure> rateStructures;
+//   final List<SalesOrderItem> existingItems; // Add this parameter
+//   final bool isDuplicateAllowed; // Add this parameter
+
+//   const AddSalesOrderItemPage({
+//     super.key,
+//     required this.service,
+//     this.item,
+//     required this.rateStructures,
+//     required this.existingItems,
+//     required this.isDuplicateAllowed,
+//   });
+
+//   @override
+//   State<AddSalesOrderItemPage> createState() => _AddSalesOrderItemPageState();
+// }
+
+// class _AddSalesOrderItemPageState extends State<AddSalesOrderItemPage> {
+//   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+//   final TextEditingController itemNameController = TextEditingController();
+//   final TextEditingController qtyController = TextEditingController(text: "1");
+//   final TextEditingController basicRateController = TextEditingController();
+//   final TextEditingController discountPercentageController =
+//       TextEditingController();
+//   final TextEditingController discountAmountController =
+//       TextEditingController();
+
+//   SalesItem? selectedItem;
+//   String discountType = "None";
+//   DiscountCode? selectedDiscountCode;
+//   List<DiscountCode> discountCodes = [];
+//   String? selectedRateStructure;
+//   List<Map<String, dynamic>> rateStructureRows = [];
+//   bool _isLoading = false;
+//   bool _formDirty = false;
+
+//   @override
+//   void initState() {
+//     super.initState();
+//     _loadDiscountCodes();
+//     _initializeFormWithItem();
+//   }
+
+//   @override
+//   void dispose() {
+//     itemNameController.dispose();
+//     qtyController.dispose();
+//     basicRateController.dispose();
+//     discountPercentageController.dispose();
+//     discountAmountController.dispose();
+//     super.dispose();
+//   }
+
+//   bool _formIsDirty() {
+//     return _formDirty ||
+//         itemNameController.text.isNotEmpty ||
+//         qtyController.text != "1" ||
+//         basicRateController.text.isNotEmpty ||
+//         discountPercentageController.text.isNotEmpty ||
+//         discountAmountController.text.isNotEmpty ||
+//         selectedItem != null ||
+//         discountType != "None" ||
+//         selectedRateStructure != null;
+//   }
+
+//   void _setDirty() {
+//     if (!_formDirty) {
+//       setState(() {
+//         _formDirty = true;
+//       });
+//     }
+//   }
+
+//   Future<void> _loadDiscountCodes() async {
+//     try {
+//       final codes = await widget.service.fetchDiscountCodes();
+//       setState(() {
+//         discountCodes = codes;
+//       });
+//     } catch (e) {
+//       // Handle error silently or show a message
+//       debugPrint("Failed to load discount codes: $e");
+//     }
+//   }
+
+//   void _initializeFormWithItem() {
+//     if (widget.item != null) {
+//       final item = widget.item!;
+//       itemNameController.text = item.itemName;
+//       qtyController.text = item.qty.toString();
+//       basicRateController.text = item.basicRate.toString();
+//       discountType = item.discountType;
+
+//       if (item.discountPercentage != null) {
+//         discountPercentageController.text = item.discountPercentage.toString();
+//       }
+//       if (item.discountAmount != null) {
+//         discountAmountController.text = item.discountAmount.toString();
+//       }
+
+//       selectedRateStructure = item.rateStructure;
+//       rateStructureRows = item.rateStructureRows ?? [];
+
+//       // Find the discount code if it exists
+//       if (item.discountCode != null) {
+//         selectedDiscountCode = discountCodes.firstWhere(
+//           (code) => code.code == item.discountCode,
+//           orElse:
+//               () => DiscountCode(
+//                 code: item.discountCode!,
+//                 description: item.discountCode!,
+//                 codeFullName: item.discountCode!,
+//               ),
+//         );
+//       }
+//     }
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return WillPopScope(
+//       onWillPop: () async {
+//         if (_formIsDirty()) {
+//           final shouldPop = await showDialog<bool>(
+//             context: context,
+//             builder:
+//                 (context) => AlertDialog(
+//                   title: const Text("Unsaved Changes"),
+//                   content: const Text(
+//                     "You have unsaved changes. Are you sure you want to leave?",
+//                   ),
+//                   actions: [
+//                     TextButton(
+//                       onPressed: () => Navigator.pop(context, false),
+//                       child: const Text("Cancel"),
+//                     ),
+//                     TextButton(
+//                       onPressed: () => Navigator.pop(context, true),
+//                       child: const Text("Leave"),
+//                     ),
+//                   ],
+//                 ),
+//           );
+//           return shouldPop ?? false;
+//         }
+//         return true;
+//       },
+//       child: Scaffold(
+//         appBar: AppBar(
+//           title: Text(widget.item == null ? "Add Item" : "Edit Item"),
+//           backgroundColor: Colors.blue,
+//           foregroundColor: Colors.white,
+//         ),
+//         body: Form(
+//           key: _formKey,
+//           child: SingleChildScrollView(
+//             padding: const EdgeInsets.all(16.0),
+//             child: Column(
+//               children: [
+//                 _buildItemNameField(),
+//                 const SizedBox(height: 16),
+//                 _buildQuantityField(),
+//                 const SizedBox(height: 16),
+//                 _buildBasicRateField(),
+//                 const SizedBox(height: 16),
+//                 _buildDiscountTypeField(),
+//                 const SizedBox(height: 16),
+//                 if (discountType == "Percentage") ...[
+//                   _buildDiscountPercentageField(),
+//                   const SizedBox(height: 16),
+//                 ],
+//                 if (discountType == "Value") ...[
+//                   _buildDiscountAmountField(),
+//                   const SizedBox(height: 16),
+//                 ],
+//                 if (discountType != "None") ...[
+//                   _buildDiscountCodeField(),
+//                   const SizedBox(height: 16),
+//                 ],
+//                 _buildRateStructureField(),
+//                 const SizedBox(height: 24),
+//                 _buildSubmitButton(),
+//               ],
+//             ),
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _buildDiscountCodeField() {
+//     return DropdownButtonFormField<DiscountCode>(
+//       value: selectedDiscountCode,
+//       decoration: const InputDecoration(
+//         labelText: "Discount Code",
+//         border: OutlineInputBorder(),
+//       ),
+//       items:
+//           discountCodes.map((code) {
+//             return DropdownMenuItem<DiscountCode>(
+//               value: code,
+//               child: Text("${code.code} - ${code.description}"),
+//             );
+//           }).toList(),
+//       onChanged: (value) {
+//         setState(() {
+//           selectedDiscountCode = value;
+//           _setDirty();
+//         });
+//       },
+//       validator: (value) {
+//         if (discountType != "None" && value == null) {
+//           return "Discount code is required when discount is applied";
+//         }
+//         return null;
+//       },
+//     );
+//   }
+
+//   Widget _buildItemNameField() {
+//     return TypeAheadField<SalesItem>(
+//       debounceDuration: const Duration(milliseconds: 400),
+//       controller: itemNameController,
+//       builder: (context, controller, focusNode) {
+//         return TextFormField(
+//           controller: controller,
+//           focusNode: focusNode,
+//           decoration: const InputDecoration(
+//             labelText: "Item Name",
+//             border: OutlineInputBorder(),
+//           ),
+//           onChanged: (_) => _setDirty(),
+//           validator:
+//               (val) =>
+//                   val == null || val.isEmpty ? "Item Name is required" : null,
+//         );
+//       },
+//       suggestionsCallback: (pattern) async {
+//         if (pattern.length < 4) return [];
+//         try {
+//           return await widget.service.fetchSalesItemList(pattern);
+//         } catch (e) {
+//           return [];
+//         }
+//       },
+//       itemBuilder: (context, suggestion) {
+//         return ListTile(
+//           title: Text(suggestion.itemName),
+//           subtitle: Text(suggestion.itemCode),
+//         );
+//       },
+//       onSelected: (suggestion) async {
+//         // Check for duplicates if not allowed
+//         if (!widget.isDuplicateAllowed) {
+//           final isDuplicate = widget.existingItems.any(
+//             (item) => item.itemCode == suggestion.itemCode,
+//           );
+//           if (isDuplicate) {
+//             ScaffoldMessenger.of(context).showSnackBar(
+//               const SnackBar(
+//                 content: Text("This item already exists in the list"),
+//                 backgroundColor: Colors.orange,
+//               ),
+//             );
+//             return;
+//           }
+//         }
+
+//         setState(() {
+//           selectedItem = suggestion;
+//           itemNameController.text = suggestion.itemName;
+//           basicRateController.text = "0";
+//           qtyController.text = "1";
+//           discountPercentageController.clear();
+//           discountAmountController.clear();
+//           _formDirty = true;
+//         });
+//       },
+//       hideOnEmpty: true,
+//       hideOnError: true,
+//       hideOnLoading: false,
+//       animationDuration: const Duration(milliseconds: 300),
+//     );
+//   }
+
+//   Widget _buildQuantityField() {
+//     return TextFormField(
+//       controller: qtyController,
+//       decoration: const InputDecoration(
+//         labelText: "Quantity",
+//         border: OutlineInputBorder(),
+//       ),
+//       keyboardType: TextInputType.number,
+//       onChanged: (_) => _setDirty(),
+//       validator: (val) {
+//         if (val == null || val.isEmpty) return "Quantity is required";
+//         final qty = double.tryParse(val);
+//         if (qty == null || qty <= 0) return "Enter a valid quantity";
+//         return null;
+//       },
+//     );
+//   }
+
+//   Widget _buildBasicRateField() {
+//     return TextFormField(
+//       controller: basicRateController,
+//       decoration: const InputDecoration(
+//         labelText: "Basic Rate",
+//         border: OutlineInputBorder(),
+//       ),
+//       keyboardType: TextInputType.number,
+//       onChanged: (_) => _setDirty(),
+//       validator: (val) {
+//         if (val == null || val.isEmpty) return "Basic Rate is required";
+//         final rate = double.tryParse(val);
+//         if (rate == null || rate < 0) return "Enter a valid rate";
+//         return null;
+//       },
+//     );
+//   }
+
+//   Widget _buildDiscountTypeField() {
+//     return DropdownButtonFormField<String>(
+//       value: discountType,
+//       decoration: const InputDecoration(
+//         labelText: "Discount Type",
+//         border: OutlineInputBorder(),
+//       ),
+//       items:
+//           ["None", "Percentage", "Value"].map((type) {
+//             return DropdownMenuItem<String>(value: type, child: Text(type));
+//           }).toList(),
+//       onChanged: (value) {
+//         setState(() {
+//           discountType = value!;
+//           discountPercentageController.clear();
+//           discountAmountController.clear();
+//           selectedDiscountCode = null;
+//           _setDirty();
+//         });
+//       },
+//     );
+//   }
+
+//   Widget _buildDiscountPercentageField() {
+//     return TextFormField(
+//       controller: discountPercentageController,
+//       decoration: const InputDecoration(
+//         labelText: "Discount Percentage",
+//         border: OutlineInputBorder(),
+//         suffixText: "%",
+//       ),
+//       keyboardType: TextInputType.number,
+//       onChanged: (_) => _setDirty(),
+//       validator: (val) {
+//         if (discountType == "Percentage") {
+//           if (val == null || val.isEmpty) {
+//             return "Discount percentage is required";
+//           }
+//           final percentage = double.tryParse(val);
+//           if (percentage == null || percentage < 0 || percentage > 100) {
+//             return "Enter a valid percentage (0-100)";
+//           }
+//         }
+//         return null;
+//       },
+//     );
+//   }
+
+//   Widget _buildDiscountAmountField() {
+//     return TextFormField(
+//       controller: discountAmountController,
+//       decoration: const InputDecoration(
+//         labelText: "Discount Amount",
+//         border: OutlineInputBorder(),
+//       ),
+//       keyboardType: TextInputType.number,
+//       onChanged: (_) => _setDirty(),
+//       validator: (val) {
+//         if (discountType == "Value") {
+//           if (val == null || val.isEmpty) {
+//             return "Discount amount is required";
+//           }
+//           final amount = double.tryParse(val);
+//           if (amount == null || amount < 0) {
+//             return "Enter a valid discount amount";
+//           }
+//         }
+//         return null;
+//       },
+//     );
+//   }
+
+//   Widget _buildRateStructureField() {
+//     return DropdownButtonFormField<String>(
+//       value: selectedRateStructure,
+//       decoration: const InputDecoration(
+//         labelText: "Rate Structure",
+//         border: OutlineInputBorder(),
+//       ),
+//       items:
+//           widget.rateStructures.map((structure) {
+//             return DropdownMenuItem<String>(
+//               value: structure.rateStructCode,
+//               child: Text(structure.rateStructDesc),
+//             );
+//           }).toList(),
+//       onChanged: (value) async {
+//         setState(() {
+//           selectedRateStructure = value;
+//           _setDirty();
+//         });
+
+//         if (value != null) {
+//           try {
+//             final details = await widget.service.fetchRateStructureDetails(
+//               value,
+//             );
+//             setState(() {
+//               rateStructureRows = details;
+//             });
+//           } catch (e) {
+//             ScaffoldMessenger.of(context).showSnackBar(
+//               SnackBar(content: Text("Error loading rate structure: $e")),
+//             );
+//           }
+//         }
+//       },
+//       validator: (val) => val == null ? "Rate Structure is required" : null,
+//     );
+//   }
+
+//   Widget _buildSubmitButton() {
+//     return SizedBox(
+//       width: double.infinity,
+//       child: ElevatedButton(
+//         onPressed: _isLoading ? null : _addItem,
+//         style: ElevatedButton.styleFrom(
+//           backgroundColor: Colors.blue,
+//           foregroundColor: Colors.white,
+//           padding: const EdgeInsets.symmetric(vertical: 16),
+//         ),
+//         child:
+//             _isLoading
+//                 ? const CircularProgressIndicator(color: Colors.white)
+//                 : Text(widget.item == null ? "Add Item" : "Update Item"),
+//       ),
+//     );
+//   }
+
+//   Future<void> _addItem() async {
+//     if (!_formKey.currentState!.validate()) return;
+
+//     final qty = double.parse(qtyController.text);
+//     final basicRate = double.parse(basicRateController.text);
+
+//     double discountAmount = 0;
+//     double? discountPercentage;
+
+//     if (discountType == "Percentage") {
+//       discountPercentage = double.parse(discountPercentageController.text);
+//       final totalBeforeDiscount = basicRate * qty;
+//       discountAmount = totalBeforeDiscount * (discountPercentage / 100);
+//     } else if (discountType == "Value") {
+//       discountAmount = double.parse(discountAmountController.text);
+//       final totalBeforeDiscount = basicRate * qty;
+//       discountPercentage =
+//           totalBeforeDiscount > 0
+//               ? (discountAmount / totalBeforeDiscount) * 100
+//               : 0;
+//     }
+
+//     setState(() => _isLoading = true);
+
+//     try {
+//       final totalBeforeDiscount = basicRate * qty;
+//       final discountedValue = totalBeforeDiscount - discountAmount;
+
+//       if (discountedValue < 0) {
+//         throw Exception("Discount amount cannot be greater than total amount");
+//       }
+
+//       // Build RateStructureDetails for this item - same as quotation
+//       final rateStructureDetails = widget.service.buildRateStructureDetails(
+//         rateStructureRows,
+//         selectedItem?.itemCode ?? "TEMP",
+//         1, // itmModelRefNo
+//       );
+
+//       print(
+//         "Original Rate Structure Details: $rateStructureDetails",
+//       ); // Debug log
+
+//       // Calculate rate structure amount
+//       final rateStructureResponse = await widget.service.calculateRateStructure(
+//         discountedValue,
+//         selectedRateStructure!,
+//         rateStructureDetails,
+//         selectedItem?.itemCode ?? "TEMP",
+//       );
+
+//       print("Rate Structure Response: $rateStructureResponse"); // Debug log
+
+//       // Check for success in the response
+//       if (rateStructureResponse['success'] == true) {
+//         final data = rateStructureResponse['data'];
+
+//         // Get the updated rate structure details with calculated amounts
+//         // Use the same logic as quotation
+//         final updatedRateStructureDetails =
+//             data['FinalrateStructureData'] ?? data['rateStructureDetails'];
+
+//         print(
+//           "Updated Rate Structure Details: $updatedRateStructureDetails",
+//         ); // Debug log
+
+//         // Calculate total tax amount from updated rate structure details
+//         double totalTax = 0.0;
+//         if (updatedRateStructureDetails != null) {
+//           for (final rateDetail in updatedRateStructureDetails) {
+//             final rateAmount = (rateDetail['rateAmount'] ?? 0.0).toDouble();
+//             totalTax += rateAmount;
+//             print(
+//               "Rate Code: ${rateDetail['rateCode']}, Rate Amount: $rateAmount",
+//             ); // Debug log
+//           }
+//         }
+
+//         print("Total Tax Amount: $totalTax"); // Debug log
+
+//         // Calculate total amount same as quotation
+//         final totalAmount = discountedValue + totalTax;
+
+//         final item = SalesOrderItem(
+//           itemName: itemNameController.text,
+//           itemCode: selectedItem?.itemCode ?? "TEMP",
+//           qty: qty,
+//           basicRate: basicRate,
+//           uom: selectedItem?.salesUOM ?? "NOS",
+//           discountType: discountType,
+//           discountPercentage:
+//               discountType == "Percentage" ? discountPercentage : null,
+//           discountAmount: discountAmount > 0 ? discountAmount : null,
+//           discountCode: selectedDiscountCode?.code, // Include discount code
+//           rateStructure: selectedRateStructure!,
+//           taxAmount: totalTax,
+//           totalAmount: totalAmount,
+//           rateStructureRows:
+//               updatedRateStructureDetails != null
+//                   ? List<Map<String, dynamic>>.from(updatedRateStructureDetails)
+//                   : rateStructureRows, // fallback to original if update failed
+//           lineNo: widget.item?.lineNo ?? 0, // Use existing lineNo or 0 for new
+//           hsnCode: selectedItem?.hsnCode ?? '',
+//         );
+
+//         Navigator.pop(context, item);
+//       } else {
+//         ScaffoldMessenger.of(context).showSnackBar(
+//           SnackBar(
+//             content: Text(
+//               "Error: ${rateStructureResponse['errorMessage'] ?? 'Calculation failed'}",
+//             ),
+//             backgroundColor: Colors.red,
+//           ),
+//         );
+//       }
+//     } catch (e, stackTrace) {
+//       print("Error in _addItem: $e"); // Debug log
+//       print("Stack trace: $stackTrace");
+//       ScaffoldMessenger.of(context).showSnackBar(
+//         SnackBar(content: Text("Error calculating item: ${e.toString()}")),
+//       );
+//     } finally {
+//       setState(() => _isLoading = false);
+//     }
+//   }
+// }
+
 import 'package:flutter/material.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:nhapp/pages/sales_order/models/add_sales_order.dart';
@@ -5,12 +591,18 @@ import 'package:nhapp/pages/sales_order/service/add_service.dart';
 
 class AddSalesOrderItemPage extends StatefulWidget {
   final SalesOrderService service;
+  final SalesOrderItem? item;
   final List<RateStructure> rateStructures;
+  final List<SalesOrderItem> existingItems; // Add this parameter
+  final bool isDuplicateAllowed; // Add this parameter
 
   const AddSalesOrderItemPage({
     super.key,
     required this.service,
+    this.item,
     required this.rateStructures,
+    required this.existingItems, // Add this
+    required this.isDuplicateAllowed, // Add this
   });
 
   @override
@@ -29,10 +621,18 @@ class _AddSalesOrderItemPageState extends State<AddSalesOrderItemPage> {
 
   SalesItem? selectedItem;
   String discountType = "None";
+  DiscountCode? selectedDiscountCode;
+  List<DiscountCode> discountCodes = [];
   String? selectedRateStructure;
   List<Map<String, dynamic>> rateStructureRows = [];
   bool _isLoading = false;
   bool _formDirty = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDiscountCodes();
+  }
 
   @override
   void dispose() {
@@ -55,6 +655,20 @@ class _AddSalesOrderItemPageState extends State<AddSalesOrderItemPage> {
 
   void _setDirty() {
     if (!_formDirty) setState(() => _formDirty = true);
+  }
+
+  Future<void> _loadDiscountCodes() async {
+    try {
+      discountCodes = await widget.service.fetchDiscountCodes();
+      if (discountCodes.isNotEmpty) {
+        setState(() {
+          selectedDiscountCode = discountCodes.first; // Set default selection
+        });
+      }
+    } catch (e) {
+      print("Error loading discount codes: $e");
+    }
+    setState(() {});
   }
 
   @override
@@ -104,6 +718,8 @@ class _AddSalesOrderItemPageState extends State<AddSalesOrderItemPage> {
                         const SizedBox(height: 16),
                         _buildBasicRateField(),
                         const SizedBox(height: 16),
+                        _buildDiscountCodeField(),
+                        const SizedBox(height: 16),
                         _buildDiscountTypeField(),
                         if (discountType == "Percentage") ...[
                           const SizedBox(height: 16),
@@ -122,6 +738,34 @@ class _AddSalesOrderItemPageState extends State<AddSalesOrderItemPage> {
                   ),
                 ),
       ),
+    );
+  }
+
+  Widget _buildDiscountCodeField() {
+    return DropdownButtonFormField<DiscountCode>(
+      value: selectedDiscountCode,
+      decoration: const InputDecoration(
+        labelText: "Discount Code",
+        border: OutlineInputBorder(),
+      ),
+      isExpanded: true,
+      items:
+          discountCodes.map((discountCode) {
+            return DropdownMenuItem<DiscountCode>(
+              value: discountCode,
+              child: Text(
+                discountCode.codeFullName,
+                style: const TextStyle(fontSize: 14),
+              ),
+            );
+          }).toList(),
+      onChanged: (val) {
+        setState(() {
+          selectedDiscountCode = val;
+          _formDirty = true;
+        });
+      },
+      validator: (value) => value == null ? "Discount Code is required" : null,
     );
   }
 
@@ -146,7 +790,18 @@ class _AddSalesOrderItemPageState extends State<AddSalesOrderItemPage> {
       suggestionsCallback: (pattern) async {
         if (pattern.length < 4) return [];
         try {
-          return await widget.service.fetchSalesItemList(pattern);
+          final allItems = await widget.service.fetchSalesItemList(pattern);
+
+          if (!widget.isDuplicateAllowed) {
+            // Filter out items that are already added
+            final addedItemCodes =
+                widget.existingItems.map((item) => item.itemCode).toSet();
+            return allItems
+                .where((item) => !addedItemCodes.contains(item.itemCode))
+                .toList();
+          }
+
+          return allItems;
         } catch (e) {
           return [];
         }
@@ -158,6 +813,22 @@ class _AddSalesOrderItemPageState extends State<AddSalesOrderItemPage> {
         );
       },
       onSelected: (suggestion) async {
+        // Check for duplicates if not allowed
+        if (!widget.isDuplicateAllowed) {
+          final isDuplicate = widget.existingItems.any(
+            (item) => item.itemCode == suggestion.itemCode,
+          );
+          if (isDuplicate) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("This item is already added"),
+                backgroundColor: Colors.red,
+              ),
+            );
+            return;
+          }
+        }
+
         setState(() {
           selectedItem = suggestion;
           itemNameController.text = suggestion.itemName;
@@ -168,6 +839,10 @@ class _AddSalesOrderItemPageState extends State<AddSalesOrderItemPage> {
           _formDirty = true;
         });
       },
+      hideOnEmpty: true,
+      hideOnError: true,
+      hideOnLoading: false,
+      animationDuration: const Duration(milliseconds: 300),
     );
   }
 
@@ -267,7 +942,7 @@ class _AddSalesOrderItemPageState extends State<AddSalesOrderItemPage> {
       controller: discountAmountController,
       keyboardType: TextInputType.number,
       decoration: const InputDecoration(
-        labelText: "Discount Amount (less than total)",
+        labelText: "Discount Amount (less than Basic Rate)",
         border: OutlineInputBorder(),
       ),
       onChanged: (_) => _setDirty(),
@@ -278,10 +953,8 @@ class _AddSalesOrderItemPageState extends State<AddSalesOrderItemPage> {
           }
           final disc = double.tryParse(value);
           final rate = double.tryParse(basicRateController.text) ?? 0;
-          final qty = double.tryParse(qtyController.text) ?? 0;
-          final total = rate * qty;
-          if (disc == null || disc >= total) {
-            return "Discount must be less than total amount";
+          if (disc == null || disc >= rate) {
+            return "Discount must be less than Basic Rate";
           }
         }
         return null;
@@ -360,27 +1033,37 @@ class _AddSalesOrderItemPageState extends State<AddSalesOrderItemPage> {
     double discountAmount = 0;
     double? discountPercentage;
 
+    // Discount calculation logic - exactly same as ad_itm
     if (discountType == "Percentage") {
       discountPercentage = double.parse(discountPercentageController.text);
-      discountAmount = (basicRate * qty) * (discountPercentage / 100);
+      final totalBeforeDiscount = basicRate * qty;
+      discountAmount = totalBeforeDiscount * (discountPercentage / 100);
     } else if (discountType == "Value") {
       discountAmount = double.parse(discountAmountController.text);
-      discountPercentage = (discountAmount / (basicRate * qty)) * 100;
+      final totalBeforeDiscount = basicRate * qty;
+      discountPercentage =
+          totalBeforeDiscount > 0
+              ? (discountAmount / totalBeforeDiscount) * 100
+              : 0;
     }
 
     setState(() => _isLoading = true);
 
     try {
-      final discountedValue = (basicRate * qty) - discountAmount;
+      final totalBeforeDiscount = basicRate * qty;
+      final discountedValue = totalBeforeDiscount - discountAmount;
 
-      // Build RateStructureDetails for this item
+      if (discountedValue < 0) {
+        throw Exception("Discount amount cannot be greater than total amount");
+      }
+
+      // Rate structure calculation - exactly same as ad_itm
       final rateStructureDetails = widget.service.buildRateStructureDetails(
         rateStructureRows,
         selectedItem?.itemCode ?? "TEMP",
         1,
       );
 
-      // Calculate rate structure amount
       final rateStructureResponse = await widget.service.calculateRateStructure(
         discountedValue,
         selectedRateStructure!,
@@ -390,9 +1073,18 @@ class _AddSalesOrderItemPageState extends State<AddSalesOrderItemPage> {
 
       if (rateStructureResponse['success'] == true) {
         final data = rateStructureResponse['data'];
-        final totalTax = (data['totalExclusiveDomCurrAmount'] ?? 0.0) as double;
-        final totalAmount =
-            (data['totlaItemAmountRounded'] ?? discountedValue).toDouble();
+        final updatedRateStructureDetails =
+            data['listCalcRateReturnDetails'] ?? data['rateStructureDetails'];
+
+        double totalTax = 0.0;
+        if (updatedRateStructureDetails != null) {
+          for (final rateDetail in updatedRateStructureDetails) {
+            final rateAmount = (rateDetail['rateAmount'] ?? 0.0).toDouble();
+            totalTax += rateAmount;
+          }
+        }
+
+        final totalAmount = discountedValue + totalTax;
 
         final item = SalesOrderItem(
           itemName: itemNameController.text,
@@ -404,24 +1096,32 @@ class _AddSalesOrderItemPageState extends State<AddSalesOrderItemPage> {
           discountPercentage:
               discountType == "Percentage" ? discountPercentage : null,
           discountAmount: discountAmount > 0 ? discountAmount : null,
+          discountCode: selectedDiscountCode?.code, // Add discount code
           rateStructure: selectedRateStructure!,
           taxAmount: totalTax,
           totalAmount: totalAmount,
-          rateStructureRows: rateStructureRows,
-          lineNo: 0,
-          hsnCode: selectedItem?.hsnCode,
+          rateStructureRows:
+              updatedRateStructureDetails != null
+                  ? List<Map<String, dynamic>>.from(updatedRateStructureDetails)
+                  : rateStructureRows,
+          lineNo: 0, // will be set in main form
+          hsnCode: selectedItem?.hsnCode ?? '',
         );
 
         Navigator.pop(context, item);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Error: Calculation failed"),
+          SnackBar(
+            content: Text(
+              "Error: ${rateStructureResponse['errorMessage'] ?? 'Calculation failed'}",
+            ),
             backgroundColor: Colors.red,
           ),
         );
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print("Error in _addItem: $e");
+      print("Stack trace: $stackTrace");
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error calculating item: ${e.toString()}")),
       );

@@ -810,7 +810,7 @@ class _SalesOrderCardState extends State<SalesOrderCard>
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SalesOrderDetailsPage(salesOrder: widget.so),
+        builder: (context) => SalesOrderDetailPage(salesOrder: widget.so),
       ),
     );
   }

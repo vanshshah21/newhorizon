@@ -225,6 +225,25 @@ class SalesOrderService {
     }
   }
 
+  Future<List<DiscountCode>> fetchDiscountCodes() async {
+    const endpoint =
+        "/api/Quotation/QuotationGetDiscount?codeType=DD&codeValue=GEN";
+    try {
+      final response = await _dio.get("$_baseUrl$endpoint");
+
+      if (response.data['success'] == true) {
+        final data = response.data['data'] as List;
+        return data.map((item) => DiscountCode.fromJson(item)).toList();
+      } else {
+        throw Exception(
+          "Failed to fetch discount codes: ${response.data['errorMessage']}",
+        );
+      }
+    } catch (e) {
+      throw Exception("Failed to fetch discount codes: $e");
+    }
+  }
+
   List<Map<String, dynamic>> buildRateStructureDetails(
     List<Map<String, dynamic>> rateStructureRows,
     String itemCode,
@@ -341,6 +360,24 @@ class SalesOrderService {
       return response.data;
     } catch (e) {
       throw Exception("Failed to update sales order: $e");
+    }
+  }
+
+  Future<Map<String, dynamic>> getSalesPolicy() async {
+    try {
+      final companyCode = companyDetails['code'];
+      const endpoint = "/api/Login/GetSalesPolicyDetails";
+      final response = await _dio.get(
+        '$_baseUrl$endpoint',
+        queryParameters: {"companyCode": companyCode},
+      );
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return response.data['data']['salesPolicyResultModel'][0]
+            as Map<String, dynamic>;
+      }
+      return {};
+    } catch (e) {
+      rethrow;
     }
   }
 }

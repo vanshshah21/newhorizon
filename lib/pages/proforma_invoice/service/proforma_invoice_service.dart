@@ -92,6 +92,35 @@ class ProformaInvoiceService {
     throw Exception('Failed to fetch Proforma Invoice PDF');
   }
 
+  Future<bool> proformaDelete(int invoiceNumber) async {
+    final url = await StorageUtils.readValue('url');
+    final companyDetails = await StorageUtils.readJson('selected_company');
+    if (companyDetails == null) throw Exception("Company not set");
+
+    final tokenDetails = await StorageUtils.readJson('session_token');
+    if (tokenDetails == null) throw Exception("Session token not found");
+
+    final token = tokenDetails['token']['value'];
+
+    _dio.options.headers['Content-Type'] = 'application/json';
+    _dio.options.headers['Accept'] = 'application/json';
+    _dio.options.headers['companyid'] = companyDetails['id'].toString();
+    _dio.options.headers['Authorization'] = 'Bearer $token';
+
+    final endpoint = "/api/Proforma/proformaInvoiceDelete";
+    ;
+
+    final response = await _dio.delete(
+      'http://$url$endpoint',
+      queryParameters: {"invoiceNumber": invoiceNumber},
+    );
+    if (response.statusCode == 200 && response.data['success'] == true ||
+        response.data['success'] == 'true') {
+      return true;
+    }
+    throw Exception('Failed to delete proforma invoice');
+  }
+
   Future<ProformaInvoiceDetails> fetchProformaInvoiceDetails({
     required int invSiteId,
     required String invYear,

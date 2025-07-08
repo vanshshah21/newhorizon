@@ -4326,6 +4326,50 @@ class UserLoginScreenState extends State<UserLoginScreen> {
     }
   }
 
+  Future<void> _fetchDomesticCurrency() async {
+    final dio = Dio();
+
+    try {
+      final url = await StorageUtils.readValue('url');
+      if (url == null) {
+        showSnackBar('Base URL not found.');
+        return;
+      }
+
+      final tokendetails = await StorageUtils.readJson('session_token');
+      if (tokendetails == null) {
+        showSnackBar('Session token not found.');
+        return;
+      }
+
+      _selectedCompany =
+          await StorageUtils.readJson('selected_company') ?? defaultCompany;
+
+      final token = tokendetails['token']['value'];
+      final companyId = _selectedCompany['id'];
+
+      dio.options.headers['Content-Type'] = 'application/json';
+      dio.options.headers['Accept'] = 'application/json';
+      dio.options.headers['Authorization'] = 'Bearer $token';
+      dio.options.headers['companyid'] = companyId;
+
+      final endpoint = '/api/Login/getDomesticCurrency';
+
+      final response = await dio.get('http://$url$endpoint');
+
+      if (response.statusCode == 200 && response.data["success"] == true) {
+        final data = response.data['data'][0];
+        await StorageUtils.writeJson('domestic_currency', data);
+      } else {
+        showSnackBar(
+          'Failed to fetch domestic currency: ${response.statusCode}',
+        );
+      }
+    } catch (e) {
+      showSnackBar('Error fetching domestic currency: $e');
+    }
+  }
+
   Future<void> _fetchAndSaveFinancePeriod() async {
     final url = await StorageUtils.readValue('url');
     if (url == null) {
@@ -4387,6 +4431,7 @@ class UserLoginScreenState extends State<UserLoginScreen> {
       await StorageUtils.writeJson('selected_location', _selectedLocation);
 
       await _fetchAndSaveFinancePeriod();
+      await _fetchDomesticCurrency();
 
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/');

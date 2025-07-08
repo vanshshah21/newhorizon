@@ -239,29 +239,36 @@ class _LabourPOInfiniteListTabState extends State<LabourPOInfiniteListTab>
           ),
         ),
         Expanded(
-          child: PagingListener<int, LabourPOData>(
-            controller: _pagingController,
-            builder:
-                (context, state, fetchNextPage) =>
-                    PagedListView<int, LabourPOData>(
-                      state: state,
-                      fetchNextPage: fetchNextPage,
-                      builderDelegate: PagedChildBuilderDelegate<LabourPOData>(
-                        itemBuilder:
-                            (context, po, index) => LabourPOCard(
-                              po: po,
-                              onCallTap: () => widget.onCallTap(po),
-                              onPdfTap: () => widget.onPdfTap(po),
-                            ),
-                        noItemsFoundIndicatorBuilder:
-                            (context) =>
-                                const Center(child: Text('No data found.')),
-                        firstPageErrorIndicatorBuilder:
-                            (context) => const Center(
-                              child: Text('Error loading data.'),
-                            ),
-                      ),
+          child: RefreshIndicator(
+            onRefresh: () async {
+              _pagingController.refresh();
+            },
+            child: PagingListener<int, LabourPOData>(
+              controller: _pagingController,
+              builder:
+                  (
+                    context,
+                    state,
+                    fetchNextPage,
+                  ) => PagedListView<int, LabourPOData>(
+                    state: state,
+                    fetchNextPage: fetchNextPage,
+                    builderDelegate: PagedChildBuilderDelegate<LabourPOData>(
+                      itemBuilder:
+                          (context, po, index) => LabourPOCard(
+                            po: po,
+                            onCallTap: () => widget.onCallTap(po),
+                            onPdfTap: () => widget.onPdfTap(po),
+                          ),
+                      noItemsFoundIndicatorBuilder:
+                          (context) =>
+                              const Center(child: Text('No data found.')),
+                      firstPageErrorIndicatorBuilder:
+                          (context) =>
+                              const Center(child: Text('Error loading data.')),
                     ),
+                  ),
+            ),
           ),
         ),
       ],

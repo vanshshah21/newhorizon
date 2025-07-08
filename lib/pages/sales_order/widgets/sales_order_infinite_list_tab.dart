@@ -17,16 +17,20 @@ class SalesOrderInfiniteListTab extends StatefulWidget {
 
   @override
   State<SalesOrderInfiniteListTab> createState() =>
-      _SalesOrderInfiniteListTabState();
+      SalesOrderInfiniteListTabState();
 }
 
-class _SalesOrderInfiniteListTabState extends State<SalesOrderInfiniteListTab>
+class SalesOrderInfiniteListTabState extends State<SalesOrderInfiniteListTab>
     with AutomaticKeepAliveClientMixin<SalesOrderInfiniteListTab> {
   static const _pageSize = 50;
 
   late final PagingController<int, SalesOrder> _pagingController;
   final TextEditingController _searchController = TextEditingController();
   String? _currentSearchValue;
+
+  void refreshList() {
+    _pagingController.refresh();
+  }
 
   @override
   void initState() {
@@ -61,7 +65,7 @@ class _SalesOrderInfiniteListTabState extends State<SalesOrderInfiniteListTab>
   }
 
   Future<void> _handleEditTap(SalesOrder so) async {
-    Navigator.of(context).push(
+    final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder:
             (context) => EditSalesOrderPage(
@@ -73,9 +77,14 @@ class _SalesOrderInfiniteListTabState extends State<SalesOrderInfiniteListTab>
             ),
       ),
     );
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Edit SO #${so.ioNumber}')));
+
+    // If edit was successful, refresh the list
+    if (result == true) {
+      _pagingController.refresh();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('SO #${so.ioNumber} updated successfully')),
+      );
+    }
   }
 
   Future<void> _handleDeleteTap(SalesOrder so) async {

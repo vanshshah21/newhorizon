@@ -65,6 +65,7 @@ class QuotationService extends BaseService {
       "companyData": companyDetails,
       "documentprint": "regular",
       "printtype": "pdf",
+      "discountprint": "withdisc",
       "reportselection": "withvalue",
     };
 
@@ -201,24 +202,26 @@ class QuotationService extends BaseService {
     );
   }
 
-  /// Get quotation statistics
-  Future<Map<String, dynamic>> getQuotationStatistics() async {
-    final baseUrl = await getBaseUrl();
-    final headers = await getAuthHeaders();
-
-    final locationDetails = await StorageUtils.readJson('selected_location');
-    if (locationDetails == null) throw Exception("Location not set");
-    final locationId = locationDetails['id'];
-
-    final endpoint = "/api/Quotation/GetStatistics";
-
-    return executeRequest<Map<String, dynamic>>(
-      () => dio.get(
+  Future<Map<String, dynamic>> getSalesPolicy() async {
+    try {
+      final baseUrl = await getBaseUrl();
+      final headers = await getAuthHeaders();
+      final companyDetails = await StorageUtils.readJson('selected_company');
+      if (companyDetails == null) throw Exception("Company not set");
+      final companyCode = companyDetails['code'];
+      const endpoint = "/api/Login/GetSalesPolicyDetails";
+      final response = await dio.get(
         '$baseUrl$endpoint',
-        queryParameters: {"locationId": locationId},
+        queryParameters: {"companyCode": companyCode},
         options: Options(headers: headers),
-      ),
-      (data) => data is Map<String, dynamic> ? data : <String, dynamic>{},
-    );
+      );
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return response.data['data']['salesPolicyResultModel'][0]
+            as Map<String, dynamic>;
+      }
+      return {};
+    } catch (e) {
+      rethrow;
+    }
   }
 }

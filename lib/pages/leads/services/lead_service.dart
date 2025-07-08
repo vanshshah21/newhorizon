@@ -113,7 +113,7 @@ class LeadService {
   }
 
   Future<bool> deleteLead(LeadData lead) async {
-    final url = await StorageUtils.readValue('url');
+    final url = "http://${await StorageUtils.readValue('url')}";
     final companyDetails = await StorageUtils.readJson('selected_company');
     if (companyDetails == null) throw Exception("Company not set");
 
@@ -131,7 +131,7 @@ class LeadService {
     final endpoint = "/api/Lead/DeleteLeadEntry";
 
     final response = await _dio.delete(
-      'http://$url$endpoint',
+      '$url$endpoint',
       queryParameters: {"InquiryID": lead.inquiryID},
     );
     debugPrint("deleteLead Status Code: ${response.statusCode}");

@@ -197,7 +197,7 @@ class _AddLeadPageState extends State<AddLeadPage> {
           _leadDate!.isBefore(_minDate!) ||
           _leadDate!.isAfter(_maxDate!.add(Duration(days: 1)))) {
         _leadDateError =
-            'Lead date must be between ${(_minDate!)} and ${DateFormat.yMd().format(_maxDate!)}';
+            'Lead date must be between ${FormatUtils.formatDateForUser(_minDate!)} and ${FormatUtils.formatDateForUser(_maxDate!)}';
         valid = false;
       }
       if (_isAutoNumberGenerated == false) {
@@ -369,27 +369,27 @@ class _AddLeadPageState extends State<AddLeadPage> {
             padding: const EdgeInsets.all(16),
             children: [
               // Lead Date
-              InputDecorator(
-                decoration: InputDecoration(
-                  labelText: 'Lead Date',
-                  errorText: _leadDateError,
-                  suffixIcon: Icon(Icons.calendar_today_outlined),
-                ),
-                child: InkWell(
-                  onTap: () async {
-                    final picked = await showDatePicker(
-                      context: context,
-                      initialDate: initialDate,
-                      firstDate: _minDate!,
-                      lastDate: DateTime.now(),
-                    );
-                    if (picked != null) {
-                      setState(() {
-                        _leadDate = picked;
-                        _leadDateError = null;
-                      });
-                    }
-                  },
+              GestureDetector(
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: initialDate,
+                    firstDate: _minDate!,
+                    lastDate: DateTime.now(),
+                  );
+                  if (picked != null) {
+                    setState(() {
+                      _leadDate = picked;
+                      _leadDateError = null;
+                    });
+                  }
+                },
+                child: InputDecorator(
+                  decoration: InputDecoration(
+                    labelText: 'Lead Date',
+                    errorText: _leadDateError,
+                    suffixIcon: Icon(Icons.calendar_today_outlined),
+                  ),
                   child: Text(FormatUtils.formatDateForUser(_leadDate!)),
                 ),
               ),
@@ -582,10 +582,11 @@ class _AddLeadPageState extends State<AddLeadPage> {
 
               // Sales Item (Typeahead)
               TypeAheadField<SalesItemModel>(
+                controller: _salesItemController,
                 direction: VerticalDirection.up,
                 builder:
-                    (context, _salesItemController, focusNode) => TextFormField(
-                      controller: _salesItemController,
+                    (context, controller, focusNode) => TextFormField(
+                      controller: controller,
                       focusNode: focusNode,
                       decoration: const InputDecoration(
                         labelText: 'Sales Item',
@@ -620,9 +621,7 @@ class _AddLeadPageState extends State<AddLeadPage> {
                 onSelected: (suggestion) {
                   _addItem(suggestion);
                   _salesItemController.clear();
-                  setState(() {
-                    FocusScope.of(context).unfocus();
-                  });
+                  FocusScope.of(context).unfocus();
                 },
                 emptyBuilder: (context) => const SizedBox(),
               ),

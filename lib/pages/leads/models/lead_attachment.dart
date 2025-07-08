@@ -48,3 +48,47 @@ class LeadAttachment {
     documentNo: json['documentNo'] ?? '',
   );
 }
+
+class AttachmentData {
+  final int id;
+  final String sysFileName;
+  final String originalName;
+  final String extension;
+  final String mimeType;
+  final int size;
+  final String name;
+  final String dirPath;
+  final String? fullPath;
+  final String createdByName;
+  final String createdDate;
+
+  AttachmentData({
+    required this.id,
+    required this.sysFileName,
+    required this.originalName,
+    required this.extension,
+    required this.mimeType,
+    required this.size,
+    required this.name,
+    required this.dirPath,
+    required this.fullPath,
+    required this.createdByName,
+    required this.createdDate,
+  });
+
+  factory AttachmentData.fromJson(Map<String, dynamic> json) {
+    return AttachmentData(
+      id: json['id'],
+      sysFileName: json['sysFileName'],
+      originalName: json['originalName'],
+      extension: json['extension'],
+      mimeType: json['mimeType'],
+      size: json['size'],
+      name: json['name'],
+      dirPath: json['dirPath'],
+      fullPath: json['fullPath'],
+      createdByName: json['createdByName'],
+      createdDate: json['createdDate'],
+    );
+  }
+}

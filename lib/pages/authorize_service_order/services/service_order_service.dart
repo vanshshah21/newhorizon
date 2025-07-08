@@ -78,6 +78,11 @@ class ServiceOrderService {
     final tokenDetails = await StorageUtils.readJson('session_token');
     if (tokenDetails == null) throw Exception("Session token not found");
 
+    final domCurrency = await StorageUtils.readJson('domestic_currency');
+    if (domCurrency == null) throw Exception("Domestic currency not set");
+
+    final currency = domCurrency['domCurCode'] ?? 'INR';
+
     final companyId = companyDetails['id'];
     final locationCode = locationDetails['code'];
     final token = tokenDetails['token']['value'];
@@ -96,7 +101,7 @@ class ServiceOrderService {
       "strPoNumber": so.id.toString(),
       "companyData": companyDetails,
       "locationData": locationDetails,
-      "strDomCurrency": "INR",
+      "strDomCurrency": currency,
       "POData": [so.toJson()],
       "SiteCode": locationCode,
       "GSTDateTimeTemp": "01/07/2017",

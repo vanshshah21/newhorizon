@@ -1,7 +1,16 @@
+import 'dart:io';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:nhapp/pages/quotation/service/quotation_service.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:external_path/external_path.dart';
+import 'package:open_file/open_file.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+
 import '../models/quotation_list_item.dart';
 import '../models/quotation_detail.dart';
 import 'quotation_pdf_loader_page.dart';
@@ -18,6 +27,9 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
   QuotationDetail? detail;
   String? error;
   bool loading = true;
+
+  bool _isDownloading = false;
+  bool _isSharing = false;
 
   @override
   void initState() {
@@ -57,45 +69,240 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
     );
   }
 
-  Future<void> _downloadPdf() async {
+  /* ---------- Permission helper ---------- */
+
+  Future<bool> _ensureStoragePermission() async {
+    if (!Platform.isAndroid) return true;
+
     try {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Preparing PDF for download...')),
+      final deviceInfo = DeviceInfoPlugin();
+      final androidInfo = await deviceInfo.androidInfo;
+      final sdkInt = androidInfo.version.sdkInt;
+
+      Permission permission;
+      if (sdkInt >= 30) {
+        permission = Permission.manageExternalStorage;
+      } else {
+        permission = Permission.storage;
+      }
+
+      var status = await permission.status;
+
+      if (status.isGranted) return true;
+
+      if (status.isDenied) {
+        final shouldRequest = await _showPermissionDialog(
+          title: 'Storage Permission Required',
+          message:
+              'This app needs storage permission to download PDF files to your device. '
+              'Please allow storage access in the next dialog.',
+        );
+
+        if (!shouldRequest) return false;
+
+        status = await permission.request();
+        return status.isGranted;
+      }
+
+      if (status.isPermanentlyDenied) {
+        final openSettings = await _showPermissionDialog(
+          title: 'Permission Permanently Denied',
+          message:
+              'Storage permission has been permanently denied. '
+              'Please go to Settings > Apps > [Your App] > Permissions and enable Storage access.',
+          showSettingsButton: true,
+        );
+
+        if (openSettings) {
+          await openAppSettings();
+          return await permission.isGranted;
+        }
+        return false;
+      }
+
+      return false;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error checking permissions: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return false;
+    }
+  }
+
+  Future<bool> _showPermissionDialog({
+    required String title,
+    required String message,
+    bool showSettingsButton = false,
+  }) async {
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder:
+              (context) => AlertDialog(
+                title: Text(title),
+                content: Text(message),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text('Cancel'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: Text(showSettingsButton ? 'Open Settings' : 'Allow'),
+                  ),
+                ],
+              ),
+        ) ??
+        false;
+  }
+
+  /* ---------- Path helpers ---------- */
+
+  Future<String> _cacheDir() async => (await getTemporaryDirectory()).path;
+
+  Future<String> _downloadsDir() async {
+    if (Platform.isAndroid) {
+      return await ExternalPath.getExternalStoragePublicDirectory(
+        ExternalPath.DIRECTORY_DOWNLOAD,
       );
+    }
+    return (await getApplicationDocumentsDirectory()).path;
+  }
 
-      final service = QuotationService();
-      final pdfUrl = await service.fetchQuotationPdfUrl(widget.quotation);
+  /* ---------- Downloader ---------- */
 
-      if (!mounted) return;
+  Future<String?> _downloadPdfFile({required bool toCache}) async {
+    final service = QuotationService();
+    final pdfUrl = await service.fetchQuotationPdfUrl(widget.quotation);
 
-      if (pdfUrl.isEmpty) {
+    if (pdfUrl.isEmpty) {
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('PDF not available')));
+      }
+      return null;
+    }
+
+    if (!toCache && !(await _ensureStoragePermission())) return null;
+
+    final dir = toCache ? await _cacheDir() : await _downloadsDir();
+    final name =
+        'Quotation_${widget.quotation.qtnNumber}_${DateTime.now().millisecondsSinceEpoch}.pdf';
+    final path = '$dir/$name';
+
+    final file = File(path);
+    if (await file.exists()) return path;
+
+    try {
+      await Dio().download(pdfUrl, path);
+      return path;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Download failed: $e')));
+      }
+      return null;
+    }
+  }
+
+  /* ---------- Download ---------- */
+
+  Future<void> _handleDownload() async {
+    if (_isDownloading) return;
+    setState(() => _isDownloading = true);
+
+    try {
+      final path = await _downloadPdfFile(toCache: false);
+      if (path == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Download cancelled or permission denied'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
         return;
       }
 
-      // Open PDF URL in external browser for download
-      final uri = Uri.parse(pdfUrl);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('PDF download started')));
-      } else {
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Cannot open PDF URL')));
-      }
-    } catch (e) {
-      debugPrint('Error downloading PDF: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error downloading PDF: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'PDF saved to ${Platform.isAndroid ? "Downloads" : "Documents"} folder',
+          ),
+          action: SnackBarAction(
+            label: 'Open',
+            onPressed: () => OpenFile.open(path),
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isDownloading = false);
     }
+  }
+
+  /* ---------- Share ---------- */
+
+  Future<void> _handleShare() async {
+    if (_isSharing) return;
+    setState(() => _isSharing = true);
+
+    try {
+      final path = await _downloadPdfFile(toCache: true);
+      if (path == null) throw Exception('Unable to prepare PDF');
+
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [
+            XFile(path, name: 'Quotation_${widget.quotation.qtnNumber}.pdf'),
+          ],
+          text: 'Quotation ${widget.quotation.qtnNumber} PDF',
+          subject: 'Quotation ${widget.quotation.qtnNumber} PDF',
+        ),
+      );
+      // Optionally delete cached copy afterwards
+      // await File(path).delete();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Share failed: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isSharing = false);
+    }
+  }
+
+  double _calculateTotalTaxAmount() {
+    if (detail?.rateStructureDetails == null) return 0;
+
+    double totalTax = 0;
+    for (var rateDetail in detail!.rateStructureDetails) {
+      // Only include tax types (M, N) - CGST, SGST, IGST, etc.
+      if (rateDetail['taxType'] == 'M' ||
+          rateDetail['taxType'] == 'N' ||
+          rateDetail['taxType'] == 'I') {
+        totalTax += (rateDetail['rateAmount'] ?? 0).toDouble();
+      }
+    }
+    return totalTax;
+  }
+
+  double _calculateAmountAfterDiscount() {
+    final totalAmountAfterTax =
+        (detail?.quotationDetails['totalAmounttAfterTaxDomesticCurrency'] ?? 0)
+            .toDouble();
+    final taxAmount = _calculateTotalTaxAmount();
+    return totalAmountAfterTax - taxAmount;
   }
 
   @override
@@ -110,21 +317,7 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
     }
     if (error != null) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Quotation Details'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.picture_as_pdf),
-              onPressed: _viewPdf,
-              tooltip: 'View PDF',
-            ),
-            IconButton(
-              icon: const Icon(Icons.download),
-              onPressed: _downloadPdf,
-              tooltip: 'Download PDF',
-            ),
-          ],
-        ),
+        appBar: AppBar(title: const Text('Quotation Details')),
         body: RefreshIndicator(
           onRefresh: _fetchDetail,
           child: SingleChildScrollView(
@@ -139,21 +332,7 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
     }
     if (detail == null) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Quotation Details'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.picture_as_pdf),
-              onPressed: _viewPdf,
-              tooltip: 'View PDF',
-            ),
-            IconButton(
-              icon: const Icon(Icons.download),
-              onPressed: _downloadPdf,
-              tooltip: 'Download PDF',
-            ),
-          ],
-        ),
+        appBar: AppBar(title: const Text('Quotation Details')),
         body: RefreshIndicator(
           onRefresh: _fetchDetail,
           child: const SingleChildScrollView(
@@ -199,13 +378,11 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
 
     // Section 2: Separator & Info Grid
     final infoSection = Column(
-      spacing: 1.0,
       children: [
         const SizedBox(height: 8),
         const Divider(thickness: 1.2),
         const SizedBox(height: 8),
         Row(
-          spacing: 1.0,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _infoTile('Quotation Base', q['quotationTypeSalesOrder'] ?? '-'),
@@ -213,7 +390,6 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
         ),
         const SizedBox(height: 8),
         Row(
-          spacing: 1.0,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _infoTile('Quotation To', q['customerName'] ?? '-'),
@@ -221,7 +397,6 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
           ],
         ),
         Row(
-          spacing: 1.0,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _infoTile(
@@ -266,18 +441,14 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
         ),
         const SizedBox(height: 8),
         _amountRow(
-          'Basic Amount',
-          q['totalAmounttAfterTaxDomesticCurrency'] ?? '-',
+          'Total Amount (After Discount)',
+          _calculateAmountAfterDiscount(),
         ),
-        _amountRow('Discount Amount', q['discountAmount'] ?? '-'),
-        _amountRow(
-          'Tax Amount',
-          q['totalTaxAmount'] ?? '-',
-        ), // You may need to sum tax from rateStructureDetails if not present
+        _amountRow('Tax Amount', _calculateTotalTaxAmount()),
         const Divider(thickness: 1),
         _amountRow(
           'Total Amount',
-          q['totalAmountAfterTaxCustomerCurrency'] ?? '-',
+          q['totalAmounttAfterTaxDomesticCurrency'] ?? 0,
         ),
       ],
     );
@@ -287,14 +458,33 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
         title: const Text('Quotation Details'),
         actions: [
           IconButton(
+            icon:
+                _isDownloading
+                    ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                    : const Icon(Icons.download),
+            onPressed: _isDownloading ? null : _handleDownload,
+            tooltip: 'Download PDF',
+          ),
+          IconButton(
             icon: const Icon(Icons.picture_as_pdf_outlined),
             onPressed: _viewPdf,
             tooltip: 'View PDF',
           ),
           IconButton(
-            icon: const Icon(Icons.download),
-            onPressed: _downloadPdf,
-            tooltip: 'Download PDF',
+            icon:
+                _isSharing
+                    ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                    : const Icon(Icons.share),
+            onPressed: _isSharing ? null : _handleShare,
+            tooltip: 'Share PDF',
           ),
         ],
       ),

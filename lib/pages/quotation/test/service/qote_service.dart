@@ -10,6 +10,7 @@ class QuotationService {
   late final Map<String, dynamic> tokenDetails;
   late final Map<String, dynamic> locationDetails;
   late final Map<String, dynamic> financeDetails;
+  late final Map<String, dynamic> currencyDetails;
   late int companyId;
 
   QuotationService._();
@@ -31,6 +32,8 @@ class QuotationService {
     if (tokenDetails.isEmpty) throw Exception("Session token not found");
     financeDetails = await StorageUtils.readJson('finance_period');
     if (financeDetails.isEmpty) throw Exception("Finance details not found");
+    currencyDetails = await StorageUtils.readJson('domestic_currency');
+    if (currencyDetails.isEmpty) throw Exception("Currency details not found");
 
     companyId = companyDetails['id'];
     final token = tokenDetails['token']['value'];
@@ -62,6 +65,23 @@ class QuotationService {
       return DocumentDetail.fromJson(response.data['data'][0]);
     } catch (e) {
       throw Exception("Failed to fetch document detail: $e");
+    }
+  }
+
+  Future getExchangeRate() async {
+    const endpoint = "/api/Quotation/GetExchangeRate";
+    try {
+      final response = await _dio.get(
+        "$_baseUrl$endpoint",
+        queryParameters: {"currencyCode": currencyDetails['domCurCode']},
+      );
+      if (response.data['success'] == true) {
+        return response.data['data'][0]['exchangeRate'];
+      } else {
+        throw Exception("Failed to fetch exchange rate");
+      }
+    } catch (e) {
+      throw Exception("Failed to fetch exchange rate: $e");
     }
   }
 
@@ -171,6 +191,25 @@ class QuotationService {
       return data.map((item) => RateStructure.fromJson(item)).toList();
     } catch (e) {
       throw Exception("Failed to fetch rate structures: $e");
+    }
+  }
+
+  Future<List<DiscountCode>> fetchDiscountCodes() async {
+    const endpoint =
+        "/api/Quotation/QuotationGetDiscount?codeType=DD&codeValue=GEN";
+    try {
+      final response = await _dio.get("$_baseUrl$endpoint");
+
+      if (response.data['success'] == true) {
+        final data = response.data['data'] as List;
+        return data.map((item) => DiscountCode.fromJson(item)).toList();
+      } else {
+        throw Exception(
+          "Failed to fetch discount codes: ${response.data['errorMessage']}",
+        );
+      }
+    } catch (e) {
+      throw Exception("Failed to fetch discount codes: $e");
     }
   }
 
@@ -643,6 +682,26 @@ class QuotationService {
       return response.data;
     } catch (e) {
       throw Exception("Failed to update quotation: $e");
+    }
+  }
+
+  Future<Map<String, dynamic>> getSalesPolicy() async {
+    try {
+      final companyDetails = await StorageUtils.readJson('selected_company');
+      if (companyDetails == null) throw Exception("Company not set");
+      final companyCode = companyDetails['code'];
+      const endpoint = "/api/Login/GetSalesPolicyDetails";
+      final response = await _dio.get(
+        '$_baseUrl$endpoint',
+        queryParameters: {"companyCode": companyCode},
+      );
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return response.data['data']['salesPolicyResultModel'][0]
+            as Map<String, dynamic>;
+      }
+      return {};
+    } catch (e) {
+      rethrow;
     }
   }
 }

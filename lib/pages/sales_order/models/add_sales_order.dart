@@ -318,6 +318,26 @@ class QuotationDetails {
   }
 }
 
+class DiscountCode {
+  final String code;
+  final String description;
+  final String codeFullName;
+
+  DiscountCode({
+    required this.code,
+    required this.description,
+    required this.codeFullName,
+  });
+
+  factory DiscountCode.fromJson(Map<String, dynamic> json) {
+    return DiscountCode(
+      code: json['code'] ?? '',
+      description: json['description'] ?? '',
+      codeFullName: json['codeFullName'] ?? '',
+    );
+  }
+}
+
 class SalesOrderItem {
   final String itemName;
   final String itemCode;
@@ -327,6 +347,7 @@ class SalesOrderItem {
   final String discountType;
   final double? discountPercentage;
   final double? discountAmount;
+  final String? discountCode; // Add this field
   final String rateStructure;
   final double? taxAmount;
   final double totalAmount;
@@ -343,6 +364,7 @@ class SalesOrderItem {
     required this.discountType,
     this.discountPercentage,
     this.discountAmount,
+    this.discountCode, // Add this parameter
     required this.rateStructure,
     this.taxAmount,
     required this.totalAmount,
@@ -355,6 +377,7 @@ class SalesOrderItem {
     return {
       "itemLineNo": lineNo,
       "DocType": "O",
+      "Status": "O",
       "custPONumber": "",
       "modelNo": "",
       "salesItemCode": itemCode,
@@ -422,14 +445,24 @@ class SalesOrderItem {
   }
 
   Map<String, dynamic> toDiscountDetail() {
-    if (discountType == "None" || (discountAmount ?? 0) == 0) return {};
+    // Only create discount detail if there's actually a discount
+    if (discountType == "None" || (discountAmount ?? 0) <= 0) {
+      return {};
+    }
 
     return {
       "salesItemCode": itemCode,
       "currencyCode": "INR",
-      "discountCode": discountType == "Percentage" ? "001" : "01",
+      "discountCode":
+          discountCode ??
+          (discountType == "Percentage"
+              ? "DISC"
+              : "01"), // Use selected code or fallback
       "discountType": discountType,
-      "discountValue": discountPercentage ?? (discountAmount ?? 0),
+      "discountValue":
+          discountType == "Percentage"
+              ? (discountPercentage ?? 0) // Use percentage value
+              : (discountAmount ?? 0), // Use absolute amount
       "amendYear": "",
       "amendGroup": "",
       "amendSiteId": 0,
@@ -441,35 +474,6 @@ class SalesOrderItem {
     };
   }
 
-  // List<Map<String, dynamic>> toRateStructureDetails() {
-  //   if (rateStructureRows == null) return [];
-
-  //   return rateStructureRows!.map((item) {
-  //     return {
-  //       "customerItemCode": itemCode,
-  //       "rateCode": item['rateCode'] ?? item['msprtcd'],
-  //       "incOrExc": item['incOrExc'] ?? item['mspincexc'],
-  //       "perOrVal": item['perOrVal'] ?? item['mspperval'],
-  //       "taxValue":
-  //           item['taxValue']?.toString() ??
-  //           item['msprtval']?.toString() ??
-  //           "0.00",
-  //       "applicationOn": item['applicableOn'] ?? item['mtrslvlno'] ?? "",
-  //       "currencyCode": item['curCode'] ?? item['mprcurcode'] ?? "INR",
-  //       "sequenceNo":
-  //           item['seqNo']?.toString() ?? item['mspseqno']?.toString() ?? "1",
-  //       "postnonpost":
-  //           item['pNYN'] ??
-  //           item['msppnyn'] == "True" || item['msppnyn'] == true,
-  //       "rateSturctureCode": rateStructure,
-  //       "rateAmount": item['rateAmount'] ?? 0,
-  //       "amendSrNo": 0,
-  //       "refId": lineNo - 1,
-  //       "actual": item['atActual'] ?? true,
-  //       "itmModelRefNo": lineNo,
-  //     };
-  //   }).toList();
-  // }
   List<Map<String, dynamic>> toRateStructureDetails() {
     if (rateStructureRows == null || rateStructureRows!.isEmpty) return [];
 
@@ -478,22 +482,22 @@ class SalesOrderItem {
     return rateStructureRows!
         .map(
           (row) => {
-            // Map to the exact C# model properties
-            "CustomerItemCode": itemCode, // XDTDTMCD
-            "RateCode": row['rateCode'] ?? '', // XDTDRATECD
-            "IncOrExc": row['ie'] ?? 'E', // XDTDINCEXC
-            "PerOrVal": row['pv'] ?? 'V', // XDTDPERVAL
-            "TaxValue": (row['taxValue'] ?? 0.0).toDouble(), // XDTDPERCVAL
-            "ApplicationOn": row['applicableOn'] ?? '', // XDTDAPPON
-            "CurrencyCode": "INR", // XDTDCURCODE, MPRCURCODE
-            "SequenceNo": row['sequenceNo'] ?? 0, // XDTDSEQNO
-            "PostNonPost": row['postnonpost'] ?? true, // XDTDPNYN
-            "TaxType": row['mprtaxtyp'] ?? '', // XDTDTAXTYP, MPRTAXTYP
-            "RateSturctureCode": rateStructure, // XDTDRTSTRCD
-            "RateAmount":
+            // Map to the exact C# model properties - same as quotation
+            "customerItemCode": itemCode, // XDTDTMCD
+            "rateCode": row['rateCode'] ?? '', // XDTDRATECD
+            "incOrExc": row['ie'] ?? 'E', // XDTDINCEXC
+            "perOrVal": row['pv'] ?? 'V', // XDTDPERVAL
+            "taxValue": (row['taxValue'] ?? 0.0).toDouble(), // XDTDPERCVAL
+            "applicationOn": row['applicableOn'] ?? '', // XDTDAPPON
+            "currencyCode": "INR", // XDTDCURCODE, MPRCURCODE
+            "sequenceNo": row['sequenceNo'] ?? 0, // XDTDSEQNO
+            "postNonPost": row['postnonpost'] ?? true, // XDTDPNYN
+            "taxType": row['mprtaxtyp'] ?? '', // XDTDTAXTYP, MPRTAXTYP
+            "rateSturctureCode": rateStructure, // XDTDRTSTRCD
+            "rateAmount":
                 (row['rateAmount'] ?? 0.0)
                     .toDouble(), // XDTDRATEAMT - This is the calculated amount
-            "AmendSrNo": 0, // XDTDAMDSRNO
+            "amendSrNo": 0, // XDTDAMDSRNO
             // Additional fields that might be needed for processing
             "itmModelRefNo": lineNo,
             "refId": 0,

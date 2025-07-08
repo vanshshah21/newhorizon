@@ -81,6 +81,10 @@ class LaborPOService {
     final tokenDetails = await StorageUtils.readJson('session_token');
     if (tokenDetails == null) throw Exception("Session token not found");
 
+    final domCurrency = await StorageUtils.readJson('domestic_currency');
+    if (domCurrency == null) throw Exception("Domestic currency not set");
+
+    final currency = domCurrency['domCurCode'] ?? 'INR';
     final companyId = companyDetails['id'];
     final token = tokenDetails['token']['value'];
 
@@ -91,7 +95,7 @@ class LaborPOService {
       "companyData": companyDetails,
       "locationData": locationDetails,
       "typeCopyControl": "1",
-      "strDomCurrency": "INR",
+      "strDomCurrency": currency,
       "FormID": "01109",
       "typeSelection": "R",
       "GSTDateTimeTemp": "01/07/2017",
@@ -208,6 +212,55 @@ class LaborPOService {
       return true;
     } else {
       debugPrint("Authorization failed");
+      debugPrint("Status Code: ${response.statusCode}");
+      debugPrint("Error: ${response.data}");
+      return false;
+    }
+  }
+
+  Future<bool> authorizeBulkLaborPO(List<LaborPOData> poList) async {
+    debugPrint("Authorizing Multiple Labor POs");
+    debugPrint("Count: ${poList.length}");
+    final url = await StorageUtils.readValue('url');
+
+    final companyDetails = await StorageUtils.readJson('selected_company');
+    if (companyDetails == null) throw Exception("Company not set");
+
+    final locationDetails = await StorageUtils.readJson('selected_location');
+    if (locationDetails == null) throw Exception("Location not set");
+
+    final tokenDetails = await StorageUtils.readJson('session_token');
+    if (tokenDetails == null) throw Exception("Session token not found");
+
+    final companyId = companyDetails['id'];
+    final locationId = locationDetails['id'];
+    final locationCode = locationDetails['code'];
+    final locationName = locationDetails['name'];
+    final token = tokenDetails['token']['value'];
+
+    final endpoint = '/api/Podata/labourPOAuth';
+
+    final body = {
+      "strDoctyp": "PR",
+      "strFormTyp": "A",
+      "FormID": "01106",
+      "fromlocationid": locationId,
+      "fromlocationcode": locationCode,
+      "fromlocationname": locationName,
+      "poAuthoriseList": poList.map((po) => po.authPOBody()).toList(),
+    };
+
+    _dio.options.headers['Content-Type'] = 'application/json';
+    _dio.options.headers['Accept'] = 'application/json';
+    _dio.options.headers['companyid'] = companyId.toString();
+    _dio.options.headers['Authorization'] = 'Bearer $token';
+
+    final response = await _dio.post('http://$url$endpoint', data: body);
+    if (response.statusCode == 200 && response.data['success'] == true) {
+      debugPrint("Bulk authorization successful");
+      return true;
+    } else {
+      debugPrint("Bulk authorization failed");
       debugPrint("Status Code: ${response.statusCode}");
       debugPrint("Error: ${response.data}");
       return false;

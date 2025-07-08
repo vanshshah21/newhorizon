@@ -508,23 +508,26 @@ class _SalesOrderCardState extends State<SalesOrderCard>
               left: Radius.circular(12),
             ),
           ),
-          SlidableAction(
-            onPressed:
-                widget.so.isAuthorized ? null : (_) => widget.onAuthorizeTap(),
-            backgroundColor:
-                widget.so.isAuthorized
-                    ? Colors.grey.shade400
-                    : Colors.green.shade600,
-            foregroundColor: Colors.white,
-            icon:
-                widget.so.isAuthorized
-                    ? Icons.check_circle
-                    : Icons.check_circle_outline,
-            label: widget.so.isAuthorized ? 'Authorized' : 'Authorize',
-            borderRadius: const BorderRadius.horizontal(
-              right: Radius.circular(12),
+          if (widget.so.orderStatus != "DELETED")
+            SlidableAction(
+              onPressed:
+                  widget.so.isAuthorized
+                      ? null
+                      : (_) => widget.onAuthorizeTap(),
+              backgroundColor:
+                  widget.so.isAuthorized
+                      ? Colors.grey.shade400
+                      : Colors.green.shade600,
+              foregroundColor: Colors.white,
+              icon:
+                  widget.so.isAuthorized
+                      ? Icons.check_circle
+                      : Icons.check_circle_outline,
+              label: widget.so.isAuthorized ? 'Authorized' : 'Authorize',
+              borderRadius: const BorderRadius.horizontal(
+                right: Radius.circular(12),
+              ),
             ),
-          ),
         ],
       ),
       child: Card(

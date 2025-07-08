@@ -66,6 +66,11 @@ class QuotationService {
     if (locationDetails == null) throw Exception("Location not set");
     if (tokenDetails == null) throw Exception("Session token not found");
 
+    final domCurrency = await StorageUtils.readJson('domestic_currency');
+    if (domCurrency == null) throw Exception("Domestic currency not set");
+
+    final currency = domCurrency['domCurCode'] ?? 'INR';
+
     final companyId = companyDetails['id'];
     final token = tokenDetails['token']['value'];
 
@@ -81,7 +86,7 @@ class QuotationService {
       "intCompId": companyId,
       "intSiteId": qtn.siteId,
       "documentprint": "regular",
-      "strDomCurrency": "INR",
+      "strDomCurrency": currency,
       "companyData": companyDetails,
       "printtype": "pdf",
       "reportselection": "withvalue",

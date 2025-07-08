@@ -1,64 +1,393 @@
+// import 'dart:io';
+// import 'package:dio/dio.dart';
+// import 'package:flutter/material.dart';
+// import 'package:intl/intl.dart';
+// import 'package:nhapp/pages/sales_order/models/sales_order.dart';
+// import 'package:nhapp/pages/sales_order/service/sales_order_service.dart';
+// import 'package:nhapp/utils/format_utils.dart';
+// import '../models/sales_order_detail.dart';
+
+// class SalesOrderDetailPage extends StatefulWidget {
+//   final SalesOrder salesOrder;
+//   const SalesOrderDetailPage({required this.salesOrder, super.key});
+
+//   @override
+//   State<SalesOrderDetailPage> createState() => _SalesOrderDetailPageState();
+// }
+
+// class _SalesOrderDetailPageState extends State<SalesOrderDetailPage> {
+//   SalesOrderDetail? detail;
+//   String? error;
+//   bool loading = true;
+
+//   @override
+//   void initState() {
+//     super.initState();
+//     _fetchDetail();
+//   }
+
+//   Future<void> _fetchDetail() async {
+//     setState(() {
+//       loading = true;
+//       error = null;
+//     });
+//     try {
+//       final service = SalesOrderService();
+//       final result = await service.fetchSalesOrderDetails(widget.salesOrder);
+//       if (!mounted) return;
+//       setState(() {
+//         detail = result;
+//         loading = false;
+//       });
+//     } catch (e) {
+//       if (!mounted) return;
+//       setState(() {
+//         error = 'Error: $e';
+//         loading = false;
+//       });
+//     }
+//   }
+
+//   // Calculate total tax amount from rate structure details
+//   double _calculateTotalTaxAmount() {
+//     if (detail?.rateStructureDetails == null) return 0;
+
+//     double totalTax = 0;
+//     for (var rateDetail in detail!.rateStructureDetails) {
+//       // Only include tax types (M, N, I) - CGST, SGST, IGST, etc.
+//       if (rateDetail['taxType'] == 'M' ||
+//           rateDetail['taxType'] == 'N' ||
+//           rateDetail['taxType'] == 'I') {
+//         totalTax += (rateDetail['rateAmount'] ?? 0).toDouble();
+//       }
+//     }
+//     return totalTax;
+//   }
+
+//   // Calculate basic amount (sum of all item amounts)
+//   double _calculateBasicAmount() {
+//     if (detail?.modelDetails == null) return 0;
+
+//     double basicAmount = 0;
+//     for (var item in detail!.modelDetails) {
+//       final qty = (item['qtyIUOM'] ?? 0).toDouble();
+//       final rate = (item['basicPriceIUOM'] ?? 0).toDouble();
+//       basicAmount += qty * rate;
+//     }
+//     return basicAmount;
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     final theme = Theme.of(context);
+
+//     if (loading) {
+//       return Scaffold(
+//         appBar: AppBar(title: const Text('Sales Order Details')),
+//         body: const Center(child: CircularProgressIndicator()),
+//       );
+//     }
+
+//     if (error != null) {
+//       return Scaffold(
+//         appBar: AppBar(title: const Text('Sales Order Details')),
+//         body: RefreshIndicator(
+//           onRefresh: _fetchDetail,
+//           child: SingleChildScrollView(
+//             physics: const AlwaysScrollableScrollPhysics(),
+//             child: Container(
+//               height: MediaQuery.of(context).size.height * 0.8,
+//               child: Center(child: Text(error!)),
+//             ),
+//           ),
+//         ),
+//       );
+//     }
+
+//     if (detail == null) {
+//       return Scaffold(
+//         appBar: AppBar(title: const Text('Sales Order Details')),
+//         body: RefreshIndicator(
+//           onRefresh: _fetchDetail,
+//           child: const SingleChildScrollView(
+//             physics: AlwaysScrollableScrollPhysics(),
+//             child: Center(child: Text('No data found.')),
+//           ),
+//         ),
+//       );
+//     }
+
+//     final so = detail!.salesOrderDetails;
+//     final items = detail!.modelDetails;
+
+//     return Scaffold(
+//       appBar: AppBar(title: const Text('Sales Order Details')),
+//       body: RefreshIndicator(
+//         onRefresh: _fetchDetail,
+//         child: SingleChildScrollView(
+//           physics: const AlwaysScrollableScrollPhysics(),
+//           padding: const EdgeInsets.all(16),
+//           child: Card(
+//             shape: RoundedRectangleBorder(
+//               borderRadius: BorderRadius.circular(16),
+//               side: BorderSide(color: theme.dividerColor, width: 1.5),
+//             ),
+//             child: Padding(
+//               padding: const EdgeInsets.all(20),
+//               child: Column(
+//                 crossAxisAlignment: CrossAxisAlignment.stretch,
+//                 children: [
+//                   // Section 1: Sales Order Reference
+//                   Text(
+//                     'Sales Order - ${so['ioNumber'] ?? ''}',
+//                     style: theme.textTheme.titleLarge?.copyWith(
+//                       fontWeight: FontWeight.bold,
+//                     ),
+//                   ),
+
+//                   const SizedBox(height: 16),
+//                   const Divider(thickness: 1.2),
+//                   const SizedBox(height: 16),
+
+//                   // Section 2: Order From and Bill To
+//                   Row(
+//                     children: [
+//                       Expanded(
+//                         child: _infoTile(
+//                           'Order From',
+//                           so['customerName'] ?? '-',
+//                         ),
+//                       ),
+//                       Expanded(
+//                         child: _infoTile('Bill To', so['billToName'] ?? '-'),
+//                       ),
+//                     ],
+//                   ),
+
+//                   const SizedBox(height: 12),
+
+//                   // Section 3: Date and Customer PO Number
+//                   Row(
+//                     children: [
+//                       Expanded(
+//                         child: _infoTile(
+//                           'Date',
+//                           FormatUtils.formatDateForUser(
+//                             DateTime.parse(so['ioDate']),
+//                           ),
+//                         ),
+//                       ),
+//                       Expanded(
+//                         child: _infoTile(
+//                           'Customer PO Number',
+//                           so['customerPONumber'] ?? '-',
+//                         ),
+//                       ),
+//                     ],
+//                   ),
+
+//                   // Section 4: Items
+//                   const SizedBox(height: 24),
+//                   Text(
+//                     'Items',
+//                     style: theme.textTheme.titleMedium?.copyWith(
+//                       fontWeight: FontWeight.w600,
+//                     ),
+//                   ),
+//                   const SizedBox(height: 12),
+//                   ...items.map((item) => _itemCard(context, item)),
+
+//                   // Section 5: Amount Summary
+//                   const SizedBox(height: 24),
+//                   Text(
+//                     'Amount Summary',
+//                     style: theme.textTheme.titleMedium?.copyWith(
+//                       fontWeight: FontWeight.w600,
+//                     ),
+//                   ),
+//                   const SizedBox(height: 12),
+//                   _amountRow('Basic Amount', _calculateBasicAmount()),
+//                   _amountRow('Tax Amount', _calculateTotalTaxAmount()),
+//                   const Divider(thickness: 1),
+//                   _amountRow(
+//                     'Total Amount',
+//                     so['totalAmounttAfterTaxDomesticCurrency'] ?? 0,
+//                     isTotal: true,
+//                   ),
+//                 ],
+//               ),
+//             ),
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _infoTile(String label, String value) {
+//     return Column(
+//       crossAxisAlignment: CrossAxisAlignment.start,
+//       children: [
+//         Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+//         const SizedBox(height: 4),
+//         Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
+//       ],
+//     );
+//   }
+
+//   Widget _itemCard(BuildContext context, Map<String, dynamic> item) {
+//     final theme = Theme.of(context);
+
+//     // Calculate item amount (quantity * rate)
+//     final qty = (item['qtyIUOM'] ?? 0).toDouble();
+//     final rate = (item['basicPriceIUOM'] ?? 0).toDouble();
+//     final amount = qty * rate;
+//     final discount = (item['discountAmt'] ?? 0).toDouble();
+
+//     return Card(
+//       margin: const EdgeInsets.symmetric(vertical: 8),
+//       elevation: 0,
+//       color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.1),
+//       child: Padding(
+//         padding: const EdgeInsets.all(16),
+//         child: Column(
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           children: [
+//             // Item code and name
+//             Text(
+//               '${item['salesItemCode'] ?? '-'} / ${item['salesItemDesc'] ?? '-'}',
+//               style: theme.textTheme.bodyLarge?.copyWith(
+//                 fontWeight: FontWeight.w600,
+//               ),
+//             ),
+//             const SizedBox(height: 12),
+
+//             // Quantity, Rate, Amount
+//             Row(
+//               children: [
+//                 Expanded(
+//                   child: _itemDetailTile(
+//                     'Quantity',
+//                     '${qty.toStringAsFixed(0)} ${item['uom'] ?? ''}',
+//                   ),
+//                 ),
+//                 Expanded(
+//                   child: _itemDetailTile('Rate', rate.toStringAsFixed(2)),
+//                 ),
+//                 Expanded(
+//                   child: _itemDetailTile('Amount', amount.toStringAsFixed(2)),
+//                 ),
+//               ],
+//             ),
+
+//             // Discount if applicable
+//             if (discount > 0) ...[
+//               const SizedBox(height: 8),
+//               _itemDetailTile('Discount', discount.toStringAsFixed(2)),
+//             ],
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _itemDetailTile(String label, String value) {
+//     return Column(
+//       crossAxisAlignment: CrossAxisAlignment.start,
+//       children: [
+//         Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+//         const SizedBox(height: 2),
+//         Text(
+//           value,
+//           style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+//         ),
+//       ],
+//     );
+//   }
+
+//   Widget _amountRow(String label, dynamic value, {bool isTotal = false}) {
+//     return Padding(
+//       padding: const EdgeInsets.symmetric(vertical: 6),
+//       child: Row(
+//         children: [
+//           Expanded(
+//             child: Text(
+//               label,
+//               style: TextStyle(
+//                 fontWeight: isTotal ? FontWeight.bold : FontWeight.w500,
+//               ),
+//             ),
+//           ),
+//           Text(
+//             value is num ? value.toStringAsFixed(2) : value.toString(),
+//             style: TextStyle(
+//               fontWeight: FontWeight.bold,
+//               fontSize: isTotal ? 16 : 14,
+//             ),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+// }
+
+import 'dart:io';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:nhapp/pages/sales_order/models/sales_order_detail.dart';
-import 'package:nhapp/pages/sales_order/pages/so_pdf_page.dart';
+import 'package:intl/intl.dart';
+import 'package:nhapp/pages/sales_order/models/sales_order.dart';
+import 'package:nhapp/pages/sales_order/service/sales_order_service.dart';
 import 'package:nhapp/utils/format_utils.dart';
-import '../models/sales_order.dart';
-import '../service/sales_order_service.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:external_path/external_path.dart';
+import 'package:open_file/open_file.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../models/sales_order_detail.dart';
+import 'so_pdf_page.dart';
 
-class SalesOrderDetailsPage extends StatefulWidget {
+class SalesOrderDetailPage extends StatefulWidget {
   final SalesOrder salesOrder;
-
-  const SalesOrderDetailsPage({required this.salesOrder, super.key});
+  const SalesOrderDetailPage({required this.salesOrder, super.key});
 
   @override
-  State<SalesOrderDetailsPage> createState() => _SalesOrderDetailsPageState();
+  State<SalesOrderDetailPage> createState() => _SalesOrderDetailPageState();
 }
 
-class _SalesOrderDetailsPageState extends State<SalesOrderDetailsPage>
-    with SingleTickerProviderStateMixin {
-  late final SalesOrderService _service;
-  late final TabController _tabController;
-  SalesOrderDetailsResponse? _details;
-  bool _isLoading = true;
-  String? _error;
+class _SalesOrderDetailPageState extends State<SalesOrderDetailPage> {
+  SalesOrderDetail? detail;
+  String? error;
+  bool loading = true;
+
+  bool _isDownloading = false;
+  bool _isSharing = false;
 
   @override
   void initState() {
     super.initState();
-    _service = SalesOrderService();
-    _tabController = TabController(length: 6, vsync: this);
-    _loadDetails();
+    _fetchDetail();
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadDetails() async {
+  Future<void> _fetchDetail() async {
+    setState(() {
+      loading = true;
+      error = null;
+    });
     try {
+      final service = SalesOrderService();
+      final result = await service.fetchSalesOrderDetails(widget.salesOrder);
+      if (!mounted) return;
       setState(() {
-        _isLoading = true;
-        _error = null;
+        detail = result;
+        loading = false;
       });
-
-      final details = await _service.fetchSalesOrderDetails(widget.salesOrder);
-
-      if (mounted) {
-        setState(() {
-          _details = details;
-          _isLoading = false;
-        });
-      }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = e.toString();
-          _isLoading = false;
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        error = 'Error: $e';
+        loading = false;
+      });
     }
   }
 
@@ -72,577 +401,585 @@ class _SalesOrderDetailsPageState extends State<SalesOrderDetailsPage>
     );
   }
 
-  Future<void> _downloadPdf() async {
+  /* ---------- Permission helper ---------- */
+
+  Future<bool> _ensureStoragePermission() async {
+    if (!Platform.isAndroid) return true;
+
     try {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Preparing PDF for download...')),
+      final deviceInfo = DeviceInfoPlugin();
+      final androidInfo = await deviceInfo.androidInfo;
+      final sdkInt = androidInfo.version.sdkInt;
+
+      Permission permission;
+      if (sdkInt >= 30) {
+        permission = Permission.manageExternalStorage;
+      } else {
+        permission = Permission.storage;
+      }
+
+      var status = await permission.status;
+
+      if (status.isGranted) return true;
+
+      if (status.isDenied) {
+        final shouldRequest = await _showPermissionDialog(
+          title: 'Storage Permission Required',
+          message:
+              'This app needs storage permission to download PDF files to your device. '
+              'Please allow storage access in the next dialog.',
+        );
+
+        if (!shouldRequest) return false;
+
+        status = await permission.request();
+        return status.isGranted;
+      }
+
+      if (status.isPermanentlyDenied) {
+        final openSettings = await _showPermissionDialog(
+          title: 'Permission Permanently Denied',
+          message:
+              'Storage permission has been permanently denied. '
+              'Please go to Settings > Apps > [Your App] > Permissions and enable Storage access.',
+          showSettingsButton: true,
+        );
+
+        if (openSettings) {
+          await openAppSettings();
+          return await permission.isGranted;
+        }
+        return false;
+      }
+
+      return false;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error checking permissions: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return false;
+    }
+  }
+
+  Future<bool> _showPermissionDialog({
+    required String title,
+    required String message,
+    bool showSettingsButton = false,
+  }) async {
+    return await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder:
+              (context) => AlertDialog(
+                title: Text(title),
+                content: Text(message),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text('Cancel'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: Text(showSettingsButton ? 'Open Settings' : 'Allow'),
+                  ),
+                ],
+              ),
+        ) ??
+        false;
+  }
+
+  /* ---------- Path helpers ---------- */
+
+  Future<String> _cacheDir() async => (await getTemporaryDirectory()).path;
+
+  Future<String> _downloadsDir() async {
+    if (Platform.isAndroid) {
+      return await ExternalPath.getExternalStoragePublicDirectory(
+        ExternalPath.DIRECTORY_DOWNLOAD,
       );
+    }
+    return (await getApplicationDocumentsDirectory()).path;
+  }
 
-      final pdfUrl = await _service.fetchSalesOrderPdfUrl(widget.salesOrder);
+  /* ---------- Downloader ---------- */
 
-      if (!mounted) return;
+  Future<String?> _downloadPdfFile({required bool toCache}) async {
+    final service = SalesOrderService();
+    final pdfUrl = await service.fetchSalesOrderPdfUrl(widget.salesOrder);
 
-      if (pdfUrl.isEmpty) {
+    if (pdfUrl.isEmpty) {
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('PDF not available')));
+      }
+      return null;
+    }
+
+    if (!toCache && !(await _ensureStoragePermission())) return null;
+
+    final dir = toCache ? await _cacheDir() : await _downloadsDir();
+    final name =
+        'SalesOrder_${widget.salesOrder.ioNumber}_${DateTime.now().millisecondsSinceEpoch}.pdf';
+    final path = '$dir/$name';
+
+    final file = File(path);
+    if (await file.exists()) return path;
+
+    try {
+      await Dio().download(pdfUrl, path);
+      return path;
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Download failed: $e')));
+      }
+      return null;
+    }
+  }
+
+  /* ---------- Download ---------- */
+
+  Future<void> _handleDownload() async {
+    if (_isDownloading) return;
+    setState(() => _isDownloading = true);
+
+    try {
+      final path = await _downloadPdfFile(toCache: false);
+      if (path == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Download cancelled or permission denied'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
         return;
       }
 
-      final uri = Uri.parse(pdfUrl);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'PDF saved to ${Platform.isAndroid ? "Downloads" : "Documents"} folder',
+          ),
+          action: SnackBarAction(
+            label: 'Open',
+            onPressed: () => OpenFile.open(path),
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isDownloading = false);
+    }
+  }
+
+  /* ---------- Share ---------- */
+
+  Future<void> _handleShare() async {
+    if (_isSharing) return;
+    setState(() => _isSharing = true);
+
+    try {
+      final path = await _downloadPdfFile(toCache: true);
+      if (path == null) throw Exception('Unable to prepare PDF');
+
+      await Share.shareXFiles(
+        [XFile(path, name: 'SalesOrder_${widget.salesOrder.ioNumber}.pdf')],
+        text: 'Sales Order ${widget.salesOrder.ioNumber} PDF',
+        subject: 'Sales Order ${widget.salesOrder.ioNumber} PDF',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Share failed: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _isSharing = false);
+    }
+  }
+
+  /* ---------- Location ---------- */
+
+  Future<void> _handleLocation() async {
+    if (detail?.salesOrderDetails == null) return;
+
+    final so = detail!.salesOrderDetails;
+    final address = so['fullAddress'] ?? '';
+    final cityName = so['cityName'] ?? '';
+    final pinCode = so['pinCode'] ?? '';
+
+    if (address.isEmpty && cityName.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No address information available')),
+      );
+      return;
+    }
+
+    final fullAddress = '$address, $cityName $pinCode'.trim();
+    final encodedAddress = Uri.encodeComponent(fullAddress);
+    final mapUrl =
+        'https://www.google.com/maps/search/?api=1&query=$encodedAddress';
+
+    try {
+      final uri = Uri.parse(mapUrl);
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('PDF download started')));
       } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Cannot open PDF URL')));
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Cannot open maps application')),
+          );
+        }
       }
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error downloading PDF: $e')));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error opening maps: $e')));
+      }
     }
+  }
+
+  // Calculate total tax amount from rate structure details
+  double _calculateTotalTaxAmount() {
+    if (detail?.rateStructureDetails == null) return 0;
+
+    double totalTax = 0;
+    for (var rateDetail in detail!.rateStructureDetails) {
+      // Only include tax types (M, N, I) - CGST, SGST, IGST, etc.
+      if (rateDetail['taxType'] == 'M' ||
+          rateDetail['taxType'] == 'N' ||
+          rateDetail['taxType'] == 'I') {
+        totalTax += (rateDetail['rateAmount'] ?? 0).toDouble();
+      }
+    }
+    return totalTax;
+  }
+
+  // Calculate basic amount (sum of all item amounts)
+  double _calculateBasicAmount() {
+    if (detail?.modelDetails == null) return 0;
+
+    double basicAmount = 0;
+    for (var item in detail!.modelDetails) {
+      final qty = (item['qtyIUOM'] ?? 0).toDouble();
+      final rate = (item['basicPriceIUOM'] ?? 0).toDouble();
+      basicAmount += qty * rate;
+    }
+    return basicAmount;
+  }
+
+  // Calculate total discount amount
+  double _calculateDiscountAmount() {
+    if (detail?.modelDetails == null) return 0;
+
+    double totalDiscount = 0;
+    for (var item in detail!.modelDetails) {
+      totalDiscount += (item['discountAmt'] ?? 0).toDouble();
+    }
+    return totalDiscount;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('SO #${widget.salesOrder.ioNumber}'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.picture_as_pdf),
-            onPressed: _viewPdf,
-            tooltip: 'View PDF',
-          ),
-          IconButton(
-            icon: const Icon(Icons.download),
-            onPressed: _downloadPdf,
-            tooltip: 'Download PDF',
-          ),
-        ],
-        bottom:
-            _isLoading || _error != null
-                ? null
-                : TabBar(
-                  controller: _tabController,
-                  isScrollable: true,
-                  tabs: const [
-                    Tab(text: 'Overview'),
-                    Tab(text: 'Items'),
-                    Tab(text: 'Taxes'),
-                    Tab(text: 'Delivery'),
-                    Tab(text: 'Terms'),
-                    Tab(text: 'Contacts'),
-                  ],
-                ),
-      ),
-      body: _buildBody(),
-    );
-  }
+    final theme = Theme.of(context);
 
-  Widget _buildBody() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+    if (loading) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Sales Order Details')),
+        body: const Center(child: CircularProgressIndicator()),
+      );
     }
 
-    if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Theme.of(context).colorScheme.error,
+    if (error != null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Sales Order Details')),
+        body: RefreshIndicator(
+          onRefresh: _fetchDetail,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Container(
+              height: MediaQuery.of(context).size.height * 0.8,
+              child: Center(child: Text(error!)),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'Error loading details',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 8),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Text(
-                _error!,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(onPressed: _loadDetails, child: const Text('Retry')),
-          ],
+          ),
         ),
       );
     }
 
-    if (_details == null || _details!.data.salesOrderDetails.isEmpty) {
-      return const Center(child: Text('No details available'));
+    if (detail == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Sales Order Details')),
+        body: RefreshIndicator(
+          onRefresh: _fetchDetail,
+          child: const SingleChildScrollView(
+            physics: AlwaysScrollableScrollPhysics(),
+            child: Center(child: Text('No data found.')),
+          ),
+        ),
+      );
     }
 
-    return TabBarView(
-      controller: _tabController,
+    final so = detail!.salesOrderDetails;
+    final items = detail!.modelDetails;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Sales Order Details'),
+        actions: [
+          IconButton(
+            icon:
+                _isDownloading
+                    ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                    : const Icon(Icons.download),
+            onPressed: _isDownloading ? null : _handleDownload,
+            tooltip: 'Download PDF',
+          ),
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            onPressed: _viewPdf,
+            tooltip: 'View PDF',
+          ),
+          IconButton(
+            icon:
+                _isSharing
+                    ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                    : const Icon(Icons.share),
+            onPressed: _isSharing ? null : _handleShare,
+            tooltip: 'Share PDF',
+          ),
+          // IconButton(
+          //   icon: const Icon(Icons.location_on),
+          //   onPressed: _handleLocation,
+          //   tooltip: 'View Location',
+          // ),
+        ],
+      ),
+      body: RefreshIndicator(
+        onRefresh: _fetchDetail,
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: theme.dividerColor, width: 1.5),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Section 1: Sales Order Reference
+                  Text(
+                    'Sales Order - ${so['ioNumber'] ?? ''}',
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+                  const Divider(thickness: 1.2),
+                  const SizedBox(height: 16),
+
+                  // Section 2: Order From and Bill To
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _infoTile(
+                          'Order From',
+                          so['customerName'] ?? '-',
+                        ),
+                      ),
+                      Expanded(
+                        child: _infoTile('Bill To', so['billToName'] ?? '-'),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Section 3: Date and Customer PO Number
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _infoTile(
+                          'Date',
+                          so['ioDate'] != null
+                              ? FormatUtils.formatDateForUser(
+                                DateTime.parse(so['ioDate']),
+                              )
+                              : '-',
+                        ),
+                      ),
+                      Expanded(
+                        child: _infoTile(
+                          'Customer PO Number',
+                          so['customerPONumber'] ?? '-',
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Section 4: Items
+                  const SizedBox(height: 24),
+                  Text(
+                    'Items',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ...items.map((item) => _itemCard(context, item)),
+
+                  // Section 5: Amount Summary
+                  const SizedBox(height: 24),
+                  Text(
+                    'Amount Summary',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _amountRow('Basic Amount', _calculateBasicAmount()),
+                  _amountRow('Discount Amount', _calculateDiscountAmount()),
+                  _amountRow('Tax Amount', _calculateTotalTaxAmount()),
+                  const Divider(thickness: 1),
+                  _amountRow(
+                    'Total Amount',
+                    so['totalAmounttAfterTaxDomesticCurrency'] ?? 0,
+                    isTotal: true,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _infoTile(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildOverviewTab(),
-        _buildItemsTab(),
-        _buildTaxesTab(),
-        _buildDeliveryTab(),
-        _buildTermsTab(),
-        _buildContactsTab(),
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        const SizedBox(height: 4),
+        Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
       ],
     );
   }
 
-  Widget _buildOverviewTab() {
-    final detail = _details!.data.salesOrderDetails.first;
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildInfoCard('Sales Order Information', [
-            _buildInfoRow('SO Number', '${detail.ioYear}/${detail.ioNumber}'),
-            _buildInfoRow('Date', FormatUtils.formatDateForUser(detail.ioDate)),
-            _buildInfoRow('Status', detail.orderStatus),
-            _buildInfoRow('Currency', detail.currencyFullName),
-            _buildInfoRow(
-              'Total Amount',
-              FormatUtils.formatAmount(
-                detail.totalAmountAfterTaxCustomerCurrency,
-              ),
-            ),
-          ]),
-          const SizedBox(height: 16),
-          _buildInfoCard('Customer Information', [
-            _buildInfoRow('Customer Code', detail.customerCode),
-            _buildInfoRow('Customer Name', detail.customerFullName),
-            _buildInfoRow('GST Number', detail.gstNo),
-            _buildInfoRow('Address', detail.fullAddress),
-          ]),
-          const SizedBox(height: 16),
-          if (detail.customerPONumber.isNotEmpty)
-            _buildInfoCard('Purchase Order Information', [
-              _buildInfoRow('PO Number', detail.customerPONumber),
-              if (detail.customerPODate != null)
-                _buildInfoRow(
-                  'PO Date',
-                  FormatUtils.formatDateForUser(detail.customerPODate!),
-                ),
-            ]),
-        ],
-      ),
-    );
-  }
+  Widget _itemCard(BuildContext context, Map<String, dynamic> item) {
+    final theme = Theme.of(context);
 
-  Widget _buildItemsTab() {
-    final items = _details!.data.modelDetails;
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        final item = items[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.primary.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '#${item.itemLineNo}',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        item.salesItemCode,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  item.salesItemDesc,
-                  style: Theme.of(context).textTheme.bodyLarge,
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildItemDetail(
-                        'Quantity',
-                        '${FormatUtils.formatQuantity(item.qtyIUOM)} ${item.uom}',
-                      ),
-                    ),
-                    Expanded(
-                      child: _buildItemDetail(
-                        'Unit Price',
-                        FormatUtils.formatAmount(item.basicPriceIUOM),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(child: _buildItemDetail('HSN Code', item.hsnCode)),
-                    Expanded(
-                      child: _buildItemDetail(
-                        'Rate Structure',
-                        item.rateStructureCode,
-                      ),
-                    ),
-                  ],
-                ),
-                if (item.discountAmt > 0) ...[
-                  const SizedBox(height: 8),
-                  _buildItemDetail(
-                    'Discount',
-                    FormatUtils.formatAmount(item.discountAmt),
-                  ),
-                ],
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Basic Amount',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                      Text(
-                        FormatUtils.formatAmount(item.basicPrice),
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
+    // Calculate item amount (quantity * rate)
+    final qty = (item['qtyIUOM'] ?? 0).toDouble();
+    final rate = (item['basicPriceIUOM'] ?? 0).toDouble();
+    final amount = qty * rate;
+    final discount = (item['discountAmt'] ?? 0).toDouble();
 
-  Widget _buildTaxesTab() {
-    final taxes = _details!.data.rateStructureDetails;
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: taxes.length,
-      itemBuilder: (context, index) {
-        final tax = taxes[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          child: ListTile(
-            title: Text(tax.rateDesc),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Code: ${tax.rateCode}'),
-                Text('Item: ${tax.customerItemCode}'),
-                Text(
-                  'Type: ${tax.taxType} | ${tax.incOrExc} | ${tax.perOrVal}',
-                ),
-                if (tax.taxValue > 0) Text('Rate: ${tax.taxValue}%'),
-              ],
-            ),
-            trailing: Text(
-              FormatUtils.formatAmount(tax.rateAmount),
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildDeliveryTab() {
-    final deliveries = _details!.data.deliveryDetails;
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: deliveries.length,
-      itemBuilder: (context, index) {
-        final delivery = deliveries[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Delivery ${index + 1}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                _buildInfoRow('Item Code', delivery.itemCode),
-                _buildInfoRow(
-                  'Quantity',
-                  FormatUtils.formatQuantity(delivery.qtySUOM),
-                ),
-                _buildInfoRow(
-                  'Delivery Date',
-                  FormatUtils.formatDateForUser(delivery.deliveryDate),
-                ),
-                if (delivery.expectedInstallationDate != null)
-                  _buildInfoRow(
-                    'Installation Date',
-                    FormatUtils.formatDateForUser(
-                      delivery.expectedInstallationDate!,
-                    ),
-                  ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Delivery Address:',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${delivery.address1}${delivery.address2.isNotEmpty ? '\n${delivery.address2}' : ''}${delivery.address3.isNotEmpty ? '\n${delivery.address3}' : ''}',
-                ),
-                Text(
-                  '${delivery.cityName}, ${delivery.stateName}, ${delivery.countryName} - ${delivery.pincode}',
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildTermsTab() {
-    final terms = _details!.data.termDetails;
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: terms.length,
-      itemBuilder: (context, index) {
-        final term = terms[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (term.termDesc.isNotEmpty)
-                  Text(
-                    term.termDesc,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                if (term.subTermOrChargeCode.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text('Code: ${term.subTermOrChargeCode}'),
-                ],
-                if (term.chargeDesc.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(term.chargeDesc),
-                ],
-                if (term.subTermDescOrChargeValue.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    term.subTermDescOrChargeValue,
-                    style: TextStyle(
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withOpacity(0.8),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildContactsTab() {
-    final contacts = _details!.data.contactPersonList;
-    final shipments = _details!.data.shipmentList;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (contacts.isNotEmpty) ...[
-            Text(
-              'Contact Persons',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 12),
-            ...contacts.map(
-              (contact) => Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  title: Text(contact.mcustmcontper),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (contact.destination.isNotEmpty)
-                        Text('Designation: ${contact.destination}'),
-                      if (contact.department.isNotEmpty)
-                        Text('Department: ${contact.department}'),
-                      if (contact.email.isNotEmpty)
-                        Text('Email: ${contact.email}'),
-                      if (contact.mobileNo.isNotEmpty)
-                        Text('Mobile: ${contact.mobileNo}'),
-                      if (contact.landLineNo.isNotEmpty)
-                        Text('Landline: ${contact.landLineNo}'),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-          ],
-          if (shipments.isNotEmpty) ...[
-            Text(
-              'Shipment Locations',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 12),
-            ...shipments.map(
-              (shipment) => Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        shipment.shipmentDescription,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text('Code: ${shipment.shipmentCode}'),
-                      const SizedBox(height: 8),
-                      Text(
-                        '${shipment.address1}${shipment.address2.isNotEmpty ? '\n${shipment.address2}' : ''}${shipment.address3.isNotEmpty ? '\n${shipment.address3}' : ''}',
-                      ),
-                      Text(
-                        '${shipment.cityName}, ${shipment.stateName}, ${shipment.countryName} - ${shipment.pinCode}',
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoCard(String title, List<Widget> children) {
     return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      elevation: 0,
+      color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.1),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Item code and name
             Text(
-              title,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              '${item['salesItemCode'] ?? '-'} / ${item['salesItemDesc'] ?? '-'}',
+              style: theme.textTheme.bodyLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
             ),
             const SizedBox(height: 12),
-            ...children,
+
+            // Quantity, Rate, Amount
+            Row(
+              children: [
+                Expanded(
+                  child: _itemDetailTile(
+                    'Quantity',
+                    '${qty.toStringAsFixed(0)} ${item['uom'] ?? ''}',
+                  ),
+                ),
+                Expanded(
+                  child: _itemDetailTile('Rate', rate.toStringAsFixed(2)),
+                ),
+                Expanded(
+                  child: _itemDetailTile('Amount', amount.toStringAsFixed(2)),
+                ),
+              ],
+            ),
+
+            // Discount if applicable
+            if (discount > 0) ...[
+              const SizedBox(height: 8),
+              _itemDetailTile('Discount', discount.toStringAsFixed(2)),
+            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _buildInfoRow(String label, String value) {
+  Widget _itemDetailTile(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+        ),
+      ],
+    );
+  }
+
+  Widget _amountRow(String label, dynamic value, {bool isTotal = false}) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 120,
+          Expanded(
             child: Text(
               label,
               style: TextStyle(
-                fontWeight: FontWeight.w500,
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                fontWeight: isTotal ? FontWeight.bold : FontWeight.w500,
               ),
             ),
           ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontWeight: FontWeight.w500),
+          Text(
+            value is num ? value.toStringAsFixed(2) : value.toString(),
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: isTotal ? 16 : 14,
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildItemDetail(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-          ),
-        ),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
-      ],
     );
   }
 }

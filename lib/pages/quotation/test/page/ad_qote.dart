@@ -42,6 +42,8 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
   DateTime? startDate;
   DateTime? endDate;
   late Map<String, dynamic>? _financeDetails;
+  bool _isDuplicateAllowed = false;
+  late double _exchangeRate;
 
   @override
   void initState() {
@@ -56,7 +58,31 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
     await _loadRateStructures();
     await _loadSalesmanList();
     await _loadDocumentDetail();
+    await _loadSalesPolicy();
+    await _getExchangeRate();
     setState(() => _isLoading = false);
+  }
+
+  Future<void> _getExchangeRate() async {
+    try {
+      _exchangeRate = await _service.getExchangeRate() ?? 1.0;
+    } catch (e) {
+      debugPrint("Error loading exchange rate: $e");
+      _exchangeRate = 1.0; // Default to 1.0 if there's an error
+    }
+  }
+
+  Future<void> _loadSalesPolicy() async {
+    try {
+      final salesPolicy = await _service.getSalesPolicy();
+      _isDuplicateAllowed =
+          salesPolicy['allowduplictae'] ??
+          salesPolicy['allowduplicate'] ??
+          false;
+    } catch (e) {
+      debugPrint("Error loading sales policy: $e");
+      _isDuplicateAllowed = false; // Default to not allowing duplicates
+    }
   }
 
   Future<void> _loadFinancePeriod() async {
@@ -226,13 +252,33 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
     setState(() {});
   }
 
+  // Future<void> _showAddItemPage() async {
+  //   final result = await Navigator.push<QuotationItem>(
+  //     context,
+  //     MaterialPageRoute(
+  //       builder:
+  //           (context) =>
+  //               AddItemPage(rateStructures: rateStructures, service: _service),
+  //     ),
+  //   );
+  //   if (result != null) {
+  //     setState(() {
+  //       result.lineNo = items.length + 1;
+  //       items.add(result);
+  //     });
+  //   }
+  // }
   Future<void> _showAddItemPage() async {
     final result = await Navigator.push<QuotationItem>(
       context,
       MaterialPageRoute(
         builder:
-            (context) =>
-                AddItemPage(rateStructures: rateStructures, service: _service),
+            (context) => AddItemPage(
+              rateStructures: rateStructures,
+              service: _service,
+              existingItems: items, // Pass existing items
+              isDuplicateAllowed: _isDuplicateAllowed, // Pass duplicate flag
+            ),
       ),
     );
     if (result != null) {
@@ -243,7 +289,33 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
     }
   }
 
+  // Future<void> _showEditItemPage(QuotationItem item, int index) async {
+  //   final result = await Navigator.push<QuotationItem>(
+  //     context,
+  //     MaterialPageRoute(
+  //       builder:
+  //           (context) => EditItemPage(
+  //             rateStructures: rateStructures,
+  //             item: item,
+  //             service: _service,
+  //           ),
+  //     ),
+  //   );
+  //   if (result != null) {
+  //     setState(() {
+  //       items[index] = result;
+  //       // Re-assign line numbers
+  //       for (int i = 0; i < items.length; i++) {
+  //         items[i].lineNo = i + 1;
+  //       }
+  //     });
+  //   }
+  // }
   Future<void> _showEditItemPage(QuotationItem item, int index) async {
+    // Create a list of existing items excluding the one being edited
+    final existingItemsForEdit = List<QuotationItem>.from(items);
+    existingItemsForEdit.removeAt(index);
+
     final result = await Navigator.push<QuotationItem>(
       context,
       MaterialPageRoute(
@@ -252,6 +324,9 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
               rateStructures: rateStructures,
               item: item,
               service: _service,
+              existingItems:
+                  existingItemsForEdit, // Pass filtered existing items
+              isDuplicateAllowed: _isDuplicateAllowed, // Pass duplicate flag
             ),
       ),
     );
@@ -376,7 +451,7 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
         "totalAmountAfterTaxCustomerCurrency": finalAmount.toStringAsFixed(2),
         "totalAmountAfterDiscountCustomerCurrency": totalAfterDiscount
             .toStringAsFixed(2),
-        "exchangeRate": "1",
+        "exchangeRate": _exchangeRate ?? 1.0,
         "discountType": "None",
         "discountAmount": "0",
         "modValue": 0,
