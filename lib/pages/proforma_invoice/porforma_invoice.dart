@@ -1,6 +1,7 @@
 // pages/proforma_invoice_list_page.dart
 import 'package:flutter/material.dart';
 import 'package:nhapp/pages/proforma_invoice/models/proforma_invoice_item.dart';
+import 'package:nhapp/pages/proforma_invoice/pages/edit_proforma_invoice.dart';
 import 'package:nhapp/pages/proforma_invoice/pages/proforma_invoice_pdf_loader_page.dart';
 import 'package:nhapp/pages/proforma_invoice/service/proforma_invoice_service.dart';
 import 'package:nhapp/pages/proforma_invoice/widgets/proforma_invoice_infinite_list.dart';
@@ -163,13 +164,48 @@ class _ProformaInvoiceListPageState extends State<ProformaInvoiceListPage> {
   }
 
   void handleEditTap(BuildContext context, ProformaInvoice invoice) async {
-    final result = await Navigator.pushNamed(
-      context,
-      '/edit_proforma_invoice',
-      arguments: invoice,
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (context) => const AlertDialog(
+            content: Row(
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(width: 16),
+                Text('Loading...'),
+              ],
+            ),
+          ),
     );
-    if (result == true) {
-      _listKey.currentState?.refresh();
+
+    try {
+      if (context.mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+
+        // Navigate to edit page
+        final result = await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => EditProformaInvoiceForm(invoice: invoice),
+          ),
+        );
+
+        if (result == true) {
+          _listKey.currentState?.refresh();
+        }
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.of(context).pop(); // Close loading dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to open edit page: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 

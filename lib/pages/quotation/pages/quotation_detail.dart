@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:nhapp/pages/quotation/service/quotation_service.dart';
+import 'package:nhapp/utils/storage_utils.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
@@ -13,6 +14,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 
 import '../models/quotation_list_item.dart';
 import '../models/quotation_detail.dart';
+import 'package:nhapp/pages/sales_order/pages/add_so.dart';
 import 'quotation_pdf_loader_page.dart';
 
 class QuotationDetailPage extends StatefulWidget {
@@ -24,9 +26,16 @@ class QuotationDetailPage extends StatefulWidget {
 }
 
 class _QuotationDetailPageState extends State<QuotationDetailPage> {
+  bool get _isAuthorized =>
+      detail?.quotationDetails['isAuthorized'] ??
+      widget.quotation.isAuthorized ??
+      false;
   QuotationDetail? detail;
+  List<Map<String, dynamic>>? attachments;
   String? error;
+  String? attachmentError;
   bool loading = true;
+  bool _isLoadingAttachments = false;
 
   bool _isDownloading = false;
   bool _isSharing = false;
@@ -35,6 +44,7 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
   void initState() {
     super.initState();
     _fetchDetail();
+    _fetchAttachments();
   }
 
   Future<void> _fetchDetail() async {
@@ -55,6 +65,59 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
       setState(() {
         error = 'Error: $e';
         loading = false;
+      });
+    }
+  }
+
+  Future<void> _fetchAttachments() async {
+    setState(() {
+      _isLoadingAttachments = true;
+      attachmentError = null;
+    });
+
+    try {
+      final companyDetails = await StorageUtils.readJson('selected_company');
+      if (companyDetails == null) throw Exception("Company not set");
+
+      final tokenDetails = await StorageUtils.readJson('session_token');
+      if (tokenDetails == null) throw Exception("Session token not found");
+
+      final companyId = companyDetails['id'];
+      final token = tokenDetails['token']['value'];
+      final baseUrl = 'http://${await StorageUtils.readValue('url')}';
+
+      final dio = Dio();
+      dio.options.headers['Content-Type'] = 'application/json';
+      dio.options.headers['Accept'] = 'application/json';
+      dio.options.headers['companyid'] = companyId.toString();
+      dio.options.headers['Authorization'] = 'Bearer $token';
+
+      final endpoint = "/api/Login/attachment_details";
+
+      // Create document number for quotation
+      final documentNo =
+          "${widget.quotation.qtnYear}/${widget.quotation.qtnGroup}/${widget.quotation.siteCode}/${widget.quotation.qtnNumber}/QUOTATIONENTRY";
+
+      final response = await dio.post(
+        '$baseUrl$endpoint',
+        data: {"DocumentNo": documentNo, "FormID": "06103"},
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final List data = response.data['data'] ?? [];
+        if (!mounted) return;
+        setState(() {
+          attachments = data.cast<Map<String, dynamic>>();
+          _isLoadingAttachments = false;
+        });
+      } else {
+        throw Exception('Failed to fetch attachments');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        attachmentError = 'Failed to load attachments: $e';
+        _isLoadingAttachments = false;
       });
     }
   }
@@ -305,6 +368,165 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
     return totalAmountAfterTax - taxAmount;
   }
 
+  Widget _buildAttachmentsSection() {
+    final theme = Theme.of(context);
+    final borderColor = theme.dividerColor;
+
+    return Card(
+      color: theme.cardColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: borderColor, width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Attachments Header
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: borderColor, width: 1)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.attachment, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  "Attachments",
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (_isLoadingAttachments) ...[
+                  const SizedBox(width: 12),
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          // Attachments Content
+          if (_isLoadingAttachments)
+            const Padding(
+              padding: EdgeInsets.all(20),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (attachmentError != null)
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  Text(
+                    attachmentError!,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  TextButton.icon(
+                    onPressed: _fetchAttachments,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Retry'),
+                  ),
+                ],
+              ),
+            )
+          else if (attachments == null || attachments!.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.folder_open,
+                    size: 48,
+                    color: theme.colorScheme.outline,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No attachments found',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.outline,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            ...attachments!.map(
+              (attachment) => _buildAttachmentItem(attachment),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAttachmentItem(Map<String, dynamic> attachment) {
+    final theme = Theme.of(context);
+    final borderColor = theme.dividerColor;
+
+    final originalName =
+        attachment['originalName'] ?? attachment['name'] ?? 'Unknown file';
+    final size = attachment['size'] ?? 0;
+    final createdByName = attachment['createdByName'] ?? '';
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      decoration: BoxDecoration(
+        border: Border.all(color: borderColor, width: 1),
+        borderRadius: BorderRadius.circular(8),
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.1),
+      ),
+      child: ListTile(
+        // leading: _getFileIcon(extension),
+        title: Text(
+          originalName,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(_formatFileSize(size), style: theme.textTheme.bodySmall),
+            if (createdByName.isNotEmpty)
+              Text(
+                'Uploaded by: $createdByName',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.outline,
+                ),
+              ),
+          ],
+        ),
+        // trailing: Row(
+        //   mainAxisSize: MainAxisSize.min,
+        //   children: [
+        //     IconButton(
+        //       onPressed: () => _viewAttachment(attachment),
+        //       icon: const Icon(Icons.visibility),
+        //       tooltip: 'View',
+        //     ),
+        //     IconButton(
+        //       onPressed: () => _downloadAttachment(attachment),
+        //       icon: const Icon(Icons.download),
+        //       tooltip: 'Download',
+        //     ),
+        //   ],
+        // ),
+      ),
+    );
+  }
+
+  String _formatFileSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -319,7 +541,10 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
       return Scaffold(
         appBar: AppBar(title: const Text('Quotation Details')),
         body: RefreshIndicator(
-          onRefresh: _fetchDetail,
+          onRefresh: () async {
+            await _fetchDetail();
+            await _fetchAttachments();
+          },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             child: Container(
@@ -334,7 +559,10 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
       return Scaffold(
         appBar: AppBar(title: const Text('Quotation Details')),
         body: RefreshIndicator(
-          onRefresh: _fetchDetail,
+          onRefresh: () async {
+            await _fetchDetail();
+            await _fetchAttachments();
+          },
           child: const SingleChildScrollView(
             physics: AlwaysScrollableScrollPhysics(),
             child: Center(child: Text('No data found.')),
@@ -375,7 +603,6 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
         ),
       ],
     );
-
     // Section 2: Separator & Info Grid
     final infoSection = Column(
       children: [
@@ -493,23 +720,29 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
-          child: Card(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: theme.dividerColor, width: 1.5),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  titleSection,
-                  infoSection,
-                  itemsSection,
-                  amountsSection,
-                ],
+          child: Column(
+            children: [
+              Card(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: theme.dividerColor, width: 1.5),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      titleSection,
+                      infoSection,
+                      itemsSection,
+                      amountsSection,
+                    ],
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(height: 16),
+              _buildAttachmentsSection(),
+            ],
           ),
         ),
       ),

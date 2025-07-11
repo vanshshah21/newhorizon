@@ -103,7 +103,7 @@ class _ProformaInvoiceCardState extends State<ProformaInvoiceCard>
             right: !pi.isDelete ? const Radius.circular(12) : Radius.zero,
           ),
         ),
-      if (pi.isDelete && widget.onDeleteTap != null)
+      if (pi.isDelete != "1" || widget.onDeleteTap != null)
         SlidableAction(
           onPressed: (_) => widget.onDeleteTap!(),
           backgroundColor: Colors.red.shade600,

@@ -1,9 +1,10 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:nhapp/pages/proforma_invoice/models/add_proforma_invoice.dart';
+import 'package:nhapp/pages/proforma_invoice/models/proforma_details.dart';
 import '../../../utils/storage_utils.dart';
 
-class ProformaInvoiceService {
+class EditProformaInvoiceService {
   late final Dio _dio;
   late final String _baseUrl;
   late final Map<String, dynamic> _companyDetails;
@@ -14,10 +15,10 @@ class ProformaInvoiceService {
   late final Map<String, dynamic> _salesOrderDocumentDetails;
   late int _companyId;
 
-  ProformaInvoiceService._();
+  EditProformaInvoiceService._();
 
-  static Future<ProformaInvoiceService> create() async {
-    final service = ProformaInvoiceService._();
+  static Future<EditProformaInvoiceService> create() async {
+    final service = EditProformaInvoiceService._();
     await service._initializeService();
     return service;
   }
@@ -43,11 +44,11 @@ class ProformaInvoiceService {
     _dio.options.headers['companyid'] = _companyId.toString();
     _dio.options.headers['Authorization'] = 'Bearer $token';
 
-    fetchQuotationDefaultDocumentDetail("SQ");
-    fetchSalesOrderDefaultDocumentDetail("OB");
+    await _fetchQuotationDefaultDocumentDetail("SQ");
+    await _fetchSalesOrderDefaultDocumentDetail("OB");
   }
 
-  Future<void> fetchQuotationDefaultDocumentDetail(String type) async {
+  Future<void> _fetchQuotationDefaultDocumentDetail(String type) async {
     try {
       String endpoint = "/api/Lead/GetDefaultDocumentDetail";
       final year = _financeDetails['financialYear'];
@@ -66,14 +67,13 @@ class ProformaInvoiceService {
         throw Exception("No data found for quotation document detail");
       }
       _quotationDocumentDetails = response.data['data'][0];
-      return;
     } catch (e) {
       debugPrint("Error fetching quotation document detail: $e");
       throw Exception("Failed to fetch quotation document detail");
     }
   }
 
-  Future<void> fetchSalesOrderDefaultDocumentDetail(String type) async {
+  Future<void> _fetchSalesOrderDefaultDocumentDetail(String type) async {
     try {
       String endpoint = "/api/Lead/GetDefaultDocumentDetail";
       final year = _financeDetails['financialYear'];
@@ -92,14 +92,43 @@ class ProformaInvoiceService {
         throw Exception("No data found for sales order document detail");
       }
       _salesOrderDocumentDetails = response.data['data'][0];
-      return;
     } catch (e) {
       debugPrint("Error fetching sales order document detail: $e");
       throw Exception("Failed to fetch sales order document detail");
     }
   }
 
-  Future<Map<String, dynamic>> fetchDefaultDocumentDetail(String type) async {
+  /// Fetch proforma invoice details for editing
+  Future<ProformaInvoiceDetails> fetchProformaInvoiceDetails({
+    required int invSiteId,
+    required String invYear,
+    required String invGroup,
+    required String invNumber,
+    required String piOn,
+    required int fromLocationId,
+    required String custCode,
+    String search = "S",
+  }) async {
+    final endpoint =
+        "/api/Proforma/proformaInvoiceGetInvoiceDetails"
+        "?invSiteId=$invSiteId"
+        "&invYear=$invYear"
+        "&invGroup=$invGroup"
+        "&invNumber=$invNumber"
+        "&piOn=$piOn"
+        "&fromLoactionId=$fromLocationId"
+        "&custCode=$custCode"
+        "&search=$search";
+
+    final response = await _dio.get("$_baseUrl$endpoint");
+    if (response.statusCode == 200 && response.data['success'] == true) {
+      return ProformaInvoiceDetails.fromJson(response.data['data']);
+    }
+    throw Exception('Failed to fetch proforma invoice details');
+  }
+
+  /// Fetch default document detail for quotation/sales order
+  Future<DefaultDocumentDetail> fetchDefaultDocumentDetail(String type) async {
     String endpoint = "/api/Lead/GetDefaultDocumentDetail";
     final year = _financeDetails['financialYear'];
     final locationId = _locationDetails['id'];
@@ -113,9 +142,10 @@ class ProformaInvoiceService {
         "locationId": locationId,
       },
     );
-    return response.data['data'][0];
+    return DefaultDocumentDetail.fromJson(response.data['data'][0]);
   }
 
+  /// Fetch customer suggestions for typeahead
   Future<List<Customer>> fetchCustomerSuggestions(String pattern) async {
     const endpoint = "/api/Proforma/proformaInvoiceCustomerList";
     final body = {
@@ -132,6 +162,7 @@ class ProformaInvoiceService {
     return data.map((item) => Customer.fromJson(item)).toList();
   }
 
+  /// Fetch quotation numbers for selected customer
   Future<List<QuotationNumber>> fetchQuotationNumberList(
     String custCode,
   ) async {
@@ -151,6 +182,7 @@ class ProformaInvoiceService {
     return data.map((item) => QuotationNumber.fromJson(item)).toList();
   }
 
+  /// Fetch sales order numbers for selected customer
   Future<List<SalesOrderNumber>> fetchSalesOrderNumberList(
     String custCode,
   ) async {
@@ -170,6 +202,7 @@ class ProformaInvoiceService {
     return data.map((item) => SalesOrderNumber.fromJson(item)).toList();
   }
 
+  /// Fetch quotation details
   Future<QuotationDetails> fetchQuotationDetails(String quotationNumber) async {
     final endpoint =
         "/api/Proforma/proformaInvoiceGetModelItemDetails_Quatation";
@@ -187,6 +220,7 @@ class ProformaInvoiceService {
     return QuotationDetails.fromJson(response.data['data']);
   }
 
+  /// Fetch sales order details
   Future<SalesOrderDetails> fetchSalesOrderDetails(
     String salesOrderNumber,
   ) async {
@@ -205,6 +239,7 @@ class ProformaInvoiceService {
     return SalesOrderDetails.fromJson(response.data['data']);
   }
 
+  /// Fetch sales item list for add item functionality
   Future<List<SalesItem>> fetchSalesItemList(String pattern) async {
     const endpoint = "/api/Lead/GetSalesItemList?flag=L";
     final body = {
@@ -220,24 +255,9 @@ class ProformaInvoiceService {
     return data.map((item) => SalesItem.fromJson(item)).toList();
   }
 
+  /// Fetch rate structures for company
   Future<List<RateStructure>> fetchRateStructures(int companyId) async {
     const endpoint = "/api/Quotation/QuotationGetRateStructureForSales";
-
-    final companyDetails = await StorageUtils.readJson('selected_company');
-    if (companyDetails.isEmpty) {
-      throw Exception("Company details not found");
-    }
-    final companyId = companyDetails['id'];
-    final tokenDetails = await StorageUtils.readJson('session_token');
-    if (tokenDetails.isEmpty) {
-      throw Exception("Session token not found");
-    }
-    final token = tokenDetails['token']['value'];
-
-    _dio.options.headers['companyid'] = companyId.toString();
-    _dio.options.headers['Authorization'] = 'Bearer $token';
-    _dio.options.headers['Content-Type'] = 'application/json';
-    _dio.options.headers['Accept'] = 'application/json';
 
     final response = await _dio.get(
       "$_baseUrl$endpoint",
@@ -246,12 +266,11 @@ class ProformaInvoiceService {
         'currencyCode': 'INR',
       },
     );
-    debugPrint("Response: ${response.data}");
     final data = response.data['data'] as List;
-    debugPrint("Rate Structures: $data");
     return data.map((item) => RateStructure.fromJson(item)).toList();
   }
 
+  /// Fetch rate structure details
   Future<List<Map<String, dynamic>>> fetchRateStructureDetails(
     String rateStructureCode,
   ) async {
@@ -261,26 +280,7 @@ class ProformaInvoiceService {
     return List<Map<String, dynamic>>.from(response.data['data'] ?? []);
   }
 
-  Future<List<DiscountCode>> fetchDiscountCodes() async {
-    const endpoint =
-        "/api/Quotation/QuotationGetDiscount?codeType=DD&codeValue=GEN";
-    try {
-      final response = await _dio.get("$_baseUrl$endpoint");
-
-      if (response.data['success'] == true) {
-        final data = response.data['data'] as List;
-        return data.map((item) => DiscountCode.fromJson(item)).toList();
-      } else {
-        throw Exception(
-          "Failed to fetch discount codes: ${response.data['errorMessage']}",
-        );
-      }
-    } catch (e) {
-      throw Exception("Failed to fetch discount codes: $e");
-    }
-  }
-
-  /// NEW: Build RateStructureDetails for CalcRateStructure API
+  /// Build rate structure details for calculation
   List<Map<String, dynamic>> buildRateStructureDetails(
     List<Map<String, dynamic>> rateStructureRows,
     String itemCode,
@@ -322,7 +322,7 @@ class ProformaInvoiceService {
     }).toList();
   }
 
-  /// UPDATED: Use RateStructureDetails as per new API
+  /// Calculate rate structure for item
   Future<Map<String, dynamic>> calculateRateStructure(
     double itemAmount,
     String rateStructureCode,
@@ -356,42 +356,18 @@ class ProformaInvoiceService {
     return response.data;
   }
 
-  // Future<Map<String, dynamic>> calculateRateStructure(
-  //   double itemAmount,
-  //   String rateStructureCode,
-  //   List<Map<String, dynamic>> rateStructureDetails,
-  //   String itemCode,
-  // ) async {
-  //   const endpoint = "/api/Quotation/CalcRateStructure";
-  //   final body = {
-  //     "ItemAmount": itemAmount,
-  //     "ExchangeRt": "1",
-  //     "DomCurrency": "INR",
-  //     "CurrencyCode": "INR",
-  //     "DiscType": "",
-  //     "BasicRate": 0,
-  //     "DiscValue": 0,
-  //     "From": "sales",
-  //     "Flag": "",
-  //     "TotalItemAmount": itemAmount,
-  //     "LandedPrice": 0,
-  //     "uniqueno": 0,
-  //     "RateCode": rateStructureCode,
-  //     "RateStructureDetails":
-  //         rateStructureDetails
-  //             .map((e) => {...e, "itemCode": itemCode})
-  //             .toList(),
-  //     "rateType": "P",
-  //     "IsView": false,
-  //   };
+  /// Update proforma invoice
+  Future<bool> updateProformaInvoice(Map<String, dynamic> payload) async {
+    const endpoint = "/api/Proforma/proformaInvoiceEntryUpdate";
+    try {
+      final response = await _dio.post("$_baseUrl$endpoint", data: payload);
+      return response.data['success'] == true;
+    } catch (e) {
+      throw Exception("Failed to update proforma invoice: $e");
+    }
+  }
 
-  //   final response = await _dio.post(
-  //     "$_baseUrl$endpoint?RateStructureCode=$rateStructureCode",
-  //     data: body,
-  //   );
-  //   return response.data;
-  // }
-
+  /// Submit new proforma invoice (in case user wants to save as new)
   Future<bool> submitProformaInvoice(Map<String, dynamic> payload) async {
     const endpoint = "/api/Proforma/proformaInvoiceEntryCreate";
     try {
@@ -402,13 +378,23 @@ class ProformaInvoiceService {
     }
   }
 
-  Future<bool> updateProformaInvoice(Map<String, dynamic> payload) async {
-    const endpoint = "/api/Proforma/proformaInvoiceEntryUpdate";
-    try {
-      final response = await _dio.post("$_baseUrl$endpoint", data: payload);
-      return response.data['success'] == true;
-    } catch (e) {
-      throw Exception("Failed to update proforma invoice: $e");
-    }
-  }
+  /// Get default quotation document details
+  Map<String, dynamic> get quotationDocumentDetails =>
+      _quotationDocumentDetails;
+
+  /// Get default sales order document details
+  Map<String, dynamic> get salesOrderDocumentDetails =>
+      _salesOrderDocumentDetails;
+
+  /// Get finance details
+  Map<String, dynamic> get financeDetails => _financeDetails;
+
+  /// Get location details
+  Map<String, dynamic> get locationDetails => _locationDetails;
+
+  /// Get company details
+  Map<String, dynamic> get companyDetails => _companyDetails;
+
+  /// Get user details from token
+  Map<String, dynamic>? get userDetails => _tokenDetails['user'];
 }

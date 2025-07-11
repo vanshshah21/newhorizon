@@ -1,529 +1,17 @@
-// // import 'package:flutter/material.dart';
-// // import '../models/lead_data.dart';
-// // import '../models/lead_detail_data.dart';
-// // import '../services/lead_service.dart';
-
-// // class LeadDetailPage extends StatefulWidget {
-// //   final LeadData lead;
-
-// //   const LeadDetailPage({required this.lead, Key? key}) : super(key: key);
-
-// //   @override
-// //   State<LeadDetailPage> createState() => _LeadDetailPageState();
-// // }
-
-// // class _LeadDetailPageState extends State<LeadDetailPage> {
-// //   LeadDetailData? detail;
-// //   String? error;
-
-// //   @override
-// //   void initState() {
-// //     super.initState();
-// //     _fetchDetail();
-// //   }
-
-// //   Future<void> _fetchDetail() async {
-// //     LeadService service = LeadService();
-// //     try {
-// //       final data = await service.fetchLeadDetails(
-// //         customerCode: widget.lead.customerCode,
-// //         salesmanCode: widget.lead.salesmanCode,
-// //         inquiryYear: widget.lead.inquiryYear,
-// //         inquiryGroup: widget.lead.inquiryGroup,
-// //         inquirySiteCode: widget.lead.locationCode,
-// //         inquiryNumber: widget.lead.inquiryNumber,
-// //         inquiryID: widget.lead.inquiryID,
-// //       );
-// //       if (!mounted) return;
-// //       setState(() => detail = data);
-// //     } catch (e) {
-// //       if (!mounted) return;
-// //       setState(() => error = 'Error: $e');
-// //     }
-// //   }
-
-// //   @override
-// //   Widget build(BuildContext context) {
-// //     if (error != null) {
-// //       return Scaffold(
-// //         appBar: AppBar(title: const Text('Lead Details')),
-// //         body: Center(child: Text(error!)),
-// //       );
-// //     }
-// //     if (detail == null) {
-// //       return Scaffold(
-// //         appBar: AppBar(title: const Text('Lead Details')),
-// //         body: const Center(child: CircularProgressIndicator()),
-// //       );
-// //     }
-// //     return Scaffold(
-// //       appBar: AppBar(title: const Text('Lead Details')),
-// //       body: ListView(
-// //         padding: const EdgeInsets.all(16),
-// //         children: [
-// //           Text(
-// //             'Inquiry #: ${detail!.inquiryNumber}',
-// //             style: Theme.of(context).textTheme.titleLarge,
-// //           ),
-// //           const SizedBox(height: 8),
-// //           Text('Customer: ${detail!.customerFullName}'),
-// //           Text('Salesman: ${detail!.salesmanFullName}'),
-// //           Text('Region: ${detail!.regionFullName}'),
-// //           Text('Consultant: ${detail!.consultantFullName}'),
-// //           Text('Date: ${detail!.inquiryDate.split('T').first}'),
-// //           Text('Status: ${detail!.inquiryStatus}'),
-// //           Text('Remarks: ${detail!.remarks}'),
-// //           const Divider(height: 32),
-// //           Text('Items:', style: Theme.of(context).textTheme.titleMedium),
-// //           ...detail!.inqEntryItemModel.map(
-// //             (item) => Card(
-// //               margin: const EdgeInsets.symmetric(vertical: 4),
-// //               child: ListTile(
-// //                 title: Text(item.itemName),
-// //                 subtitle: Text(
-// //                   'Code: ${item.salesItemCode}\n'
-// //                   'Qty: ${item.itemQty}\n'
-// //                   'Price: ${item.basicPrice}\n'
-// //                   'UOM: ${item.uom}\n'
-// //                   'Type: ${item.salesItemType}',
-// //                 ),
-// //               ),
-// //             ),
-// //           ),
-// //         ],
-// //       ),
-// //     );
-// //   }
-// // }
-
-// // import 'package:flutter/material.dart';
-// // import 'package:intl/intl.dart';
-// // import '../models/lead_data.dart';
-// // import '../models/lead_detail_data.dart';
-// // import '../services/lead_service.dart';
-
-// // class InquiryDetailsPage extends StatefulWidget {
-// //   final LeadData lead;
-// //   const InquiryDetailsPage({required this.lead, super.key});
-
-// //   @override
-// //   State<InquiryDetailsPage> createState() => _InquiryDetailsPageState();
-// // }
-
-// // class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
-// //   LeadDetailData? data;
-// //   String? error;
-
-// //   @override
-// //   void initState() {
-// //     super.initState();
-// //     _fetchDetail();
-// //   }
-
-// //   Future<void> _fetchDetail() async {
-// //     LeadService service = LeadService();
-// //     try {
-// //       final detail = await service.fetchLeadDetails(
-// //         customerCode: widget.lead.customerCode,
-// //         salesmanCode: widget.lead.salesmanCode,
-// //         inquiryYear: widget.lead.inquiryYear,
-// //         inquiryGroup: widget.lead.inquiryGroup,
-// //         inquirySiteCode: widget.lead.locationCode,
-// //         inquiryNumber: widget.lead.inquiryNumber,
-// //         inquiryID: widget.lead.inquiryID,
-// //       );
-// //       if (!mounted) return;
-// //       setState(() => data = detail);
-// //     } catch (e) {
-// //       if (!mounted) return;
-// //       setState(() => error = 'Error: $e');
-// //     }
-// //   }
-
-// //   @override
-// //   Widget build(BuildContext context) {
-// //     final theme = Theme.of(context);
-
-// //     if (error != null) {
-// //       return Scaffold(
-// //         appBar: AppBar(title: const Text('Inquiry Details')),
-// //         body: Center(child: Text(error!)),
-// //       );
-// //     }
-// //     if (data == null) {
-// //       return Scaffold(
-// //         appBar: AppBar(title: const Text('Inquiry Details')),
-// //         body: const Center(child: CircularProgressIndicator()),
-// //       );
-// //     }
-
-// //     final isDark = theme.brightness == Brightness.dark;
-// //     final cardColor = theme.cardColor;
-// //     final borderColor = theme.dividerColor;
-
-// //     return Scaffold(
-// //       backgroundColor: theme.scaffoldBackgroundColor,
-// //       appBar: AppBar(title: const Text('Inquiry Details')),
-// //       body: SingleChildScrollView(
-// //         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-// //         child: Center(
-// //           child: ConstrainedBox(
-// //             constraints: const BoxConstraints(maxWidth: 800),
-// //             child: Card(
-// //               color: cardColor,
-// //               shape: RoundedRectangleBorder(
-// //                 borderRadius: BorderRadius.circular(24),
-// //                 side: BorderSide(color: borderColor, width: 2),
-// //               ),
-// //               child: Column(
-// //                 crossAxisAlignment: CrossAxisAlignment.stretch,
-// //                 children: [
-// //                   // CardHeader
-// //                   Container(
-// //                     padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-// //                     decoration: BoxDecoration(
-// //                       border: Border(
-// //                         bottom: BorderSide(color: borderColor, width: 1),
-// //                       ),
-// //                     ),
-// //                     child: Column(
-// //                       crossAxisAlignment: CrossAxisAlignment.start,
-// //                       children: [
-// //                         Text(
-// //                           "Inquiry Details",
-// //                           style: theme.textTheme.titleLarge?.copyWith(
-// //                             fontWeight: FontWeight.w600,
-// //                             fontSize: 24,
-// //                           ),
-// //                         ),
-// //                         const SizedBox(height: 4),
-// //                         Text(
-// //                           "View inquiry details for reference.",
-// //                           style: theme.textTheme.bodySmall?.copyWith(
-// //                             color: isDark ? Colors.grey[400] : Colors.grey[700],
-// //                           ),
-// //                         ),
-// //                       ],
-// //                     ),
-// //                   ),
-// //                   // CardContent (Main Details)
-// //                   Padding(
-// //                     padding: const EdgeInsets.all(24),
-// //                     child: LayoutBuilder(
-// //                       builder: (context, constraints) {
-// //                         final isWide = constraints.maxWidth > 600;
-// //                         if (isWide) {
-// //                           return Row(
-// //                             crossAxisAlignment: CrossAxisAlignment.start,
-// //                             children: [
-// //                               Expanded(
-// //                                 child: Column(
-// //                                   crossAxisAlignment: CrossAxisAlignment.start,
-// //                                   children: [
-// //                                     _DetailField(
-// //                                       label: "Inquiry ID",
-// //                                       child: _ReadOnlyInput(
-// //                                         value: data!.inquiryID.toString(),
-// //                                       ),
-// //                                     ),
-// //                                     _DetailField(
-// //                                       label: "Customer",
-// //                                       child: Text(
-// //                                         "${data!.customerCode} - ${data!.customerName}",
-// //                                         style: theme.textTheme.bodyMedium
-// //                                             ?.copyWith(
-// //                                               color:
-// //                                                   isDark
-// //                                                       ? Colors.grey[300]
-// //                                                       : Colors.grey[800],
-// //                                             ),
-// //                                       ),
-// //                                     ),
-// //                                     _DetailField(
-// //                                       label: "Sales Team",
-// //                                       child: Text(
-// //                                         "${data!.salesmanName} (${data!.salesmanCode})",
-// //                                         style: theme.textTheme.bodyMedium
-// //                                             ?.copyWith(
-// //                                               color:
-// //                                                   isDark
-// //                                                       ? Colors.grey[300]
-// //                                                       : Colors.grey[800],
-// //                                             ),
-// //                                       ),
-// //                                     ),
-// //                                     _DetailField(
-// //                                       label: "Region",
-// //                                       child: _ReadOnlyInput(
-// //                                         value: data!.salesRegionCodeDesc,
-// //                                       ),
-// //                                     ),
-// //                                   ],
-// //                                 ),
-// //                               ),
-// //                               const SizedBox(width: 32),
-// //                               Expanded(
-// //                                 child: Column(
-// //                                   crossAxisAlignment: CrossAxisAlignment.start,
-// //                                   children: [
-// //                                     _DetailField(
-// //                                       label: "Inquiry Date",
-// //                                       child: _ReadOnlyInput(
-// //                                         value: DateFormat.yMd().format(
-// //                                           DateTime.parse(data!.inquiryDate),
-// //                                         ),
-// //                                       ),
-// //                                     ),
-// //                                     _DetailField(
-// //                                       label: "Consultant",
-// //                                       child: Text(
-// //                                         data!.consultantFullName,
-// //                                         style: theme.textTheme.bodyMedium
-// //                                             ?.copyWith(
-// //                                               color:
-// //                                                   isDark
-// //                                                       ? Colors.grey[300]
-// //                                                       : Colors.grey[800],
-// //                                             ),
-// //                                       ),
-// //                                     ),
-// //                                     _DetailField(
-// //                                       label: "Inquiry Number",
-// //                                       child: _ReadOnlyInput(
-// //                                         value: data!.inquiryNumber,
-// //                                       ),
-// //                                     ),
-// //                                   ],
-// //                                 ),
-// //                               ),
-// //                             ],
-// //                           );
-// //                         } else {
-// //                           return Column(
-// //                             crossAxisAlignment: CrossAxisAlignment.start,
-// //                             children: [
-// //                               _DetailField(
-// //                                 label: "Inquiry ID",
-// //                                 child: _ReadOnlyInput(
-// //                                   value: data!.inquiryID.toString(),
-// //                                 ),
-// //                               ),
-// //                               _DetailField(
-// //                                 label: "Customer",
-// //                                 child: Text(
-// //                                   "${data!.customerCode} - ${data!.customerName}",
-// //                                   style: theme.textTheme.bodyMedium?.copyWith(
-// //                                     color:
-// //                                         isDark
-// //                                             ? Colors.grey[300]
-// //                                             : Colors.grey[800],
-// //                                   ),
-// //                                 ),
-// //                               ),
-// //                               _DetailField(
-// //                                 label: "Sales Team",
-// //                                 child: Text(
-// //                                   "${data!.salesmanName} (${data!.salesmanCode})",
-// //                                   style: theme.textTheme.bodyMedium?.copyWith(
-// //                                     color:
-// //                                         isDark
-// //                                             ? Colors.grey[300]
-// //                                             : Colors.grey[800],
-// //                                   ),
-// //                                 ),
-// //                               ),
-// //                               _DetailField(
-// //                                 label: "Region",
-// //                                 child: _ReadOnlyInput(
-// //                                   value: data!.salesRegionCodeDesc,
-// //                                 ),
-// //                               ),
-// //                               const SizedBox(height: 24),
-// //                               _DetailField(
-// //                                 label: "Inquiry Date",
-// //                                 child: _ReadOnlyInput(
-// //                                   value: DateFormat.yMd().format(
-// //                                     DateTime.parse(data!.inquiryDate),
-// //                                   ),
-// //                                 ),
-// //                               ),
-// //                               _DetailField(
-// //                                 label: "Consultant",
-// //                                 child: Text(
-// //                                   data!.consultantFullName,
-// //                                   style: theme.textTheme.bodyMedium?.copyWith(
-// //                                     color:
-// //                                         isDark
-// //                                             ? Colors.grey[300]
-// //                                             : Colors.grey[800],
-// //                                   ),
-// //                                 ),
-// //                               ),
-// //                               _DetailField(
-// //                                 label: "Inquiry Number",
-// //                                 child: _ReadOnlyInput(
-// //                                   value: data!.inquiryNumber,
-// //                                 ),
-// //                               ),
-// //                             ],
-// //                           );
-// //                         }
-// //                       },
-// //                     ),
-// //                   ),
-// //                   // CardHeader for Items
-// //                   Container(
-// //                     padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
-// //                     decoration: BoxDecoration(
-// //                       border: Border(
-// //                         bottom: BorderSide(color: borderColor, width: 1),
-// //                       ),
-// //                     ),
-// //                     child: Text(
-// //                       "Items",
-// //                       style: theme.textTheme.titleMedium?.copyWith(
-// //                         fontWeight: FontWeight.w500,
-// //                         fontSize: 18,
-// //                       ),
-// //                     ),
-// //                   ),
-// //                   // CardContent (Table)
-// //                   Padding(
-// //                     padding: const EdgeInsets.all(24),
-// //                     child: SingleChildScrollView(
-// //                       scrollDirection: Axis.horizontal,
-// //                       child: DataTable(
-// //                         columns: const [
-// //                           DataColumn(label: Text("Item Code")),
-// //                           DataColumn(label: Text("Quantity")),
-// //                           DataColumn(label: Text("UOM")),
-// //                           DataColumn(label: Text("Price")),
-// //                         ],
-// //                         rows:
-// //                             data!.inqEntryItemModel
-// //                                 .map(
-// //                                   (item) => DataRow(
-// //                                     cells: [
-// //                                       DataCell(Text(item.salesItemCode)),
-// //                                       DataCell(Text(item.itemQty.toString())),
-// //                                       DataCell(Text(item.uom)),
-// //                                       DataCell(Text("₹${item.basicPrice}")),
-// //                                     ],
-// //                                   ),
-// //                                 )
-// //                                 .toList(),
-// //                         headingRowColor: MaterialStateProperty.all(
-// //                           theme.colorScheme.surfaceVariant.withOpacity(0.2),
-// //                         ),
-// //                         dataRowColor: MaterialStateProperty.all(
-// //                           theme.colorScheme.surface,
-// //                         ),
-// //                         border: TableBorder(
-// //                           horizontalInside: BorderSide(
-// //                             color: borderColor,
-// //                             width: 1,
-// //                           ),
-// //                         ),
-// //                       ),
-// //                     ),
-// //                   ),
-// //                   // CardFooter
-// //                   Padding(
-// //                     padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-// //                     child: Row(
-// //                       mainAxisAlignment: MainAxisAlignment.end,
-// //                       children: [
-// //                         SizedBox(
-// //                           width: 200,
-// //                           child: OutlinedButton(
-// //                             onPressed: () {
-// //                               Navigator.of(context).maybePop();
-// //                             },
-// //                             child: const Text("Back to List"),
-// //                           ),
-// //                         ),
-// //                       ],
-// //                     ),
-// //                   ),
-// //                 ],
-// //               ),
-// //             ),
-// //           ),
-// //         ),
-// //       ),
-// //     );
-// //   }
-// // }
-
-// // // Helper for detail fields
-// // class _DetailField extends StatelessWidget {
-// //   final String label;
-// //   final Widget child;
-// //   const _DetailField({required this.label, required this.child, super.key});
-// //   @override
-// //   Widget build(BuildContext context) {
-// //     return Padding(
-// //       padding: const EdgeInsets.only(bottom: 20),
-// //       child: Column(
-// //         crossAxisAlignment: CrossAxisAlignment.start,
-// //         children: [Label(label), const SizedBox(height: 6), child],
-// //       ),
-// //     );
-// //   }
-// // }
-
-// // // Read-only input style
-// // class _ReadOnlyInput extends StatelessWidget {
-// //   final String value;
-// //   const _ReadOnlyInput({required this.value, super.key});
-// //   @override
-// //   Widget build(BuildContext context) {
-// //     final theme = Theme.of(context);
-// //     final isDark = theme.brightness == Brightness.dark;
-// //     return TextFormField(
-// //       initialValue: value,
-// //       readOnly: true,
-// //       style: theme.textTheme.bodyMedium,
-// //       decoration: InputDecoration(
-// //         filled: true,
-// //         fillColor: isDark ? theme.inputDecorationTheme.fillColor : Colors.white,
-// //         border: InputBorder.none,
-// //         enabledBorder: InputBorder.none,
-// //         focusedBorder: InputBorder.none,
-// //         contentPadding: const EdgeInsets.symmetric(
-// //           vertical: 10,
-// //           horizontal: 12,
-// //         ),
-// //       ),
-// //     );
-// //   }
-// // }
-
-// // // Label widget for field titles
-// // class Label extends StatelessWidget {
-// //   final String text;
-// //   const Label(this.text, {super.key});
-// //   @override
-// //   Widget build(BuildContext context) {
-// //     return Text(
-// //       text,
-// //       style: Theme.of(context).textTheme.labelMedium?.copyWith(
-// //         color: Theme.of(context).colorScheme.primary,
-// //       ),
-// //     );
-// //   }
-// // }
-
 import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:nhapp/pages/followup/pages/add_follow_up.dart';
+import 'package:nhapp/pages/leads/models/lead_attachment.dart';
 import 'package:nhapp/pages/leads/pages/lead_pdf_loader_page.dart';
-import 'package:nhapp/pages/quotation/pages/add_quotation_page.dart';
+import 'package:nhapp/pages/leads/services/lead_attachment_service.dart';
 import 'package:nhapp/utils/format_utils.dart';
+import 'package:nhapp/utils/storage_utils.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:nhapp/pages/quotation/test/page/ad_qote.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:external_path/external_path.dart';
 import 'package:open_file/open_file.dart';
@@ -542,15 +30,19 @@ class InquiryDetailsPage extends StatefulWidget {
 
 class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
   LeadDetailData? data;
+  late List<LeadAttachment> attachments;
   String? error;
+  String? attachmentError;
 
   bool _isDownloading = false;
   bool _isSharing = false;
+  bool _isLoadingAttachments = false;
 
   @override
   void initState() {
     super.initState();
     _fetchDetail();
+    _fetchAttachments();
   }
 
   Future<void> _fetchDetail() async {
@@ -576,6 +68,80 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
       if (!mounted) return;
       setState(() => error = 'Error: $e');
     }
+  }
+
+  Future<void> _fetchAttachments() async {
+    setState(() {
+      _isLoadingAttachments = true;
+      attachmentError = null;
+    });
+
+    try {
+      final service = LeadAttachmentService(Dio());
+      final leadService = LeadService();
+      final baseUrl = 'http://${await StorageUtils.readValue('url')}';
+
+      final fetchedAttachments = await service.fetchLeadAttachments(
+        baseUrl: baseUrl,
+        inquiryYear: widget.lead.inquiryYear,
+        inquiryGroup: widget.lead.inquiryGroup,
+        locationCode: widget.lead.locationCode,
+        inquiryNumber: widget.lead.inquiryNumber,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        attachments = fetchedAttachments;
+        _isLoadingAttachments = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        attachmentError = 'Failed to load attachments: $e';
+        _isLoadingAttachments = false;
+      });
+    }
+  }
+
+  void _navigateToFollowUp() {
+    if (data == null) return;
+
+    final followUpData = {
+      'customerCode': data!.customerCode,
+      'customerName': data!.customerName,
+      'salesmanCode': data!.salesmanCode,
+      'salesmanName': data!.salesmanName,
+      'inquiryNumber': data!.inquiryNumber,
+      'inquiryID': data!.inquiryID,
+    };
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => AddFollowUpForm(initialData: followUpData),
+      ),
+    );
+  }
+
+  void _navigateToQuotation() {
+    if (data == null) return;
+
+    final quotationData = {
+      'customerCode': data!.customerCode,
+      'customerName': data!.customerName,
+      'salesmanCode': data!.salesmanCode,
+      'salesmanName': data!.salesmanName,
+      'inquiryNumber': data!.inquiryNumber,
+      'inquiryID': data!.inquiryID,
+      'inquiryYear': widget.lead.inquiryYear,
+      'inquiryGroup': widget.lead.inquiryGroup,
+      'locationCode': widget.lead.locationCode,
+    };
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => AddQuotationPage(initialData: quotationData),
+      ),
+    );
   }
 
   void _viewPdf() {
@@ -795,6 +361,205 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
     }
   }
 
+  Widget _buildAttachmentsSection() {
+    final theme = Theme.of(context);
+    final borderColor = theme.dividerColor;
+
+    return Card(
+      color: theme.cardColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+        side: BorderSide(color: borderColor, width: 2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Attachments Header
+          Container(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: borderColor, width: 1)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.attachment, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  "Attachments",
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (_isLoadingAttachments) ...[
+                  const SizedBox(width: 12),
+                  const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          // Attachments Content
+          if (_isLoadingAttachments)
+            const Padding(
+              padding: EdgeInsets.all(24),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (attachmentError != null)
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  Text(
+                    attachmentError!,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.error,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  TextButton.icon(
+                    onPressed: _fetchAttachments,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Retry'),
+                  ),
+                ],
+              ),
+            )
+          else if (attachments == null || attachments!.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.folder_open,
+                    size: 48,
+                    color: theme.colorScheme.outline,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No attachments found',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.outline,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            ...attachments!.map(
+              (attachment) => _buildAttachmentItem(attachment),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAttachmentItem(LeadAttachment attachment) {
+    final theme = Theme.of(context);
+    final borderColor = theme.dividerColor;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      decoration: BoxDecoration(
+        border: Border.all(color: borderColor, width: 1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ListTile(
+        // leading: _getFileIcon(attachment.extension),
+        title: Text(
+          attachment.originalName,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _formatFileSize(attachment.size),
+              style: theme.textTheme.bodySmall,
+            ),
+          ],
+        ),
+        // trailing: Row(
+        //   mainAxisSize: MainAxisSize.min,
+        //   children: [
+        //     IconButton(
+        //       onPressed: () => _viewAttachment(attachment),
+        //       icon: const Icon(Icons.visibility),
+        //       tooltip: 'View',
+        //     ),
+        //     IconButton(
+        //       onPressed: () => _downloadAttachment(attachment),
+        //       icon: const Icon(Icons.download),
+        //       tooltip: 'Download',
+        //     ),
+        //   ],
+        // ),
+      ),
+    );
+  }
+
+  Widget _getFileIcon(String extension) {
+    final theme = Theme.of(context);
+    IconData iconData;
+    Color color;
+
+    switch (extension.toLowerCase()) {
+      case '.pdf':
+        iconData = Icons.picture_as_pdf;
+        color = Colors.red;
+        break;
+      case '.jpg':
+      case '.jpeg':
+      case '.png':
+      case '.gif':
+        iconData = Icons.image;
+        color = Colors.blue;
+        break;
+      case '.doc':
+      case '.docx':
+        iconData = Icons.description;
+        color = Colors.blue;
+        break;
+      case '.xls':
+      case '.xlsx':
+        iconData = Icons.table_chart;
+        color = Colors.green;
+        break;
+      default:
+        iconData = Icons.insert_drive_file;
+        color = theme.colorScheme.outline;
+        break;
+    }
+
+    return Icon(iconData, color: color, size: 32);
+  }
+
+  String _formatFileSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+
+  void _viewAttachment(LeadAttachment attachment) {
+    // Implement view functionality
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('View ${attachment.originalName}')));
+  }
+
+  void _downloadAttachment(LeadAttachment attachment) {
+    // Implement download functionality
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Download ${attachment.originalName}')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -806,7 +571,10 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
       return Scaffold(
         appBar: AppBar(title: const Text('Inquiry Details')),
         body: RefreshIndicator(
-          onRefresh: _fetchDetail,
+          onRefresh: () async {
+            await _fetchDetail();
+            await _fetchAttachments();
+          },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             child: Container(
@@ -929,6 +697,58 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
                 //     ],
                 //   ),
                 // ),
+                Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: borderColor, width: 1),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _navigateToFollowUp,
+                            icon: const Icon(Icons.schedule_send, size: 18),
+                            label: const Text('Add Follow Up'),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: borderColor, width: 1),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: _navigateToQuotation,
+                            icon: const Icon(Icons.add_business, size: 18),
+                            label: const Text('Create Quotation'),
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 Card(
                   color: cardColor,
                   shape: RoundedRectangleBorder(
@@ -1321,6 +1141,7 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
                     ],
                   ),
                 ),
+                _buildAttachmentsSection(),
               ],
             ),
           ),

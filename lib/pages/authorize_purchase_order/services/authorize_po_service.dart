@@ -177,4 +177,51 @@ class AuthorizePOService {
       return false;
     }
   }
+
+  Future<bool> authorizePOBatch(List<POData> poList, bool isRegular) async {
+    final url = await StorageUtils.readValue('url');
+    final companyDetails = await StorageUtils.readJson('selected_company');
+    if (companyDetails == null) throw Exception("Company not set");
+
+    final locationDetails = await StorageUtils.readJson('selected_location');
+    if (locationDetails == null) throw Exception("Location not set");
+
+    final tokenDetails = await StorageUtils.readJson('session_token');
+    if (tokenDetails == null) throw Exception("Session token not found");
+
+    final companyId = companyDetails['id'];
+    final token = tokenDetails['token']['value'];
+
+    _dio.options.headers['Content-Type'] = 'application/json';
+    _dio.options.headers['Accept'] = 'application/json';
+    _dio.options.headers['companyid'] = companyId.toString();
+    _dio.options.headers['Authorization'] = 'Bearer $token';
+
+    final authorizeBody = {
+      "strDoctyp": "PR",
+      "strSubtyp": isRegular ? "RP" : "CP",
+      "strFormTyp": "A",
+      "FormID": "01107",
+      "fromlocationid": locationDetails['id'],
+      "fromlocationcode": locationDetails['code'],
+      "fromlocationname": locationDetails['name'],
+      "docLevel": 0,
+      "docSubLevel": 0,
+      "mulLvlauthred": false,
+      "maxlevel": false,
+      "poAuthoriseList": poList.map((po) => po.toJsonForAuthorize()).toList(),
+    };
+    final endpoint = '/api/Podata/AuthPurOrder';
+    final response = await _dio.post(
+      "http://$url$endpoint",
+      data: authorizeBody,
+    );
+    if (response.statusCode == 200 && response.data['success'] == true) {
+      debugPrint("Batch PO Authorized Successfully");
+      return true;
+    } else {
+      debugPrint("Failed to authorize batch PO");
+      return false;
+    }
+  }
 }

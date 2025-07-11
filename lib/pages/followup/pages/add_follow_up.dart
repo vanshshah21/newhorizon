@@ -8,7 +8,8 @@ import 'package:nhapp/utils/format_utils.dart';
 import 'package:nhapp/utils/storage_utils.dart';
 
 class AddFollowUpForm extends StatefulWidget {
-  const AddFollowUpForm({super.key});
+  final Map<String, dynamic>? initialData;
+  const AddFollowUpForm({super.key, this.initialData});
 
   @override
   State<AddFollowUpForm> createState() => _AddFollowUpFormState();
@@ -116,6 +117,10 @@ class _AddFollowUpFormState extends State<AddFollowUpForm> {
         _loadFinancePeriod(),
       ]);
 
+      if (widget.initialData != null) {
+        _prefillData();
+      }
+
       setState(() => isLoading = false);
     } catch (e) {
       setState(() => isLoading = false);
@@ -125,6 +130,60 @@ class _AddFollowUpFormState extends State<AddFollowUpForm> {
         ).showSnackBar(SnackBar(content: Text('Error loading data: $e')));
       }
     }
+  }
+
+  void _prefillData() {
+    final data = widget.initialData!;
+
+    // Set follow-up base to Inquiry
+    selectedFollowUpBase = 'I';
+
+    // Set customer data
+    if (data['customerCode'] != null && data['customerName'] != null) {
+      selectedCustomer = {
+        'customerCode': data['customerCode'],
+        'customerFullName': data['customerName'],
+        'telephoneNo': data['telephoneNo'] ?? '',
+      };
+      _customerController.text = data['customerName'];
+    }
+
+    // Set salesman if available
+    if (data['salesmanCode'] != null && data['salesmanName'] != null) {
+      // Find matching salesman in the list
+      final matchingSalesman = salesmanList.firstWhere(
+        (s) => s['salesmanCode'] == data['salesmanCode'],
+        orElse: () => {},
+      );
+      if (matchingSalesman.isNotEmpty) {
+        selectedSalesman = matchingSalesman;
+      }
+    }
+
+    if (selectedCustomer != null) {
+      _fetchLeadOrQuotationNumbers().then((_) {
+        // After fetching, set the lead number if available
+        if (data['inquiryNumber'] != null) {
+          final matchingLead = leadNumberList.firstWhere(
+            (item) => item['number'] == data['inquiryNumber'],
+            orElse: () => {},
+          );
+          if (matchingLead.isNotEmpty) {
+            setState(() {
+              selectedLeadNumber = matchingLead;
+            });
+          }
+        }
+      });
+    }
+
+    // if (data['inquiryNumber'] != null) {
+    //   // Set lead number if available
+    //   selectedLeadNumber = leadNumberList.firstWhere(
+    //     (l) => l['number'] == data['inquiryNumber'],
+    //     orElse: () => {},
+    //   );
+    // }
   }
 
   Future<void> _fetchFollowUpBaseList() async {
@@ -322,16 +381,19 @@ class _AddFollowUpFormState extends State<AddFollowUpForm> {
                 ),
               )
               .toList(),
-      onChanged: (val) {
-        setState(() {
-          selectedFollowUpBase = val;
-          selectedLeadNumber = null;
-          selectedQuotationNumber = null;
-          leadNumberList = [];
-          quotationNumberList = [];
-        });
-        _fetchLeadOrQuotationNumbers();
-      },
+      onChanged:
+          widget.initialData != null
+              ? null // This disables the dropdown
+              : (val) {
+                setState(() {
+                  selectedFollowUpBase = val;
+                  selectedLeadNumber = null;
+                  selectedQuotationNumber = null;
+                  leadNumberList = [];
+                  quotationNumberList = [];
+                });
+                _fetchLeadOrQuotationNumbers();
+              },
       validator: (val) => val == null ? 'Required' : null,
     );
   }
@@ -376,9 +438,11 @@ class _AddFollowUpFormState extends State<AddFollowUpForm> {
   Widget _buildCustomerTypeAhead() {
     return TypeAheadField<Map<String, dynamic>>(
       controller: _customerController,
+      showOnFocus: widget.initialData != null ? false : true,
       focusNode: _customerFocusNode, // Add the focus node here
       builder:
           (context, controller, focusNode) => TextField(
+            readOnly: widget.initialData != null ? true : false,
             controller: controller,
             focusNode: focusNode,
             decoration: const InputDecoration(
@@ -426,15 +490,23 @@ class _AddFollowUpFormState extends State<AddFollowUpForm> {
             items:
                 leadNumberList
                     .map(
-                      (e) =>
-                          DropdownMenuItem(value: e, child: Text(e['number'])),
+                      (e) => DropdownMenuItem(
+                        value: e,
+                        child: Text(
+                          e['number'],
+                          style: TextStyle(color: Colors.black),
+                        ),
+                      ),
                     )
                     .toList(),
-            onChanged: (val) {
-              setState(() {
-                selectedLeadNumber = val;
-              });
-            },
+            onChanged:
+                widget.initialData != null
+                    ? null
+                    : (val) {
+                      setState(() {
+                        selectedLeadNumber = val;
+                      });
+                    },
             validator:
                 (val) =>
                     selectedFollowUpBase == 'I' && val == null

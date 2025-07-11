@@ -120,11 +120,13 @@ class AuthorizePOCard extends StatefulWidget {
   final POData po;
   final VoidCallback onPdfTap;
   final VoidCallback onAuthorizeTap;
+  final bool selected;
 
   const AuthorizePOCard({
     required this.po,
     required this.onPdfTap,
     required this.onAuthorizeTap,
+    this.selected = false,
     super.key,
   });
 
@@ -191,17 +193,30 @@ class _AuthorizePOCardState extends State<AuthorizePOCard>
       ),
       child: Card(
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        // elevation: 2,
-        // shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: widget.selected ? 6 : 2,
+        shape:
+            widget.selected
+                ? RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: theme.colorScheme.primary, width: 2),
+                )
+                : null,
         child: Column(
           children: [
             // Main content
             Container(
               padding: const EdgeInsets.all(16),
+              decoration:
+                  widget.selected
+                      ? BoxDecoration(
+                        color: theme.colorScheme.primary.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(12),
+                      )
+                      : null,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header row with PO number and phone button
+                  // ...existing code...
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -257,10 +272,8 @@ class _AuthorizePOCardState extends State<AuthorizePOCard>
                       ),
                     ],
                   ),
-
+                  // ...existing code...
                   const SizedBox(height: 12),
-
-                  // Details section
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -299,14 +312,10 @@ class _AuthorizePOCardState extends State<AuthorizePOCard>
                       ],
                     ),
                   ),
-
                   const SizedBox(height: 12),
-
-                  // Expand/Collapse button and action hint
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Item count and expand button
                       InkWell(
                         onTap: () {
                           setState(() {
@@ -357,8 +366,6 @@ class _AuthorizePOCardState extends State<AuthorizePOCard>
                           ),
                         ),
                       ),
-
-                      // Action hint
                       Row(
                         children: [
                           Icon(
@@ -383,8 +390,6 @@ class _AuthorizePOCardState extends State<AuthorizePOCard>
                 ],
               ),
             ),
-
-            // Expandable item details
             AnimatedSize(
               duration: const Duration(milliseconds: 300),
               curve: Curves.easeInOut,

@@ -69,19 +69,21 @@ class QuotationService {
   }
 
   Future getExchangeRate() async {
-    const endpoint = "/api/Quotation/GetExchangeRate";
+    const endpoint = "/api/Login/GetExchangeRate";
     try {
       final response = await _dio.get(
         "$_baseUrl$endpoint",
         queryParameters: {"currencyCode": currencyDetails['domCurCode']},
       );
-      if (response.data['success'] == true) {
+      if (response.data['success'] == true &&
+          response.data['data'] != null &&
+          response.data['data'].isNotEmpty) {
         return response.data['data'][0]['exchangeRate'];
       } else {
-        throw Exception("Failed to fetch exchange rate");
+        return 1.0;
       }
     } catch (e) {
-      throw Exception("Failed to fetch exchange rate: $e");
+      return 1.0;
     }
   }
 
@@ -581,11 +583,12 @@ class QuotationService {
   // }
 
   Future<bool> uploadAttachments({
+    required String groupCode,
     required List<String> filePaths,
     required String documentNo,
     required String documentId,
     required String docYear,
-    required String formId,
+    required int formId,
     required String locationCode,
     required String companyCode,
     required int locationId,
@@ -601,8 +604,11 @@ class QuotationService {
         MapEntry("CompanyCode", companyCode),
         MapEntry("LocationCode", locationCode),
         MapEntry("DocYear", docYear),
-        MapEntry("FormID", formId),
-        MapEntry("DocumentNo", "$documentNo/QUOTATION"),
+        MapEntry("FormID", formId.toString()),
+        MapEntry(
+          "DocumentNo",
+          "$docYear/$groupCode/$locationCode/$documentNo/QUOTATIONENTRY",
+        ),
         MapEntry("DocumentID", documentId),
       ]);
 

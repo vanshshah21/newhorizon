@@ -331,3 +331,15 @@ class SalesOrderDetails {
     );
   }
 }
+
+class DiscountCode {
+  final String code;
+  final String codeFullName;
+
+  DiscountCode({required this.code, required this.codeFullName});
+
+  factory DiscountCode.fromJson(Map<String, dynamic> json) => DiscountCode(
+    code: json['code'] ?? '',
+    codeFullName: json['codeFullName'] ?? '',
+  );
+}

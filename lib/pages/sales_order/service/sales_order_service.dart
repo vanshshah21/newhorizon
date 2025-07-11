@@ -62,6 +62,14 @@ class SalesOrderService {
     final response = await _dio.post('http://$url$endpoint', data: body);
     debugPrint('Sales Order Response: ${response}');
     if (response.statusCode == 200 && response.data['success'] == true) {
+      await StorageUtils.writeJson(
+        'salesPolicy',
+        response.data['data']['salesPolicy'][0],
+      );
+      debugPrint('Sales Policy: ${response.data['data']['salesPolicy'][0]}');
+      debugPrint(
+        'Sales Policy LocalStorage: ${await StorageUtils.readJson('salesPolicy')}',
+      );
       final List<dynamic> data = response.data['data']?['solist'] ?? [];
       return data.map((e) => SalesOrder.fromJson(e)).toList();
     } else {

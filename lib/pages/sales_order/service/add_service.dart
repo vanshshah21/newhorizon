@@ -75,7 +75,7 @@ class SalesOrderService {
 
   // --- API Methods ---
 
-  Future<DocumentDetail> fetchDefaultDocumentDetail(String type) async {
+  Future<Map<String, dynamic>> fetchDefaultDocumentDetail(String type) async {
     String endpoint = "/api/Lead/GetDefaultDocumentDetail";
     final year = financeDetails['financialYear'];
     final locationId = locationDetails['id'];
@@ -90,7 +90,7 @@ class SalesOrderService {
           "locationId": locationId,
         },
       );
-      return DocumentDetail.fromJson(response.data['data'][0]);
+      return response.data['data'][0];
     } catch (e) {
       throw Exception("Failed to fetch document detail: $e");
     }
@@ -209,6 +209,16 @@ class SalesOrderService {
       return data.map((item) => RateStructure.fromJson(item)).toList();
     } catch (e) {
       throw Exception("Failed to fetch rate structures: $e");
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> fetchOAFGroupCodes() async {
+    const endpoint = "/api/SalesOrder/GetOAFGroupList";
+    try {
+      final response = await _dio.get("$_baseUrl$endpoint");
+      return List<Map<String, dynamic>>.from(response.data['data'] ?? []);
+    } catch (e) {
+      throw Exception("Failed to fetch OAF group codes: $e");
     }
   }
 

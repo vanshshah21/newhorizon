@@ -636,17 +636,20 @@ class _EditItemPageState extends State<EditItemPage> {
     discountType = widget.item.discountType;
     selectedRateStructure = widget.item.rateStructure;
 
-    // Set discount code if available
+    // Set discount code if available - FIX: Better null safety and validation
     if (widget.item.discountCode != null &&
-        widget.item.discountCode!.isNotEmpty) {
-      selectedDiscountCode = discountCodes.firstWhere(
-        (code) => code.code == widget.item.discountCode,
-        orElse:
-            () =>
-                discountCodes.isNotEmpty
-                    ? discountCodes.first
-                    : DiscountCode(code: '', description: '', codeFullName: ''),
-      );
+        widget.item.discountCode!.isNotEmpty &&
+        discountCodes.isNotEmpty) {
+      final matchingCode =
+          discountCodes
+              .where((code) => code.code == widget.item.discountCode)
+              .toList();
+
+      if (matchingCode.isNotEmpty) {
+        selectedDiscountCode = matchingCode.first;
+      } else if (discountCodes.isNotEmpty) {
+        selectedDiscountCode = discountCodes.first;
+      }
     } else if (discountCodes.isNotEmpty) {
       selectedDiscountCode = discountCodes.first;
     }
@@ -692,9 +695,24 @@ class _EditItemPageState extends State<EditItemPage> {
     setState(() => _isLoading = false);
   }
 
+  // Future<void> _loadDiscountCodes() async {
+  //   try {
+  //     discountCodes = await widget.service.fetchDiscountCodes();
+  //   } catch (e) {
+  //     print("Error loading discount codes: $e");
+  //     discountCodes = [];
+  //   }
+  // }
   Future<void> _loadDiscountCodes() async {
     try {
       discountCodes = await widget.service.fetchDiscountCodes();
+
+      // Remove any potential duplicates based on code
+      final Map<String, DiscountCode> uniqueCodes = {};
+      for (final code in discountCodes) {
+        uniqueCodes[code.code] = code;
+      }
+      discountCodes = uniqueCodes.values.toList();
     } catch (e) {
       print("Error loading discount codes: $e");
       discountCodes = [];
@@ -711,6 +729,21 @@ class _EditItemPageState extends State<EditItemPage> {
     super.dispose();
   }
 
+  // bool _formIsDirty() {
+  //   return _formDirty ||
+  //       itemNameController.text != widget.item.itemName ||
+  //       qtyController.text != widget.item.qty.toString() ||
+  //       basicRateController.text != widget.item.basicRate.toString() ||
+  //       discountType != widget.item.discountType ||
+  //       selectedRateStructure != widget.item.rateStructure ||
+  //       selectedDiscountCode?.code != widget.item.discountCode ||
+  //       (discountType == "Percentage" &&
+  //           discountPercentageController.text !=
+  //               (widget.item.discountPercentage?.toString() ?? '')) ||
+  //       (discountType == "Value" &&
+  //           discountAmountController.text !=
+  //               (widget.item.discountAmount?.toString() ?? ''));
+  // }
   bool _formIsDirty() {
     return _formDirty ||
         itemNameController.text != widget.item.itemName ||
@@ -718,7 +751,8 @@ class _EditItemPageState extends State<EditItemPage> {
         basicRateController.text != widget.item.basicRate.toString() ||
         discountType != widget.item.discountType ||
         selectedRateStructure != widget.item.rateStructure ||
-        selectedDiscountCode?.code != widget.item.discountCode ||
+        (selectedDiscountCode?.code ?? '') !=
+            (widget.item.discountCode ?? '') ||
         (discountType == "Percentage" &&
             discountPercentageController.text !=
                 (widget.item.discountPercentage?.toString() ?? '')) ||

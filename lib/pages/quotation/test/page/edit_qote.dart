@@ -1,1016 +1,14 @@
-// import 'package:flutter/material.dart';
-// import 'package:flutter_typeahead/flutter_typeahead.dart';
-// import 'package:nhapp/pages/quotation/test/model/model_ad_qote.dart';
-// import 'package:nhapp/pages/quotation/test/page/ad_itm.dart';
-// import 'package:nhapp/pages/quotation/test/page/edit_item.dart';
-// import 'package:nhapp/pages/quotation/test/service/qote_service.dart';
-// import 'package:nhapp/utils/format_utils.dart';
-// import 'package:nhapp/utils/storage_utils.dart';
-// import 'package:file_picker/file_picker.dart';
-
-// class EditQuotationPage extends StatefulWidget {
-//   final String quotationNumber;
-//   final String quotationYear;
-//   final String? quotationGrp;
-//   final int? quotationSiteId;
-
-//   const EditQuotationPage({
-//     super.key,
-//     required this.quotationNumber,
-//     required this.quotationYear,
-//     required this.quotationGrp,
-//     required this.quotationSiteId,
-//   });
-
-//   @override
-//   State<EditQuotationPage> createState() => _EditQuotationPageState();
-// }
-
-// class _EditQuotationPageState extends State<EditQuotationPage> {
-//   late QuotationService _service;
-//   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-
-//   final TextEditingController dateController = TextEditingController();
-//   final TextEditingController customerController = TextEditingController();
-//   final TextEditingController billToController = TextEditingController();
-//   final TextEditingController subjectController = TextEditingController();
-
-//   QuotationBase? selectedQuotationBase;
-//   List<QuotationBase> quotationBases = [];
-//   DateTime? selectedDate;
-//   Customer? selectedCustomer;
-//   Customer? selectedBillToCustomer;
-//   Salesman? selectedSalesman;
-//   List<Salesman> salesmanList = [];
-//   List<RateStructure> rateStructures = [];
-//   List<QuotationItem> items = [];
-//   List<PlatformFile> attachments = [];
-//   DocumentDetail? documentDetail;
-//   List<Inquiry> inquiryList = [];
-//   Inquiry? selectedInquiry;
-//   QuotationEditData? originalData;
-//   bool _isLoading = true;
-//   bool _submitting = false;
-//   DateTime? startDate;
-//   DateTime? endDate;
-//   late Map<String, dynamic>? _financeDetails;
-//   bool _isDuplicateAllowed = false;
-//   late double _exchangeRate;
-
-//   @override
-//   void initState() {
-//     super.initState();
-//     _initializeForm();
-//   }
-
-//   Future<void> _initializeForm() async {
-//     _service = await QuotationService.create();
-//     await _loadFinancePeriod();
-//     await _loadQuotationBases();
-//     await _loadRateStructures();
-//     await _loadSalesmanList();
-//     await _loadDocumentDetail();
-//     await _loadQuotationData();
-//     await _loadSalesPolicy();
-//     await _getExchangeRate();
-//     setState(() => _isLoading = false);
-//   }
-
-//   Future<void> _getExchangeRate() async {
-//     try {
-//       _exchangeRate = await _service.getExchangeRate() ?? 1.0;
-//     } catch (e) {
-//       debugPrint("Error loading exchange rate: $e");
-//       _exchangeRate = 1.0; // Default to 1.0 if there's an error
-//     }
-//   }
-
-//   Future<void> _loadSalesPolicy() async {
-//     try {
-//       final salesPolicy = await _service.getSalesPolicy();
-//       _isDuplicateAllowed =
-//           salesPolicy['allowduplictae'] ??
-//           salesPolicy['allowduplicate'] ??
-//           false;
-//     } catch (e) {
-//       debugPrint("Error loading sales policy: $e");
-//       _isDuplicateAllowed = false; // Default to not allowing duplicates
-//     }
-//   }
-
-//   Future<void> _loadFinancePeriod() async {
-//     _financeDetails = await StorageUtils.readJson('finance_period');
-//     if (_financeDetails != null) {
-//       startDate = DateTime.parse(_financeDetails!['periodSDt']);
-//       endDate = DateTime.parse(_financeDetails!['periodEDt']);
-//     }
-//   }
-
-//   Future<void> _loadQuotationBases() async {
-//     quotationBases = await _service.fetchQuotationBaseList();
-//   }
-
-//   Future<void> _loadRateStructures() async {
-//     rateStructures = await _service.fetchRateStructures();
-//   }
-
-//   Future<void> _loadSalesmanList() async {
-//     salesmanList = await _service.fetchSalesmanList();
-//   }
-
-//   Future<void> _loadDocumentDetail() async {
-//     documentDetail = await _service.fetchDefaultDocumentDetail("SQ");
-//   }
-
-//   Future<void> _loadQuotationData() async {
-//     try {
-//       originalData = await _service.fetchQuotationForEdit(
-//         widget.quotationNumber,
-//         widget.quotationYear,
-//         widget.quotationGrp,
-//         widget.quotationSiteId,
-//       );
-
-//       if (originalData?.quotationDetails?.isNotEmpty == true) {
-//         final quotationDetail = originalData!.quotationDetails!.first;
-
-//         // Populate form with existing data
-//         selectedDate = DateTime.parse(quotationDetail['quotationDate']);
-//         dateController.text = FormatUtils.formatDateForUser(selectedDate!);
-//         subjectController.text = quotationDetail['subject'] ?? '';
-
-//         // Set quotation base (you might need to map this based on your business logic)
-//         if (quotationBases.isNotEmpty) {
-//           selectedQuotationBase =
-//               quotationBases.first; // or find based on some criteria
-//         }
-
-//         // Create customer objects
-//         selectedCustomer = Customer(
-//           customerCode: quotationDetail['customerCode'] ?? '',
-//           customerName: quotationDetail['customerName'] ?? '',
-//           gstNumber: quotationDetail['gstNo'] ?? '',
-//           telephoneNo: '',
-//           customerFullName: quotationDetail['customerName'] ?? '',
-//         );
-//         customerController.text = selectedCustomer!.customerName;
-
-//         selectedBillToCustomer = Customer(
-//           customerCode: quotationDetail['billToCustomerCode'] ?? '',
-//           customerName: quotationDetail['billToCustomerName'] ?? '',
-//           gstNumber: '',
-//           telephoneNo: '',
-//           customerFullName: quotationDetail['billToCustomerName'] ?? '',
-//         );
-//         billToController.text = selectedBillToCustomer!.customerName;
-
-//         // Set salesman
-//         selectedSalesman = salesmanList.firstWhere(
-//           (s) => s.salesmanCode == quotationDetail['salesPersonCode'],
-//           orElse:
-//               () =>
-//                   salesmanList.isNotEmpty
-//                       ? salesmanList.first
-//                       : Salesman(
-//                         salesmanCode: '',
-//                         salesmanName: '',
-//                         salesManFullName: 'Not Found',
-//                       ),
-//         );
-
-//         // Set inquiry if applicable
-//         final inquiryId = quotationDetail['inquiryId'] ?? 0;
-//         if (inquiryId > 0) {
-//           selectedInquiry = Inquiry(
-//             inquiryNumber: quotationDetail['inquiryNumber'] ?? '',
-//             inquiryId: inquiryId,
-//             customerName: quotationDetail['customerName'] ?? '',
-//           );
-//         }
-
-//         // Process model details (items)
-//         items.clear();
-//         if (originalData!.modelDetails?.isNotEmpty == true) {
-//           for (int i = 0; i < originalData!.modelDetails!.length; i++) {
-//             final modelDetail = originalData!.modelDetails![i];
-
-//             // Calculate discount details
-//             String discountType = "None";
-//             double? discountPercentage;
-//             double? discountAmount =
-//                 modelDetail['discountAmt']?.toDouble() ?? 0.0;
-
-//             if (discountAmount! > 0) {
-//               final basicAmount =
-//                   (modelDetail['basicPriceSUOM']?.toDouble() ?? 0.0) *
-//                   (modelDetail['qtySUOM']?.toDouble() ?? 0.0);
-//               if (basicAmount > 0) {
-//                 discountType = "Value";
-//                 discountPercentage = (discountAmount / basicAmount) * 100;
-//               }
-//             }
-
-//             // Get rate structure details for this item
-//             final itemRateStructureDetails =
-//                 originalData!.rateStructureDetails
-//                     ?.where((rs) => rs['lineNo'] == modelDetail['itemLineNo'])
-//                     .toList() ??
-//                 [];
-
-//             // Calculate tax amount from rate structure details
-//             double taxAmount = 0.0;
-//             for (final rsDetail in itemRateStructureDetails) {
-//               taxAmount += (rsDetail['rateAmount']?.toDouble() ?? 0.0);
-//             }
-
-//             // Calculate correct total amount using the same logic as ad_qote
-//             final basicAmount =
-//                 (modelDetail['basicPriceSUOM']?.toDouble() ?? 0.0) *
-//                 (modelDetail['qtySUOM']?.toDouble() ?? 0.0);
-//             final netAmount = basicAmount - discountAmount;
-//             final totalAmount = netAmount + taxAmount;
-
-//             final item = QuotationItem(
-//               itemName: modelDetail['salesItemDesc'] ?? '',
-//               itemCode: modelDetail['salesItemCode'] ?? '',
-//               qty: modelDetail['qtySUOM']?.toDouble() ?? 0.0,
-//               basicRate: modelDetail['basicPriceSUOM']?.toDouble() ?? 0.0,
-//               uom: modelDetail['uom'] ?? 'NOS',
-//               discountType: discountType,
-//               discountPercentage: discountPercentage,
-//               discountAmount: discountAmount > 0 ? discountAmount : null,
-//               rateStructure: modelDetail['rateStructureCode'] ?? '',
-//               taxAmount: taxAmount,
-//               totalAmount: totalAmount, // Use calculated total amount
-//               rateStructureRows:
-//                   itemRateStructureDetails.isNotEmpty
-//                       ? List<Map<String, dynamic>>.from(
-//                         itemRateStructureDetails,
-//                       )
-//                       : null,
-//               lineNo: modelDetail['itemLineNo'] ?? (i + 1),
-//               hsnCode: modelDetail['hsnCode'] ?? '',
-//               isFromInquiry: (quotationDetail['inquiryId'] ?? 0) > 0,
-//             );
-
-//             items.add(item);
-//           }
-//         }
-
-//         setState(() {});
-//       }
-//     } catch (e) {
-//       if (mounted) {
-//         ScaffoldMessenger.of(context).showSnackBar(
-//           SnackBar(
-//             content: Text("Error loading quotation: ${e.toString()}"),
-//             backgroundColor: Colors.red,
-//           ),
-//         );
-//       }
-//     }
-//   }
-
-//   Future<void> _onCustomerSelected(Customer customer) async {
-//     setState(() {
-//       selectedCustomer = customer;
-//       customerController.text = customer.customerName;
-//       selectedSalesman = _findSalesmanForCustomer(customer);
-//     });
-//   }
-
-//   Future<void> _onBillToSelected(Customer customer) async {
-//     setState(() {
-//       selectedBillToCustomer = customer;
-//       billToController.text = customer.customerName;
-//     });
-//   }
-
-//   Salesman _findSalesmanForCustomer(Customer customer) {
-//     return salesmanList.firstWhere(
-//       (s) => s.salesmanCode == customer.customerCode,
-//       orElse:
-//           () =>
-//               salesmanList.isNotEmpty ? salesmanList.first : selectedSalesman!,
-//     );
-//   }
-
-//   Future<void> _showAddItemPage() async {
-//     final result = await Navigator.push<QuotationItem>(
-//       context,
-//       MaterialPageRoute(
-//         builder:
-//             (context) => AddItemPage(
-//               rateStructures: rateStructures,
-//               service: _service,
-//               existingItems: items, // Pass existing items
-//               isDuplicateAllowed: _isDuplicateAllowed, // Pass duplicate flag
-//             ),
-//       ),
-//     );
-//     if (result != null) {
-//       setState(() {
-//         result.lineNo = items.length + 1;
-//         items.add(result);
-//       });
-//     }
-//   }
-
-//   Future<void> _showEditItemPage(QuotationItem item, int index) async {
-//     // Create a list of existing items excluding the one being edited
-//     final existingItemsForEdit = List<QuotationItem>.from(items);
-//     existingItemsForEdit.removeAt(index);
-
-//     final result = await Navigator.push<QuotationItem>(
-//       context,
-//       MaterialPageRoute(
-//         builder:
-//             (context) => EditItemPage(
-//               rateStructures: rateStructures,
-//               item: item,
-//               service: _service,
-//               existingItems: existingItemsForEdit,
-//               isDuplicateAllowed: _isDuplicateAllowed,
-//             ),
-//       ),
-//     );
-
-//     if (result != null) {
-//       setState(() {
-//         // Update the item at the specific index
-//         items[index] = result;
-//         // Ensure line numbers are correct
-//         for (int i = 0; i < items.length; i++) {
-//           items[i].lineNo = i + 1;
-//         }
-//       });
-//       // Force a rebuild to update the totals display
-//       print(
-//         "Item updated - Tax Amount: ${result.taxAmount}, Total: ${result.totalAmount}",
-//       );
-//     }
-//   }
-
-//   void _removeItem(int index) {
-//     setState(() {
-//       items.removeAt(index);
-//       // Re-assign line numbers
-//       for (int i = 0; i < items.length; i++) {
-//         items[i].lineNo = i + 1;
-//       }
-//     });
-//   }
-
-//   // Use the exact same calculation methods as ad_qote.dart
-//   double _calculateTotalBasic() {
-//     return items.fold(0.0, (sum, item) => sum + (item.basicRate * item.qty));
-//   }
-
-//   double _calculateTotalDiscount() {
-//     return items.fold(0.0, (sum, item) => sum + (item.discountAmount ?? 0.0));
-//   }
-
-//   double _calculateTotalTax() {
-//     return items.fold(0.0, (sum, item) => sum + (item.taxAmount ?? 0.0));
-//   }
-
-//   double _calculateTotalAmount() {
-//     return items.fold(0.0, (sum, item) => sum + item.totalAmount);
-//   }
-
-//   Future<void> _pickFiles() async {
-//     final result = await FilePicker.platform.pickFiles(allowMultiple: true);
-//     if (result != null) {
-//       setState(() {
-//         attachments.addAll(result.files);
-//       });
-//     }
-//   }
-
-//   void _removeAttachment(int index) {
-//     setState(() {
-//       attachments.removeAt(index);
-//     });
-//   }
-
-//   Map<String, dynamic> _buildUpdatePayload() {
-//     final userId = _service.tokenDetails['user']['id'] ?? 0;
-//     final locationId = _service.locationDetails['id'] ?? 0;
-//     final locationCode = _service.locationDetails['code'] ?? "";
-//     final companyCode = _service.companyDetails['code'] ?? "";
-//     final companyId = _service.companyId;
-//     final docYear = _financeDetails?['financialYear'] ?? "";
-
-//     // Build model details
-//     List<Map<String, dynamic>> modelDetails = [];
-//     List<Map<String, dynamic>> discountDetails = [];
-//     List<Map<String, dynamic>> rateStructureDetails = [];
-
-//     for (int i = 0; i < items.length; i++) {
-//       final item = items[i];
-//       item.lineNo = i + 1;
-
-//       final modelDetail = item.toModelDetail();
-//       modelDetail['customerCode'] = selectedCustomer?.customerCode ?? "";
-//       modelDetail['quotationOrderNumber'] = widget.quotationNumber;
-//       modelDetails.add(modelDetail);
-
-//       final discountDetail = item.toDiscountDetail();
-//       if (discountDetail.isNotEmpty) {
-//         discountDetails.add(discountDetail);
-//       }
-
-//       rateStructureDetails.addAll(item.toRateStructureDetails());
-//     }
-
-//     final totalBasic = _calculateTotalBasic();
-//     final totalDiscount = _calculateTotalDiscount();
-//     final totalTax = _calculateTotalTax();
-//     final totalAfterDiscount = totalBasic - totalDiscount;
-//     final finalAmount = totalAfterDiscount + totalTax;
-
-//     // Get original quotation details
-//     final originalQuotationDetail = originalData?.quotationDetails?.first;
-
-//     return {
-//       "authorizationRequired":
-//           documentDetail?.isAutorisationRequired == true ? "Y" : "N",
-//       "autoNumberRequired": "N", // No auto number for update
-//       "siteRequired": documentDetail?.isLocationRequired == true ? "Y" : "N",
-//       "authorizationDate": FormatUtils.formatDateForApi(
-//         selectedDate ?? DateTime.now(),
-//       ),
-//       "fromLocationId": locationId,
-//       "userId": userId,
-//       "companyId": companyId,
-//       "fromLocationCode": locationCode,
-//       "fromLocationName": _service.locationDetails['name'] ?? "",
-//       "ip": "",
-//       "mac": "",
-//       "domesticCurrencyCode": "INR",
-//       "quotationDetails": {
-//         "customerCode": selectedCustomer?.customerCode ?? "",
-//         "quotationYear":
-//             originalQuotationDetail?['quotationYear'] ?? widget.quotationYear,
-//         "quotationGroup":
-//             originalQuotationDetail?['quotationGroup'] ?? widget.quotationGrp,
-//         "quotationNumber": widget.quotationNumber ?? 0,
-//         "quotationDate": FormatUtils.formatDateForApi(
-//           selectedDate ?? DateTime.now(),
-//         ),
-//         "salesPersonCode": selectedSalesman?.salesmanCode ?? "",
-//         "validity": originalQuotationDetail?['validity'] ?? 30,
-//         "attachFlag": "",
-//         "totalAmounttAfterTaxDomesticCurrency": finalAmount.toStringAsFixed(2),
-//         "totalAmountAfterTaxCustomerCurrency": finalAmount.toStringAsFixed(2),
-//         "totalAmountAfterDiscountCustomerCurrency": totalAfterDiscount
-//             .toStringAsFixed(2),
-//         "exchangeRate": _exchangeRate ?? 1.0,
-//         "discountType": "None",
-//         "discountAmount": "0",
-//         "modValue": 0,
-//         "subject": subjectController.text,
-//         "kindAttentionName": "",
-//         "kindAttentionDesignation": "",
-//         "destination": "",
-//         "authorizedSignatoryName": "",
-//         "authorizedSignatoryDesignation": "",
-//         "customerInqRefNo": "",
-//         "customerInqRefDate": "",
-//         "customerName": selectedCustomer?.customerName ?? "",
-//         "inquiryDate": null,
-//         "quotationSiteId":
-//             originalQuotationDetail?['quotationSiteId'] ?? locationId,
-//         "quotationSiteCode": locationCode,
-//         "quotationId": originalQuotationDetail?['quotationId'] ?? 0,
-//         "inquiryId":
-//             selectedInquiry?.inquiryId ??
-//             originalQuotationDetail?['inquiryId'] ??
-//             0,
-//         "quotationTypeSalesOrder": "REG",
-//         "ProjectItemId": 0,
-//         "ProjectItemCode": "",
-//         "isAgentAssociated": false,
-//         "projectName": "",
-//         "contactEmail": "",
-//         "contactNo": "",
-//         "submittedDate": null,
-//         "isBudgetaryQuotation": false,
-//         "quotationStatus": "NS",
-//         "quotationAmendDate": null,
-//         "currencyCode": "INR",
-//         "agentCode": "",
-//         "quotationTypeConfig": "N",
-//         "reasonCode": "",
-//         "consultantCode": "",
-//         "billToCustomerCode": selectedBillToCustomer?.customerCode ?? "",
-//         "amendmentSrNo": "0",
-//         "xqdbookcd": "",
-//       },
-//       "modelDetails": modelDetails,
-//       "discountDetails": discountDetails,
-//       "rateStructureDetails": rateStructureDetails,
-//       "historyDetails": [],
-//       "noteDetails": [],
-//       "equipmentAttributeDetails": [],
-//       "addOnDetails": [],
-//       "subItemDetails": [],
-//       "standardTerms": [],
-//       "quotationRemarks": [],
-//       "msctechspecifications": true,
-//       "mscSameItemAllowMultitimeFlag": true,
-//     };
-//   }
-
-//   Future<void> _updateQuotation() async {
-//     if (!_formKey.currentState!.validate()) return;
-//     if (selectedCustomer == null) {
-//       _showError("Please select a customer");
-//       return;
-//     }
-//     if (selectedBillToCustomer == null) {
-//       _showError("Please select Bill To customer");
-//       return;
-//     }
-//     if (selectedSalesman == null) {
-//       _showError("Please select a salesman");
-//       return;
-//     }
-//     if (subjectController.text.isEmpty) {
-//       _showError("Please enter subject");
-//       return;
-//     }
-//     if (items.isEmpty) {
-//       _showError("Please add at least one item");
-//       return;
-//     }
-
-//     setState(() => _submitting = true);
-
-//     try {
-//       final payload = _buildUpdatePayload();
-//       final response = await _service.updateQuotation(payload);
-
-//       if (response['success'] == true) {
-//         // Upload attachments if any
-//         if (attachments.isNotEmpty) {
-//           final docYear = _financeDetails?['financialYear'] ?? "";
-
-//           final uploadSuccess = await _service.uploadAttachments(
-//             filePaths: attachments.map((f) => f.path!).toList(),
-//             documentNo: widget.quotationNumber,
-//             documentId: "SQ",
-//             docYear: docYear,
-//             formId: "QUOTATION",
-//             locationCode: _service.locationDetails['code'] ?? "",
-//             companyCode: _service.companyDetails['code'] ?? "",
-//             locationId: _service.locationDetails['id'] ?? 0,
-//             companyId: _service.companyId,
-//             userId: _service.tokenDetails['user']['id'] ?? 0,
-//           );
-
-//           if (!uploadSuccess) {
-//             _showError("Quotation updated, but attachment upload failed!");
-//           }
-//         }
-
-//         _showSuccess(response['message'] ?? "Quotation updated successfully");
-//         Navigator.pop(context, true);
-//       } else {
-//         _showError(response['errorMessage'] ?? "Failed to update quotation");
-//       }
-//     } catch (e) {
-//       _showError("Error during update: ${e.toString()}");
-//     } finally {
-//       setState(() => _submitting = false);
-//     }
-//   }
-
-//   void _showError(String message) {
-//     ScaffoldMessenger.of(context).showSnackBar(
-//       SnackBar(content: Text(message), backgroundColor: Colors.red),
-//     );
-//   }
-
-//   void _showSuccess(String message) {
-//     ScaffoldMessenger.of(context).showSnackBar(
-//       SnackBar(content: Text(message), backgroundColor: Colors.green),
-//     );
-//   }
-
-//   @override
-//   void dispose() {
-//     dateController.dispose();
-//     customerController.dispose();
-//     billToController.dispose();
-//     subjectController.dispose();
-//     super.dispose();
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       appBar: AppBar(
-//         title: Text("Edit Quotation #${widget.quotationNumber}"),
-//         elevation: 1,
-//       ),
-//       body:
-//           _isLoading
-//               ? const Center(child: CircularProgressIndicator())
-//               : Form(
-//                 key: _formKey,
-//                 child: SingleChildScrollView(
-//                   padding: const EdgeInsets.all(16),
-//                   child: Column(
-//                     crossAxisAlignment: CrossAxisAlignment.start,
-//                     children: [
-//                       _buildQuotationInfoCard(),
-//                       const SizedBox(height: 16),
-//                       _buildDateField(),
-//                       const SizedBox(height: 16),
-//                       _buildCustomerField(),
-//                       const SizedBox(height: 16),
-//                       _buildBillToField(),
-//                       const SizedBox(height: 16),
-//                       _buildSalesmanDropdown(),
-//                       const SizedBox(height: 16),
-//                       _buildSubjectField(),
-//                       const SizedBox(height: 16),
-//                       if (items.isNotEmpty) ...[
-//                         _buildItemsList(),
-//                         const SizedBox(height: 16),
-//                       ],
-//                       _buildAddItemButton(),
-//                       if (items.isNotEmpty) ...[
-//                         const SizedBox(height: 16),
-//                         _buildTotalCard(),
-//                       ],
-//                       const SizedBox(height: 24),
-//                       _buildAttachmentSection(),
-//                       const SizedBox(height: 24),
-//                       _buildUpdateButton(),
-//                     ],
-//                   ),
-//                 ),
-//               ),
-//     );
-//   }
-
-//   Widget _buildQuotationInfoCard() {
-//     return Card(
-//       child: Padding(
-//         padding: const EdgeInsets.all(16),
-//         child: Column(
-//           crossAxisAlignment: CrossAxisAlignment.start,
-//           children: [
-//             const Text(
-//               "Quotation Information",
-//               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-//             ),
-//             const SizedBox(height: 8),
-//             Text("Number: ${widget.quotationNumber}"),
-//             Text("Year: ${widget.quotationYear}"),
-//             Text("Base: ${originalData?.quotationBase ?? 'N/A'}"),
-//             if (originalData?.inquiryNumber.isNotEmpty == true)
-//               Text("Inquiry: ${originalData!.inquiryNumber}"),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-
-//   Widget _buildDateField() {
-//     return TextFormField(
-//       controller: dateController,
-//       decoration: const InputDecoration(
-//         labelText: "Date",
-//         suffixIcon: Icon(Icons.calendar_today),
-//         border: OutlineInputBorder(),
-//       ),
-//       readOnly: true,
-//       enabled: !_submitting,
-//       onTap:
-//           _submitting
-//               ? null
-//               : () async {
-//                 final picked = await showDatePicker(
-//                   context: context,
-//                   initialDate: selectedDate ?? DateTime.now(),
-//                   firstDate: startDate ?? DateTime(2000),
-//                   lastDate: endDate ?? DateTime.now(),
-//                 );
-//                 if (picked != null) {
-//                   setState(() {
-//                     selectedDate = picked;
-//                     dateController.text = FormatUtils.formatDateForUser(picked);
-//                   });
-//                 }
-//               },
-//       validator:
-//           (val) => val == null || val.isEmpty ? "Date is required" : null,
-//     );
-//   }
-
-//   Widget _buildCustomerField() {
-//     return TypeAheadField<Customer>(
-//       debounceDuration: const Duration(milliseconds: 400),
-//       controller: customerController,
-//       builder: (context, controller, focusNode) {
-//         return TextFormField(
-//           controller: controller,
-//           focusNode: focusNode,
-//           enabled: !_submitting,
-//           decoration: const InputDecoration(
-//             labelText: "Customer Name",
-//             border: OutlineInputBorder(),
-//           ),
-//           validator:
-//               (val) =>
-//                   val == null || val.isEmpty
-//                       ? "Customer Name is required"
-//                       : null,
-//         );
-//       },
-//       suggestionsCallback:
-//           _submitting
-//               ? (pattern) async => []
-//               : (pattern) async {
-//                 if (pattern.length < 4) return [];
-//                 try {
-//                   return await _service.fetchCustomerSuggestions(pattern);
-//                 } catch (e) {
-//                   return [];
-//                 }
-//               },
-//       itemBuilder: (context, suggestion) {
-//         return ListTile(
-//           title: Text(suggestion.customerName),
-//           subtitle: Text(suggestion.customerCode),
-//         );
-//       },
-//       onSelected: _submitting ? null : _onCustomerSelected,
-//     );
-//   }
-
-//   Widget _buildBillToField() {
-//     return TypeAheadField<Customer>(
-//       debounceDuration: const Duration(milliseconds: 400),
-//       controller: billToController,
-//       builder: (context, controller, focusNode) {
-//         return TextFormField(
-//           controller: controller,
-//           focusNode: focusNode,
-//           enabled: !_submitting,
-//           decoration: const InputDecoration(
-//             labelText: "Bill To",
-//             border: OutlineInputBorder(),
-//           ),
-//           validator:
-//               (val) =>
-//                   val == null || val.isEmpty ? "Bill To is required" : null,
-//         );
-//       },
-//       suggestionsCallback:
-//           _submitting
-//               ? (pattern) async => []
-//               : (pattern) async {
-//                 if (pattern.length < 4) return [];
-//                 try {
-//                   return await _service.fetchCustomerSuggestions(pattern);
-//                 } catch (e) {
-//                   return [];
-//                 }
-//               },
-//       itemBuilder: (context, suggestion) {
-//         return ListTile(
-//           title: Text(suggestion.customerName),
-//           subtitle: Text(suggestion.customerCode),
-//         );
-//       },
-//       onSelected: _submitting ? null : _onBillToSelected,
-//     );
-//   }
-
-//   Widget _buildSalesmanDropdown() {
-//     return DropdownButtonFormField<Salesman>(
-//       decoration: const InputDecoration(
-//         labelText: "Salesman",
-//         border: OutlineInputBorder(),
-//       ),
-//       value: selectedSalesman,
-//       items:
-//           salesmanList
-//               .map(
-//                 (s) => DropdownMenuItem<Salesman>(
-//                   value: s,
-//                   child: Text(s.salesManFullName),
-//                 ),
-//               )
-//               .toList(),
-//       onChanged:
-//           _submitting
-//               ? null
-//               : (val) {
-//                 setState(() {
-//                   selectedSalesman = val;
-//                 });
-//               },
-//       validator: (val) => val == null ? "Salesman is required" : null,
-//     );
-//   }
-
-//   Widget _buildSubjectField() {
-//     return TextFormField(
-//       controller: subjectController,
-//       enabled: !_submitting,
-//       decoration: const InputDecoration(
-//         labelText: "Subject",
-//         border: OutlineInputBorder(),
-//       ),
-//       validator:
-//           (val) => val == null || val.isEmpty ? "Subject is required" : null,
-//     );
-//   }
-
-//   Widget _buildAddItemButton() {
-//     return SizedBox(
-//       width: double.infinity,
-//       child: ElevatedButton.icon(
-//         onPressed: _submitting ? null : _showAddItemPage,
-//         icon: const Icon(Icons.add),
-//         label: const Text("Add New Item"),
-//       ),
-//     );
-//   }
-
-//   Widget _buildItemsList() {
-//     return Column(
-//       crossAxisAlignment: CrossAxisAlignment.start,
-//       children: [
-//         const Text(
-//           "Items:",
-//           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-//         ),
-//         const SizedBox(height: 8),
-//         ListView.builder(
-//           shrinkWrap: true,
-//           physics: const NeverScrollableScrollPhysics(),
-//           itemCount: items.length,
-//           itemBuilder: (context, index) {
-//             final item = items[index];
-//             return Card(
-//               child: ListTile(
-//                 title: Text(item.itemName),
-//                 subtitle: Text(
-//                   "Qty: ${item.qty} ${item.uom}\nRate: ₹${item.basicRate.toStringAsFixed(2)}\nTotal: ₹${item.totalAmount.toStringAsFixed(2)}",
-//                 ),
-//                 trailing: Row(
-//                   mainAxisSize: MainAxisSize.min,
-//                   children: [
-//                     IconButton(
-//                       icon: const Icon(Icons.edit, color: Colors.blue),
-//                       onPressed:
-//                           _submitting
-//                               ? null
-//                               : () => _showEditItemPage(item, index),
-//                     ),
-//                     IconButton(
-//                       icon: const Icon(Icons.delete, color: Colors.red),
-//                       onPressed: _submitting ? null : () => _removeItem(index),
-//                     ),
-//                   ],
-//                 ),
-//               ),
-//             );
-//           },
-//         ),
-//       ],
-//     );
-//   }
-
-//   Widget _buildTotalCard() {
-//     final totalBasic = _calculateTotalBasic();
-//     final totalDiscount = _calculateTotalDiscount();
-//     final totalTax = _calculateTotalTax();
-//     final netAmount = totalBasic - totalDiscount;
-//     final finalAmount = netAmount + totalTax;
-
-//     return Card(
-//       child: Padding(
-//         padding: const EdgeInsets.all(16),
-//         child: Column(
-//           crossAxisAlignment: CrossAxisAlignment.start,
-//           children: [
-//             const Text(
-//               "Total Summary",
-//               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-//             ),
-//             const SizedBox(height: 12),
-//             Row(
-//               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//               children: [
-//                 const Text("Basic Amount:"),
-//                 Text("₹${totalBasic.toStringAsFixed(2)}"),
-//               ],
-//             ),
-//             Row(
-//               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//               children: [
-//                 const Text("Discount Value:"),
-//                 Text("₹${totalDiscount.toStringAsFixed(2)}"),
-//               ],
-//             ),
-//             Row(
-//               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//               children: [
-//                 const Text("Net Amount:"),
-//                 Text("₹${netAmount.toStringAsFixed(2)}"),
-//               ],
-//             ),
-//             Row(
-//               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//               children: [
-//                 const Text("Tax Amount:"),
-//                 Text("₹${totalTax.toStringAsFixed(2)}"),
-//               ],
-//             ),
-//             const Divider(),
-//             Row(
-//               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//               children: [
-//                 const Text(
-//                   "Total Amount:",
-//                   style: TextStyle(fontWeight: FontWeight.bold),
-//                 ),
-//                 Text(
-//                   "₹${finalAmount.toStringAsFixed(2)}",
-//                   style: const TextStyle(fontWeight: FontWeight.bold),
-//                 ),
-//               ],
-//             ),
-//           ],
-//         ),
-//       ),
-//     );
-//   }
-
-//   Widget _buildAttachmentSection() {
-//     return Column(
-//       crossAxisAlignment: CrossAxisAlignment.start,
-//       children: [
-//         Row(
-//           children: [
-//             ElevatedButton.icon(
-//               onPressed: _submitting ? null : _pickFiles,
-//               icon: const Icon(Icons.attach_file),
-//               label: const Text('Add Attachment'),
-//             ),
-//             const SizedBox(width: 8),
-//             Text('${attachments.length} file(s) selected'),
-//           ],
-//         ),
-//         ...attachments.asMap().entries.map((entry) {
-//           final idx = entry.key;
-//           final file = entry.value;
-//           return ListTile(
-//             title: Text(file.name),
-//             trailing: IconButton(
-//               icon: const Icon(Icons.delete),
-//               onPressed: _submitting ? null : () => _removeAttachment(idx),
-//             ),
-//           );
-//         }),
-//       ],
-//     );
-//   }
-
-//   Widget _buildUpdateButton() {
-//     return SizedBox(
-//       width: double.infinity,
-//       child: ElevatedButton(
-//         onPressed: _submitting ? null : _updateQuotation,
-//         child:
-//             _submitting
-//                 ? const SizedBox(
-//                   width: 16,
-//                   height: 16,
-//                   child: CircularProgressIndicator(strokeWidth: 2),
-//                 )
-//                 : const Text("Update Quotation"),
-//       ),
-//     );
-//   }
-// }
-
 import 'package:flutter/material.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:nhapp/pages/quotation/test/model/model_ad_qote.dart';
 import 'package:nhapp/pages/quotation/test/page/ad_itm.dart';
 import 'package:nhapp/pages/quotation/test/page/edit_item.dart';
 import 'package:nhapp/pages/quotation/test/service/qote_service.dart';
+import 'package:nhapp/pages/quotation/test/service/quote_attachment.dart';
 import 'package:nhapp/utils/format_utils.dart';
 import 'package:nhapp/utils/storage_utils.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:dio/dio.dart';
 
 class EditQuotationPage extends StatefulWidget {
   final String quotationNumber;
@@ -1032,6 +30,7 @@ class EditQuotationPage extends StatefulWidget {
 
 class _EditQuotationPageState extends State<EditQuotationPage> {
   late QuotationService _service;
+  late final QuotationAttachmentService _attachmentService;
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   final TextEditingController dateController = TextEditingController();
@@ -1060,10 +59,14 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
   late Map<String, dynamic>? _financeDetails;
   bool _isDuplicateAllowed = false;
   late double _exchangeRate;
+  final List<PlatformFile> _newAttachments = [];
+  final List<Map<String, dynamic>> _editableAttachments = [];
+  String? _documentNo;
 
   @override
   void initState() {
     super.initState();
+    _attachmentService = QuotationAttachmentService(Dio());
     _initializeForm();
   }
 
@@ -1077,6 +80,7 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
     await _loadSalesPolicy();
     await _getExchangeRate();
     await _loadQuotationData();
+    await _loadAttachments();
     setState(() => _isLoading = false);
   }
 
@@ -1126,159 +130,40 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
     documentDetail = await _service.fetchDefaultDocumentDetail("SQ");
   }
 
-  // Future<void> _loadQuotationData() async {
-  //   try {
-  //     originalData = await _service.fetchQuotationForEdit(
-  //       widget.quotationNumber,
-  //       widget.quotationYear,
-  //       widget.quotationGrp,
-  //       widget.quotationSiteId,
-  //     );
+  Future<void> _loadAttachments() async {
+    try {
+      final baseUrl = 'http://${await StorageUtils.readValue('url')}';
+      final docYear = _financeDetails?['financialYear'] ?? "";
+      final groupCode = documentDetail?.groupCode ?? "QA";
+      final locationCode = _service.locationDetails['code'] ?? "";
 
-  //     if (originalData?.quotationDetails?.isNotEmpty == true) {
-  //       final quotationDetail = originalData!.quotationDetails!.first;
+      // Build document number for quotation
+      _documentNo =
+          "$docYear/$groupCode/$locationCode/${widget.quotationNumber}/QUOTATIONENTRY";
 
-  //       // Populate form with existing data
-  //       selectedDate = DateTime.parse(quotationDetail['quotationDate']);
-  //       dateController.text = FormatUtils.formatDateForUser(selectedDate!);
-  //       subjectController.text = quotationDetail['subject'] ?? '';
+      final attachments = await _attachmentService.fetchAttachments(
+        baseUrl: baseUrl,
+        documentNo: _documentNo!,
+        formId: "06103", // Form ID for quotation
+      );
 
-  //       // Set quotation base based on quotation group
-  //       final quotationGroup = quotationDetail['quotationGroup'] ?? '';
-  //       selectedQuotationBase = quotationBases.firstWhere(
-  //         (base) => base.code == quotationGroup,
-  //         orElse:
-  //             () =>
-  //                 quotationBases.isNotEmpty
-  //                     ? quotationBases.first
-  //                     : QuotationBase(code: 'R', name: 'Regular'),
-  //       );
+      setState(() {
+        _editableAttachments.clear();
+        _editableAttachments.addAll(
+          attachments.map(
+            (a) => {
+              'original': a,
+              'action': 'none', // none, delete, replace
+              'replacementFile': null,
+            },
+          ),
+        );
+      });
+    } catch (e) {
+      debugPrint('Error loading attachments: $e');
+    }
+  }
 
-  //       // Create customer objects
-  //       selectedCustomer = Customer(
-  //         customerCode: quotationDetail['customerCode'] ?? '',
-  //         customerName: quotationDetail['customerName'] ?? '',
-  //         gstNumber: quotationDetail['gstNo'] ?? '',
-  //         telephoneNo: '',
-  //         customerFullName: quotationDetail['customerName'] ?? '',
-  //       );
-  //       customerController.text = selectedCustomer!.customerName;
-
-  //       selectedBillToCustomer = Customer(
-  //         customerCode: quotationDetail['billToCustomerCode'] ?? '',
-  //         customerName: quotationDetail['billToCustomerName'] ?? '',
-  //         gstNumber: '',
-  //         telephoneNo: '',
-  //         customerFullName: quotationDetail['billToCustomerName'] ?? '',
-  //       );
-  //       billToController.text = selectedBillToCustomer!.customerName;
-
-  //       // Set salesman
-  //       selectedSalesman = salesmanList.firstWhere(
-  //         (s) => s.salesmanCode == quotationDetail['salesPersonCode'],
-  //         orElse:
-  //             () =>
-  //                 salesmanList.isNotEmpty
-  //                     ? salesmanList.first
-  //                     : Salesman(
-  //                       salesmanCode: '',
-  //                       salesmanName: '',
-  //                       salesManFullName: 'Not Found',
-  //                     ),
-  //       );
-
-  //       // Set inquiry if applicable
-  //       final inquiryId = quotationDetail['inquiryId'] ?? 0;
-  //       if (inquiryId > 0) {
-  //         selectedInquiry = Inquiry(
-  //           inquiryNumber: quotationDetail['inquiryNumber'] ?? '',
-  //           inquiryId: inquiryId,
-  //           customerName: quotationDetail['customerName'] ?? '',
-  //         );
-  //       }
-
-  //       // Process model details (items) - use the EXACT same logic as ad_qote.dart
-  //       items.clear();
-  //       if (originalData!.modelDetails?.isNotEmpty == true) {
-  //         for (int i = 0; i < originalData!.modelDetails!.length; i++) {
-  //           final modelDetail = originalData!.modelDetails![i];
-
-  //           // Calculate discount details
-  //           String discountType = "None";
-  //           double? discountPercentage;
-  //           double? discountAmount =
-  //               modelDetail['discountAmt']?.toDouble() ?? 0.0;
-
-  //           if (discountAmount! > 0) {
-  //             final basicAmount =
-  //                 (modelDetail['basicPriceSUOM']?.toDouble() ?? 0.0) *
-  //                 (modelDetail['qtySUOM']?.toDouble() ?? 0.0);
-  //             if (basicAmount > 0) {
-  //               discountType = "Value";
-  //               discountPercentage = (discountAmount / basicAmount) * 100;
-  //             }
-  //           }
-
-  //           // Get rate structure details for this item
-  //           final itemRateStructureDetails =
-  //               originalData!.rateStructureDetails
-  //                   ?.where((rs) => rs['lineNo'] == modelDetail['itemLineNo'])
-  //                   .toList() ??
-  //               [];
-
-  //           // Calculate tax amount from rate structure details
-  //           double taxAmount = 0.0;
-  //           for (final rsDetail in itemRateStructureDetails) {
-  //             taxAmount += (rsDetail['rateAmount']?.toDouble() ?? 0.0);
-  //           }
-
-  //           // Calculate correct total amount using the same logic as ad_qote.dart
-  //           final basicAmount =
-  //               (modelDetail['basicPriceSUOM']?.toDouble() ?? 0.0) *
-  //               (modelDetail['qtySUOM']?.toDouble() ?? 0.0);
-  //           final netAmount = basicAmount - discountAmount;
-  //           final totalAmount = netAmount + taxAmount;
-
-  //           final item = QuotationItem(
-  //             itemName: modelDetail['salesItemDesc'] ?? '',
-  //             itemCode: modelDetail['salesItemCode'] ?? '',
-  //             qty: modelDetail['qtySUOM']?.toDouble() ?? 0.0,
-  //             basicRate: modelDetail['basicPriceSUOM']?.toDouble() ?? 0.0,
-  //             uom: modelDetail['uom'] ?? 'NOS',
-  //             discountType: discountType,
-  //             discountPercentage: discountPercentage,
-  //             discountAmount: discountAmount > 0 ? discountAmount : null,
-  //             rateStructure: modelDetail['rateStructureCode'] ?? '',
-  //             taxAmount: taxAmount,
-  //             totalAmount: totalAmount,
-  //             rateStructureRows:
-  //                 itemRateStructureDetails.isNotEmpty
-  //                     ? List<Map<String, dynamic>>.from(
-  //                       itemRateStructureDetails,
-  //                     )
-  //                     : null,
-  //             lineNo: modelDetail['itemLineNo'] ?? (i + 1),
-  //             hsnCode: modelDetail['hsnCode'] ?? '',
-  //             isFromInquiry: (quotationDetail['inquiryId'] ?? 0) > 0,
-  //           );
-
-  //           items.add(item);
-  //         }
-  //       }
-
-  //       setState(() {});
-  //     }
-  //   } catch (e) {
-  //     if (mounted) {
-  //       ScaffoldMessenger.of(context).showSnackBar(
-  //         SnackBar(
-  //           content: Text("Error loading quotation: ${e.toString()}"),
-  //           backgroundColor: Colors.red,
-  //         ),
-  //       );
-  //     }
-  //   }
-  // }
   Future<void> _loadQuotationData() async {
     try {
       originalData = await _service.fetchQuotationForEdit(
@@ -1296,16 +181,37 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
         dateController.text = FormatUtils.formatDateForUser(selectedDate!);
         subjectController.text = quotationDetail['subject'] ?? '';
 
-        // Set quotation base based on quotation group
-        final quotationGroup = quotationDetail['quotationGroup'] ?? '';
-        selectedQuotationBase = quotationBases.firstWhere(
-          (base) => base.code == quotationGroup,
-          orElse:
-              () =>
-                  quotationBases.isNotEmpty
-                      ? quotationBases.first
-                      : QuotationBase(code: 'R', name: 'Regular'),
-        );
+        // Determine quotation base based on inquiryNumber
+        final inquiryNumber = quotationDetail['inquiryNumber'];
+        final hasInquiry = inquiryNumber != null && inquiryNumber != "";
+
+        if (hasInquiry) {
+          // Set to "With Inquiry Reference" if inquiryNumber exists
+          selectedQuotationBase = quotationBases.firstWhere(
+            (base) => base.code == "I",
+            orElse:
+                () =>
+                    quotationBases.isNotEmpty
+                        ? quotationBases.first
+                        : QuotationBase(
+                          code: 'I',
+                          name: 'With Inquiry Reference',
+                        ),
+          );
+        } else {
+          // Set to "Without Inquiry Reference" if inquiryNumber is empty
+          selectedQuotationBase = quotationBases.firstWhere(
+            (base) => base.code == "O",
+            orElse:
+                () =>
+                    quotationBases.isNotEmpty
+                        ? quotationBases.first
+                        : QuotationBase(
+                          code: 'O',
+                          name: 'Without Inquiry Reference',
+                        ),
+          );
+        }
 
         // Create customer objects
         selectedCustomer = Customer(
@@ -1331,14 +237,41 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
           (s) => s.salesmanCode == quotationDetail['salesPersonCode'],
         );
 
-        // Set inquiry if applicable
-        final inquiryId = quotationDetail['inquiryId'] ?? 0;
-        if (inquiryId > 0) {
-          selectedInquiry = Inquiry(
-            inquiryNumber: quotationDetail['inquiryNumber'] ?? '',
-            inquiryId: inquiryId,
-            customerName: quotationDetail['customerName'] ?? '',
-          );
+        // Handle inquiry setup for "I" quotation base
+        if (selectedQuotationBase?.code == "I") {
+          // Load inquiry list for the selected customer
+          if (selectedCustomer != null) {
+            inquiryList = await _service.fetchInquiryList(
+              selectedCustomer!.customerCode,
+            );
+          }
+
+          // Set inquiry if applicable
+          final inquiryId = quotationDetail['inquiryId'];
+          final inquiryNumber = quotationDetail['inquiryNumber'];
+
+          if (inquiryId != null &&
+              inquiryId != 0 &&
+              inquiryNumber != null &&
+              inquiryNumber.isNotEmpty) {
+            // Find the inquiry in the loaded list or create one
+            selectedInquiry = inquiryList.firstWhere(
+              (inq) =>
+                  inq.inquiryId == inquiryId ||
+                  inq.inquiryNumber == inquiryNumber,
+              orElse:
+                  () => Inquiry(
+                    inquiryNumber: inquiryNumber,
+                    inquiryId: inquiryId,
+                    customerName: quotationDetail['customerName'] ?? '',
+                  ),
+            );
+
+            // If not found in list, add it to the list
+            if (!inquiryList.any((inq) => inq.inquiryId == inquiryId)) {
+              inquiryList.add(selectedInquiry!);
+            }
+          }
         }
 
         // Process model details (items) - use the EXACT same logic as ad_qote.dart
@@ -1649,7 +582,7 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
     final result = await FilePicker.platform.pickFiles(allowMultiple: true);
     if (result != null) {
       setState(() {
-        attachments.addAll(result.files);
+        _newAttachments.addAll(result.files);
       });
     }
   }
@@ -1658,6 +591,131 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
     setState(() {
       attachments.removeAt(index);
     });
+  }
+
+  void _removeNewAttachment(int index) {
+    setState(() {
+      _newAttachments.removeAt(index);
+    });
+  }
+
+  void _markAttachmentForDeletion(int index) {
+    setState(() {
+      _editableAttachments[index]['action'] = 'delete';
+    });
+  }
+
+  void _undoAttachmentDeletion(int index) {
+    setState(() {
+      _editableAttachments[index]['action'] = 'none';
+      _editableAttachments[index]['replacementFile'] = null;
+    });
+  }
+
+  Future<void> _replaceAttachment(int index) async {
+    final result = await FilePicker.platform.pickFiles();
+    if (result != null && result.files.isNotEmpty) {
+      setState(() {
+        _editableAttachments[index]['action'] = 'replace';
+        _editableAttachments[index]['replacementFile'] = result.files.first;
+      });
+    }
+  }
+
+  // Attachment API helpers using existing service
+  Future<bool> _deleteAttachment(Map<String, dynamic> attachment) async {
+    final baseUrl = 'http://${await StorageUtils.readValue('url')}';
+    final docYear = _financeDetails?['financialYear'] ?? "";
+
+    return await _attachmentService.deleteAttachment(
+      baseUrl: baseUrl,
+      docYear: docYear,
+      documentNo: _documentNo ?? '',
+      formId: "06103",
+      deletedFileList: [
+        {"sysFileName": attachment['sysFileName'], "id": attachment['id']},
+      ],
+    );
+  }
+
+  Future<bool> _uploadNewAttachments() async {
+    if (_newAttachments.isEmpty) return true;
+
+    try {
+      final companyDetails = await StorageUtils.readJson('selected_company');
+      final locationDetails = await StorageUtils.readJson('selected_location');
+      final companyId = companyDetails['id'];
+      final companyCode = companyDetails['code'];
+      final locationCode = locationDetails['code'];
+      final locationId = locationDetails['id'];
+      final docYear = _financeDetails?['financialYear'] ?? "";
+      final userId = _service.tokenDetails['user']['id'] ?? 0;
+
+      // Get file paths from PlatformFile objects
+      final filePaths =
+          _newAttachments
+              .where((file) => file.path != null)
+              .map((file) => file.path!)
+              .toList();
+
+      if (filePaths.isEmpty) return true;
+      final response = await _attachmentService.uploadAttachments(
+        filePaths: filePaths,
+        documentNo: _documentNo ?? '',
+        documentId:
+            originalData?.quotationDetails?.first['quotationId']?.toString() ??
+            '',
+        docYear: docYear,
+        formId: "06103",
+        locationCode: locationCode,
+        companyCode: companyCode,
+        locationId: locationId,
+        companyId: companyId,
+        userId: userId,
+      );
+      if (response == true) {
+        return true;
+      } else {
+        debugPrint('Failed to upload new attachments');
+        return false;
+      }
+    } catch (e) {
+      debugPrint('Error uploading new attachments: $e');
+      return false;
+    }
+  }
+
+  Future<bool> _uploadSingleFile(PlatformFile file) async {
+    if (file.path == null) return false;
+
+    try {
+      final companyDetails = await StorageUtils.readJson('selected_company');
+      final locationDetails = await StorageUtils.readJson('selected_location');
+      final companyId = companyDetails['id'];
+      final companyCode = companyDetails['code'];
+      final locationCode = locationDetails['code'];
+      final locationId = locationDetails['id'];
+      final docYear = _financeDetails?['financialYear'] ?? "";
+      final userId = _service.tokenDetails['user']['id'] ?? 0;
+
+      return await _attachmentService.uploadAttachments(
+        filePaths: [file.path!],
+        documentNo: _documentNo ?? '',
+        documentId:
+            originalData?.quotationDetails?.first['quotationId']?.toString() ??
+            '',
+        docYear: docYear,
+        formId: "06103",
+        locationCode: locationCode,
+        companyCode: companyCode,
+        locationId: locationId,
+        companyId: companyId,
+        userId: userId,
+      );
+    } catch (e) {
+      debugPrint('Error uploading single file: $e');
+      return false;
+    }
   }
 
   Map<String, dynamic> _buildUpdatePayload() {
@@ -1702,7 +760,12 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
     return {
       "authorizationRequired":
           documentDetail?.isAutorisationRequired == true ? "Y" : "N",
-      "autoNumberRequired": "N", // No auto number for update
+      "autoNumberRequired":
+          documentDetail?.isAutoNumberGenerated == true ||
+                  documentDetail?.isAutoNumberGenerated == 'true' ||
+                  documentDetail?.isAutoNumberGenerated == 1
+              ? "Y"
+              : "N",
       "siteRequired": documentDetail?.isLocationRequired == true ? "Y" : "N",
       "authorizationDate": FormatUtils.formatDateForApi(
         selectedDate ?? DateTime.now(),
@@ -1823,31 +886,74 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
       final response = await _service.updateQuotation(payload);
 
       if (response['success'] == true) {
-        // Upload attachments if any
-        if (attachments.isNotEmpty) {
-          final docYear = _financeDetails?['financialYear'] ?? "";
+        // Handle attachments in background
+        bool attachmentSuccess = true;
+        String attachmentErrors = '';
 
-          final uploadSuccess = await _service.uploadAttachments(
-            filePaths: attachments.map((f) => f.path!).toList(),
-            documentNo: widget.quotationNumber,
-            documentId: "SQ",
-            docYear: docYear,
-            formId: "QUOTATION",
-            locationCode: _service.locationDetails['code'] ?? "",
-            companyCode: _service.companyDetails['code'] ?? "",
-            locationId: _service.locationDetails['id'] ?? 0,
-            companyId: _service.companyId,
-            userId: _service.tokenDetails['user']['id'] ?? 0,
-          );
-
-          if (!uploadSuccess) {
-            _showError("Quotation updated, but attachment upload failed!");
+        // Handle existing attachment deletions
+        for (final attEdit in _editableAttachments) {
+          if (attEdit['action'] == 'delete') {
+            final success = await _deleteAttachment(attEdit['original']);
+            if (!success) {
+              attachmentSuccess = false;
+              final fileName =
+                  attEdit['original']['name'] ??
+                  attEdit['original']['originalName'] ??
+                  attEdit['original']['fileName'] ??
+                  'Unknown File';
+              attachmentErrors += 'Failed to delete $fileName\n';
+            }
+          } else if (attEdit['action'] == 'replace') {
+            // First delete the original
+            final deleteSuccess = await _deleteAttachment(attEdit['original']);
+            if (deleteSuccess && attEdit['replacementFile'] != null) {
+              // Then upload the replacement
+              final uploadSuccess = await _uploadSingleFile(
+                attEdit['replacementFile'],
+              );
+              if (!uploadSuccess) {
+                attachmentSuccess = false;
+                final fileName =
+                    attEdit['original']['name'] ??
+                    attEdit['original']['originalName'] ??
+                    attEdit['original']['fileName'] ??
+                    'Unknown File';
+                attachmentErrors +=
+                    'Failed to upload replacement for $fileName\n';
+              }
+            } else {
+              attachmentSuccess = false;
+              final fileName =
+                  attEdit['original']['name'] ??
+                  attEdit['original']['originalName'] ??
+                  attEdit['original']['fileName'] ??
+                  'Unknown File';
+              attachmentErrors += 'Failed to replace $fileName\n';
+            }
           }
         }
 
-        _showSuccess(response['message'] ?? "Quotation updated successfully");
+        // Handle new attachments
+        final newAttachmentSuccess = await _uploadNewAttachments();
+        if (!newAttachmentSuccess) {
+          attachmentSuccess = false;
+          attachmentErrors += 'Failed to upload some new attachments\n';
+        }
+
+        if (!mounted) return;
+        setState(() => _submitting = false);
+
+        if (attachmentSuccess) {
+          _showSuccess(response['message'] ?? "Quotation updated successfully");
+        } else {
+          _showError(
+            "Quotation updated but some attachment operations failed:\n$attachmentErrors",
+          );
+        }
+
         Navigator.pop(context, true);
       } else {
+        setState(() => _submitting = false);
         _showError(response['errorMessage'] ?? "Failed to update quotation");
       }
     } catch (e) {
@@ -1947,7 +1053,6 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
             const SizedBox(height: 8),
             Text("Number: ${widget.quotationNumber}"),
             Text("Year: ${widget.quotationYear}"),
-            Text("Base: ${originalData?.quotationBase ?? 'N/A'}"),
             if (originalData?.inquiryNumber.isNotEmpty == true)
               Text("Inquiry: ${originalData!.inquiryNumber}"),
           ],
@@ -1968,33 +1073,49 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
               .map(
                 (base) => DropdownMenuItem<QuotationBase>(
                   value: base,
-                  child: Text(base.name),
+                  child: Text(
+                    base.name,
+                    style: const TextStyle(color: Colors.black),
+                  ),
                 ),
               )
               .toList(),
-      onChanged:
-          _submitting
-              ? null
-              : (val) async {
-                setState(() {
-                  selectedQuotationBase = val;
-                  // Clear inquiry related fields when changing base
-                  selectedInquiry = null;
-                  inquiryList.clear();
-                });
-
-                // Load inquiry list if "I" is selected and we have a customer
-                if (val?.code == "I" && selectedCustomer != null) {
-                  inquiryList = await _service.fetchInquiryList(
-                    selectedCustomer!.customerCode,
-                  );
-                  setState(() {});
-                }
-              },
+      onChanged: null,
       validator: (val) => val == null ? "Quotation Base is required" : null,
     );
   }
 
+  // Widget _buildDateField() {
+  //   return TextFormField(
+  //     controller: dateController,
+  //     decoration: const InputDecoration(
+  //       labelText: "Date",
+  //       suffixIcon: Icon(Icons.calendar_today),
+  //       border: OutlineInputBorder(),
+  //     ),
+  //     readOnly: true,
+  //     enabled: !_submitting,
+  //     onTap:
+  //         _submitting
+  //             ? null
+  //             : () async {
+  //               final picked = await showDatePicker(
+  //                 context: context,
+  //                 initialDate: selectedDate ?? DateTime.now(),
+  //                 firstDate: startDate ?? DateTime(2000),
+  //                 lastDate: endDate ?? DateTime.now(),
+  //               );
+  //               if (picked != null) {
+  //                 setState(() {
+  //                   selectedDate = picked;
+  //                   dateController.text = FormatUtils.formatDateForUser(picked);
+  //                 });
+  //               }
+  //             },
+  //     validator:
+  //         (val) => val == null || val.isEmpty ? "Date is required" : null,
+  //   );
+  // }
   Widget _buildDateField() {
     return TextFormField(
       controller: dateController,
@@ -2009,12 +1130,38 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
           _submitting
               ? null
               : () async {
+                // Parse the period dates
+                DateTime periodStartDate = DateTime.parse(
+                  _financeDetails!['periodSDt'],
+                );
+                DateTime periodEndDate = DateTime.parse(
+                  _financeDetails!['periodEDt'],
+                );
+                DateTime today = DateTime.now();
+
+                // Determine the date range
+                DateTime startDate = periodStartDate;
+                DateTime endDate =
+                    today.isBefore(periodEndDate) ||
+                            today.isAtSameMomentAs(periodEndDate)
+                        ? today
+                        : periodEndDate;
+
+                // Set initial date to today if it's within range, otherwise use the end date
+                DateTime initialDate =
+                    today.isAfter(startDate) &&
+                            (today.isBefore(endDate) ||
+                                today.isAtSameMomentAs(endDate))
+                        ? today
+                        : endDate;
+
                 final picked = await showDatePicker(
                   context: context,
-                  initialDate: selectedDate ?? DateTime.now(),
-                  firstDate: startDate ?? DateTime(2000),
-                  lastDate: endDate ?? DateTime.now(),
+                  initialDate: initialDate,
+                  firstDate: startDate,
+                  lastDate: endDate,
                 );
+
                 if (picked != null) {
                   setState(() {
                     selectedDate = picked;
@@ -2160,11 +1307,14 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
               .map(
                 (inq) => DropdownMenuItem<Inquiry>(
                   value: inq,
-                  child: Text("${inq.inquiryNumber} - ${inq.customerName}"),
+                  child: Text(
+                    "${inq.inquiryNumber} - ${inq.customerName}",
+                    style: const TextStyle(color: Colors.black),
+                  ),
                 ),
               )
               .toList(),
-      onChanged: _submitting ? null : _onInquirySelected,
+      onChanged: null,
       validator: (val) => val == null ? "Lead Number is required" : null,
     );
   }
@@ -2295,28 +1445,201 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            ElevatedButton.icon(
-              onPressed: _submitting ? null : _pickFiles,
-              icon: const Icon(Icons.attach_file),
-              label: const Text('Add Attachment'),
-            ),
-            const SizedBox(width: 8),
-            Text('${attachments.length} file(s) selected'),
-          ],
+        const Text(
+          'Existing Attachments:',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
-        ...attachments.asMap().entries.map((entry) {
-          final idx = entry.key;
-          final file = entry.value;
-          return ListTile(
-            title: Text(file.name),
-            trailing: IconButton(
-              icon: const Icon(Icons.delete),
-              onPressed: _submitting ? null : () => _removeAttachment(idx),
+        const SizedBox(height: 8),
+        if (_editableAttachments.isEmpty)
+          const Card(
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text(
+                'No existing attachments',
+                style: TextStyle(fontStyle: FontStyle.italic),
+              ),
             ),
-          );
-        }),
+          )
+        else
+          ..._editableAttachments.asMap().entries.map((entry) {
+            final index = entry.key;
+            final attEdit = entry.value;
+            final original = attEdit['original'] as Map<String, dynamic>;
+            final action = attEdit['action'] as String;
+            final replacementFile = attEdit['replacementFile'] as PlatformFile?;
+
+            // Get the correct file name from API response
+            final fileName =
+                original['name'] ??
+                original['originalName'] ??
+                original['fileName'] ??
+                'Unknown File';
+
+            // Get the correct file size
+            final fileSize = original['size'];
+            final fileSizeText =
+                fileSize != null
+                    ? '${(fileSize / 1024).toStringAsFixed(1)} KB'
+                    : (original['fileSize'] ?? 'Unknown');
+
+            if (action == 'delete') {
+              return Card(
+                color: Colors.red.shade50,
+                child: ListTile(
+                  title: Text(
+                    fileName,
+                    style: const TextStyle(
+                      decoration: TextDecoration.lineThrough,
+                      color: Colors.red,
+                    ),
+                  ),
+                  subtitle: const Text(
+                    'Marked for deletion',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.undo, color: Colors.green),
+                    onPressed:
+                        _submitting
+                            ? null
+                            : () => _undoAttachmentDeletion(index),
+                    tooltip: 'Undo deletion',
+                  ),
+                ),
+              );
+            }
+
+            return Card(
+              color: action == 'replace' ? Colors.orange.shade50 : null,
+              child: ListTile(
+                title: Text(
+                  action == 'replace' && replacementFile != null
+                      ? replacementFile.name
+                      : fileName,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (action == 'replace' && replacementFile != null) ...[
+                      Text(
+                        'Replacing: $fileName',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                      Text(
+                        'New size: ${(replacementFile.size / 1024).toStringAsFixed(1)} KB',
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ] else ...[
+                      Text(
+                        'Size: $fileSizeText',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (original['createdByName'] != null) ...[
+                        Text(
+                          'Uploaded by: ${original['createdByName']}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ],
+                ),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (action == 'replace') ...[
+                      IconButton(
+                        icon: const Icon(Icons.undo, color: Colors.green),
+                        onPressed:
+                            _submitting
+                                ? null
+                                : () => _undoAttachmentDeletion(index),
+                        tooltip: 'Undo replacement',
+                      ),
+                    ] else ...[
+                      IconButton(
+                        icon: const Icon(
+                          Icons.swap_horiz,
+                          color: Colors.orange,
+                        ),
+                        onPressed:
+                            _submitting
+                                ? null
+                                : () => _replaceAttachment(index),
+                        tooltip: 'Replace file',
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed:
+                            _submitting
+                                ? null
+                                : () => _markAttachmentForDeletion(index),
+                        tooltip: 'Delete file',
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          }),
+
+        const SizedBox(height: 16),
+        const Text(
+          'New Attachments:',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+        ),
+        const SizedBox(height: 8),
+        if (_newAttachments.isEmpty)
+          const Card(
+            child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Text(
+                'No new attachments added',
+                style: TextStyle(fontStyle: FontStyle.italic),
+              ),
+            ),
+          )
+        else
+          ..._newAttachments.asMap().entries.map((entry) {
+            final index = entry.key;
+            final file = entry.value;
+            return Card(
+              color: Colors.green.shade50,
+              child: ListTile(
+                title: Text(file.name),
+                subtitle: Text(
+                  'Size: ${(file.size / 1024).toStringAsFixed(1)} KB',
+                ),
+                leading: const Icon(Icons.add_circle, color: Colors.green),
+                trailing: IconButton(
+                  icon: const Icon(Icons.remove_circle, color: Colors.red),
+                  onPressed:
+                      _submitting ? null : () => _removeNewAttachment(index),
+                  tooltip: 'Remove file',
+                ),
+              ),
+            );
+          }),
+
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: _submitting ? null : _pickFiles,
+            icon: const Icon(Icons.attach_file),
+            label: const Text('Add Attachment'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ),
       ],
     );
   }

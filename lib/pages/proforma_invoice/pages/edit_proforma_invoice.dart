@@ -2,20 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:nhapp/pages/proforma_invoice/models/add_proforma_invoice.dart';
 import 'package:nhapp/pages/proforma_invoice/models/proforma_details.dart';
+import 'package:nhapp/pages/proforma_invoice/models/proforma_invoice_item.dart';
 import 'package:nhapp/pages/proforma_invoice/pages/add_item_page.dart';
-import 'package:nhapp/pages/proforma_invoice/service/add_proforma_invoice.dart';
+import 'package:nhapp/pages/proforma_invoice/service/edit_proforma.dart';
+import 'package:nhapp/pages/proforma_invoice/service/add_proforma_invoice.dart'
+    as AddProformaService; // Add alias
 import 'package:nhapp/utils/format_utils.dart';
 import '../../../utils/storage_utils.dart';
 
 class EditProformaInvoiceForm extends StatefulWidget {
-  final ProformaInvoiceDetails proformaDetails;
-  final int proformaId;
+  final ProformaInvoice invoice;
 
-  const EditProformaInvoiceForm({
-    super.key,
-    required this.proformaDetails,
-    required this.proformaId,
-  });
+  const EditProformaInvoiceForm({super.key, required this.invoice});
 
   @override
   State<EditProformaInvoiceForm> createState() =>
@@ -23,27 +21,36 @@ class EditProformaInvoiceForm extends StatefulWidget {
 }
 
 class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
-  late ProformaInvoiceService _service;
+  late EditProformaInvoiceService _service;
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
   final TextEditingController dateController = TextEditingController();
   final TextEditingController customerController = TextEditingController();
+  final TextEditingController quotationController = TextEditingController();
+  final TextEditingController salesOrderController = TextEditingController();
 
   String? selectPreference;
   DateTime? selectedDate;
   Customer? selectedCustomer;
   String? selectedQuotationNumber;
+  String? selectedQuotationSrNo;
   String? selectedSalesOrderNumber;
+  String? selectedSalesOrderSrNo;
+  DefaultDocumentDetail? defaultQuotation;
+  DefaultDocumentDetail? defaultSalesOrder;
+  List<QuotationNumber> quotationNumbers = [];
+  List<SalesOrderNumber> salesOrderNumbers = [];
   List<ProformaItem> items = [];
   List<RateStructure> rateStructures = [];
-  late Map<String, dynamic>? companyDetails;
-  late Map<String, dynamic>? locationDetails;
-  late Map<String, dynamic>? userDetails;
-  late Map<String, dynamic>? _financeDetails;
+  QuotationDetails? _quotationResponse;
+  SalesOrderDetails? _salesOrderResponse;
   List<Map<String, dynamic>> _rsGrid = [];
   List<Map<String, dynamic>> _discountDetails = [];
   late DateTime startDate;
   late DateTime endDate;
+
+  // Store original invoice details
+  ProformaInvoiceDetails? _originalInvoiceDetails;
 
   final List<String> preferenceOptions = [
     "On Quotation",
@@ -52,7 +59,6 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
   ];
 
   bool _isLoading = true;
-  bool _isEditable = false;
 
   @override
   void initState() {
@@ -61,103 +67,170 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
   }
 
   Future<void> _initializeForm() async {
-    _service = await ProformaInvoiceService.create();
-    await _loadFinancePeriod();
-    await _loadRateStructures();
-    companyDetails = await StorageUtils.readJson('selected_company');
-    locationDetails = await StorageUtils.readJson('selected_location');
-    final tokenDetails = await StorageUtils.readJson('session_token');
-    userDetails = tokenDetails?['user'];
-
-    _prefillFormWithDetails();
-    setState(() => _isLoading = false);
+    try {
+      _service = await EditProformaInvoiceService.create();
+      await _loadFinancePeriod();
+      await _loadRateStructures();
+      await _loadInvoiceDetails();
+    } catch (e) {
+      _showError("Failed to initialize form: ${e.toString()}");
+    }
   }
 
-  void _prefillFormWithDetails() {
-    final header = widget.proformaDetails.headerDetail;
-    final gridDetail = widget.proformaDetails.gridDetail;
+  Future<void> _loadInvoiceDetails() async {
+    try {
+      setState(() => _isLoading = true);
 
-    // Set preference based on invOn field
-    final invOn = header['invOn'] ?? '';
-    if (invOn == 'Q') {
-      selectPreference = "On Quotation";
-      selectedQuotationNumber = header['refNumber'] ?? '';
-    } else if (invOn == 'O') {
-      selectPreference = "On Sales Order";
-      selectedSalesOrderNumber = header['refNumber'] ?? '';
-    } else {
-      selectPreference = "On Other";
-      _isEditable = true;
+      _originalInvoiceDetails = await _service.fetchProformaInvoiceDetails(
+        invSiteId: widget.invoice.siteId,
+        invYear: widget.invoice.year,
+        invGroup: widget.invoice.groupCode,
+        invNumber: widget.invoice.number,
+        piOn: widget.invoice.piOn,
+        fromLocationId: widget.invoice.fromLocationId,
+        custCode: widget.invoice.custCode,
+      );
+
+      await _populateFormFromInvoiceDetails();
+      setState(() => _isLoading = false);
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showError("Failed to load invoice details: ${e.toString()}");
     }
+  }
+
+  Future<void> _populateFormFromInvoiceDetails() async {
+    if (_originalInvoiceDetails == null) return;
+
+    final headerDetail = _originalInvoiceDetails!.headerDetail;
+    final salesOrderDetail = _originalInvoiceDetails!.salesOrderDetail;
+    final gridDetail = _originalInvoiceDetails!.gridDetail;
 
     // Set date
-    final dateStr = header['invIssueDate'] ?? '';
-    if (dateStr.isNotEmpty) {
-      selectedDate = DateTime.parse(dateStr);
-      dateController.text = FormatUtils.formatDateForUser(selectedDate!);
-    }
+    selectedDate = DateTime.parse(headerDetail['invIssueDate']);
+    dateController.text = FormatUtils.formatDateForUser(selectedDate!);
 
     // Set customer
     selectedCustomer = Customer(
-      totalRows: 1,
-      custCode: header['invCustCode'] ?? '',
-      custName: header['custName'] ?? '',
-      cityCode: header['cityCode'] ?? '',
-      cityName: header['cityName'] ?? '',
+      totalRows: headerDetail['totalRows'] ?? 0,
+      custCode: headerDetail['invCustCode'],
+      custName: headerDetail['customerName'],
+      cityCode: headerDetail['cityCode'] ?? '',
+      cityName: headerDetail['cityName'] ?? '',
     );
-    customerController.text = selectedCustomer!.custName;
+    customerController.text = headerDetail['customerName'];
 
-    // Parse items from gridDetail
-    _parseItemsFromGridDetail(gridDetail);
+    switch (headerDetail['invOn']) {
+      case 'Q':
+        selectPreference = "On Quotation";
+        // Load quotation data first, then set selected value
+        defaultQuotation = await _service.fetchDefaultDocumentDetail("SQ");
+        // await _loadQuotationNumbers(headerDetail['invCustCode']);
+        // Set selected quotation after list is loaded
+        final quotationFromSalesOrder = salesOrderDetail?['soNumber'];
+        if (quotationFromSalesOrder != null) {
+          selectedQuotationNumber = quotationFromSalesOrder;
+          quotationController.text = quotationFromSalesOrder;
+        }
+        break;
+      case 'O':
+        selectPreference = "On Sales Order";
+        // Load sales order data first, then set selected value
+        defaultSalesOrder = await _service.fetchDefaultDocumentDetail("OB");
+        // await _loadSalesOrderNumbers(headerDetail['invCustCode']);
+        // Set selected sales order after list is loaded
+        final salesOrderFromDetail = salesOrderDetail?['soNumber'];
+        if (salesOrderFromDetail != null) {
+          selectedSalesOrderNumber = salesOrderFromDetail;
+          salesOrderController.text = salesOrderFromDetail;
+        }
+        break;
+      default:
+        selectPreference = "On Other";
+    }
 
-    // Parse rate structure and discount details
-    _parseRateStructureFromDetails();
-    _parseDiscountDetailsFromDetails();
-  }
-
-  void _parseItemsFromGridDetail(Map<String, dynamic> gridDetail) {
-    final itemDetailList = gridDetail['itemDetail'] as List<dynamic>? ?? [];
-
-    items =
-        itemDetailList.map<ProformaItem>((item) {
-          return ProformaItem(
-            itemName: item['itemName'] ?? '',
-            itemCode: item['salesItemCode'] ?? '',
-            qty: (item['invQty'] ?? 0).toDouble(),
-            basicRate: (item['discOrdRate'] ?? 0).toDouble(),
-            uom: item['itemUOM'] ?? 'NOS',
-            discountType: (item['discAmount'] ?? 0) > 0 ? 'Value' : 'None',
+    // Populate items from gridDetail
+    items = [];
+    if (gridDetail['itemDetail'].isNotEmpty) {
+      int lineNo = 1;
+      for (final item in gridDetail['itemDetail']) {
+        items.add(
+          ProformaItem(
+            itemName: item['itemName'],
+            itemCode: item['itemCode'],
+            qty: item['invoiceQty'] ?? item['maxInvoiceQty'] ?? item['qty'],
+            basicRate: item['itemRate'],
+            uom: item['suom'],
+            discountType:
+                item['invDiscountType'] == "N"
+                    ? "None"
+                    : item['discountAmount'] > 0
+                    ? "Value"
+                    : "None",
             discountAmount:
-                double.tryParse(item['discAmount']?.toString() ?? '0') ?? 0.0,
-            discountPercentage: null,
-            rateStructure: item['taxStructure'] ?? '',
-            taxAmount: (item['taxAmount'] ?? 0).toDouble(),
-            totalAmount: (item['discountedAmount'] ?? 0).toDouble(),
-            rateStructureRows: null,
-            lineNo: item['lineNo'] ?? 0,
-            hsnAccCode: item['hsnAccCode'] ?? '',
-          );
-        }).toList();
-  }
+                item['discountAmount'] > 0 ? item['discountAmount'] : null,
+            discountPercentage: null, // Calculate if needed
+            rateStructure: item['rateStructureCode'],
+            taxAmount: item['totalTax'],
+            totalAmount: item['totalValue'],
+            rateStructureRows: null, // Will be populated from rateStructDetail
+            lineNo: lineNo,
+            hsnAccCode: item['hsnAccCode'],
+          ),
+        );
+        lineNo++;
+      }
+    }
 
-  void _parseRateStructureFromDetails() {
-    _rsGrid = List<Map<String, dynamic>>.from(
-      widget.proformaDetails.gridDetail['rsGrid'] ?? [],
-    );
-  }
+    // Populate rate structure details
+    _rsGrid = [];
+    if (gridDetail['rateStructDetail'].isNotEmpty) {
+      for (final rs in gridDetail['rateStructDetail']) {
+        _rsGrid.add({
+          "docType": "PI",
+          "docSubType": "PI",
+          "xdtdtmcd": rs['dtmCode'],
+          "rateCode": rs['rateCode'],
+          "rateStructCode": rs['rateStructureCode'],
+          "rateAmount": double.tryParse(rs['rateAmount']) ?? 0.0,
+          "amdSrNo": rs['srNo'],
+          "perCValue": rs['taxValue'].toString(),
+          "incExc": rs['incExc'],
+          "perVal": rs['taxValue'],
+          "appliedOn": rs['applicableOnCode'],
+          "pnyn": rs['pNYN'],
+          "seqNo": rs['seqNo'].toString(),
+          "curCode": rs['curCode'],
+          "fromLocationId": _service.locationDetails['id'] ?? 8,
+          "TaxTyp": rs['taxType'],
+          "refLine": rs['itmModelRefNo'],
+        });
+      }
+    }
 
-  void _parseDiscountDetailsFromDetails() {
-    _discountDetails = List<Map<String, dynamic>>.from(
-      widget.proformaDetails.gridDetail['discountDetail'] ?? [],
-    );
+    // Populate discount details
+    _discountDetails = [];
+    if (gridDetail['discountDetail'].isNotEmpty) {
+      for (final disc in gridDetail['discountDetail']) {
+        _discountDetails.add({
+          "itemCode": disc['discitem'],
+          "currCode": disc['disccurr'].isNotEmpty ? disc['disccurr'] : "INR",
+          "discCode": disc['disccode'],
+          "discType": disc['disctype'],
+          "discVal": disc['discvalue'],
+          "fromLocationId": _service.locationDetails['id'] ?? 8,
+          "oditmlineno": disc['itmModelRefNo'],
+        });
+      }
+    }
   }
 
   Future<void> _loadFinancePeriod() async {
     try {
-      _financeDetails = await StorageUtils.readJson('finance_period');
-      if (_financeDetails != null) {
-        startDate = DateTime.parse(_financeDetails!['periodSDt']);
-        endDate = DateTime.parse(_financeDetails!['periodEDt']);
+      final financeDetails = await StorageUtils.readJson('finance_period');
+      if (financeDetails != null) {
+        startDate = DateTime.parse(financeDetails['periodSDt']);
+        endDate = DateTime.parse(financeDetails['periodEDt']);
       }
     } catch (e) {
       _setDefaultDate();
@@ -165,52 +238,349 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
   }
 
   void _setDefaultDate() {
-    startDate = DateTime.now().subtract(const Duration(days: 365));
-    endDate = DateTime.now();
+    selectedDate = DateTime.now();
+    dateController.text = FormatUtils.formatDateForUser(selectedDate!);
   }
 
   Future<void> _loadRateStructures() async {
     try {
-      final companyDetails = await StorageUtils.readJson('selected_company');
-      if (companyDetails != null) {
-        final companyId = companyDetails['id'];
-        rateStructures = await _service.fetchRateStructures(companyId);
-      }
+      final companyId = _service.companyDetails['id'];
+      rateStructures = await _service.fetchRateStructures(companyId);
     } catch (e) {
       _showError("Failed to load rate structures: ${e.toString()}");
     }
   }
 
+  Future<void> _onPreferenceChanged(String? value) async {
+    if (value == null) return;
+
+    setState(() {
+      selectPreference = value;
+      customerController.clear();
+      selectedCustomer = null;
+      selectedQuotationNumber = null;
+      selectedSalesOrderNumber = null;
+      quotationNumbers.clear();
+      salesOrderNumbers.clear();
+      items.clear();
+      _rsGrid.clear();
+      _discountDetails.clear();
+    });
+
+    try {
+      if (value == "On Quotation") {
+        defaultQuotation = await _service.fetchDefaultDocumentDetail("SQ");
+      } else if (value == "On Sales Order") {
+        defaultSalesOrder = await _service.fetchDefaultDocumentDetail("OB");
+      }
+    } catch (e) {
+      _showError("Failed to load document details: ${e.toString()}");
+    }
+  }
+
+  Future<void> _onCustomerSelected(Customer customer) async {
+    setState(() {
+      selectedCustomer = customer;
+      customerController.text = customer.custName;
+      quotationNumbers.clear();
+      salesOrderNumbers.clear();
+      selectedQuotationNumber = null;
+      selectedSalesOrderNumber = null;
+      items.clear();
+    });
+
+    if (selectPreference == "On Quotation") {
+      await _loadQuotationNumbers(customer.custCode);
+    } else if (selectPreference == "On Sales Order") {
+      await _loadSalesOrderNumbers(customer.custCode);
+    }
+  }
+
+  Future<void> _loadQuotationNumbers(String customerCode) async {
+    try {
+      setState(() => _isLoading = true);
+      quotationNumbers = await _service.fetchQuotationNumberList(customerCode);
+      setState(() => _isLoading = false);
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showError("Failed to load quotation numbers: ${e.toString()}");
+    }
+  }
+
+  Future<void> _loadSalesOrderNumbers(String customerCode) async {
+    try {
+      setState(() => _isLoading = true);
+      salesOrderNumbers = await _service.fetchSalesOrderNumberList(
+        customerCode,
+      );
+      setState(() => _isLoading = false);
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showError("Failed to load sales order numbers: ${e.toString()}");
+    }
+  }
+
+  Future<void> _onQuotationSelected(String? quotationNumber) async {
+    if (quotationNumber == null) return;
+
+    setState(() {
+      selectedQuotationNumber = quotationNumber;
+      items.clear();
+      _rsGrid.clear();
+      _discountDetails.clear();
+      _isLoading = true;
+    });
+
+    try {
+      final details = await _service.fetchQuotationDetails(quotationNumber);
+      items = [];
+      _rsGrid = [];
+      _discountDetails = [];
+
+      int lineNo = 1;
+      for (final item in details.itemDetail) {
+        final quantity =
+            (item['qty'] ?? 0).toDouble() == 0.0
+                ? (item['maxInvoiceQty'] ?? 0).toDouble()
+                : (item['qty'] ?? 0).toDouble();
+
+        items.add(
+          ProformaItem(
+            itemName: item['itemName'] ?? '',
+            itemCode: item['itemCode'] ?? '',
+            qty: quantity,
+            basicRate: (item['itemRate'] ?? 0).toDouble(),
+            uom: item['suom'] ?? 'NOS',
+            discountType: (item['discountAmount'] ?? 0) > 0 ? 'Value' : 'None',
+            discountAmount: (item['discountAmount'] ?? 0).toDouble(),
+            discountPercentage: null,
+            rateStructure: item['rateStructureCode'] ?? '',
+            taxAmount: (item['totalTax'] ?? 0).toDouble(),
+            totalAmount: (item['totalValue'] ?? 0).toDouble(),
+            rateStructureRows: null,
+            lineNo: lineNo,
+            hsnAccCode: item['hsnAccCode'] ?? '',
+          ),
+        );
+        lineNo++;
+      }
+
+      // Populate rsGrid from response
+      if (details.rateStructDetail != null) {
+        for (final rs in details.rateStructDetail!) {
+          _rsGrid.add({
+            "docType": "PI",
+            "docSubType": "PI",
+            "xdtdtmcd": rs['dtmCode'] ?? '',
+            "rateCode": rs['rateCode'] ?? '',
+            "rateStructCode": rs['rateStructureCode'] ?? '',
+            "rateAmount":
+                double.tryParse(rs['rateAmount']?.toString() ?? '0') ?? 0.0,
+            "amdSrNo": rs['srNo'] ?? 0,
+            "perCValue": rs['taxValue']?.toString() ?? "0.00",
+            "incExc": rs['incExc'] ?? '',
+            "perVal": rs['taxValue'] ?? 0,
+            "appliedOn": rs['applicableOnCode'] ?? "",
+            "pnyn": rs['pNYN'] ?? false,
+            "seqNo": rs['seqNo']?.toString() ?? "1",
+            "curCode": rs['curCode'] ?? "INR",
+            "fromLocationId": _service.locationDetails['id'] ?? 8,
+            "TaxTyp": rs['taxType'] ?? '',
+            "refLine": rs['itmModelRefNo'] ?? 0,
+          });
+        }
+      }
+
+      // Populate discountDetail from response
+      if (details.discountDetail != null) {
+        for (final disc in details.discountDetail!) {
+          _discountDetails.add({
+            "itemCode": disc['discitem'] ?? '',
+            "currCode": disc['disccurr'] ?? "INR",
+            "discCode": disc['disccode'] ?? "01",
+            "discType": disc['disctype'] ?? '',
+            "discVal": disc['discvalue'] ?? 0,
+            "fromLocationId": _service.locationDetails['id'] ?? 8,
+            "oditmlineno": disc['itmModelRefNo'] ?? 0,
+          });
+        }
+      }
+
+      _quotationResponse = details;
+      setState(() => _isLoading = false);
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showError("Failed to load quotation details: ${e.toString()}");
+    }
+  }
+
+  Future<void> _onSalesOrderSelected(String? salesOrderNumber) async {
+    if (salesOrderNumber == null) return;
+
+    setState(() {
+      selectedSalesOrderNumber = salesOrderNumber;
+      items.clear();
+      _rsGrid.clear();
+      _discountDetails.clear();
+      _isLoading = true;
+    });
+
+    try {
+      final details = await _service.fetchSalesOrderDetails(salesOrderNumber);
+      items = [];
+      _rsGrid = [];
+      _discountDetails = [];
+
+      int lineNo = 1;
+      for (final item in details.itemDetail) {
+        final quantity =
+            (item['qty'] ?? 0).toDouble() == 0.0
+                ? (item['maxInvoiceQty'] ?? 0).toDouble()
+                : (item['qty'] ?? 0).toDouble();
+
+        items.add(
+          ProformaItem(
+            itemName: item['itemName'] ?? '',
+            itemCode: item['itemCode'] ?? '',
+            qty: quantity,
+            basicRate: (item['itemRate'] ?? 0).toDouble(),
+            uom: item['suom'] ?? 'NOS',
+            discountType: (item['discountAmount'] ?? 0) > 0 ? 'Value' : 'None',
+            discountAmount: (item['discountAmount'] ?? 0).toDouble(),
+            discountPercentage: null,
+            rateStructure: item['rateStructureCode'] ?? '',
+            taxAmount: (item['totalTax'] ?? 0).toDouble(),
+            totalAmount: (item['totalValue'] ?? 0).toDouble(),
+            rateStructureRows: null,
+            lineNo: lineNo,
+            hsnAccCode: item['hsnAccCode'] ?? '',
+          ),
+        );
+        lineNo++;
+      }
+
+      // Populate rsGrid from response
+      if (details.rateStructDetail != null) {
+        for (final rs in details.rateStructDetail!) {
+          _rsGrid.add({
+            "docType": "PI",
+            "docSubType": "PI",
+            "xdtdtmcd": rs['xdtdtmcd'] ?? '',
+            "rateCode": rs['rateCode'] ?? '',
+            "rateStructCode": rs['rateStructCode'] ?? '',
+            "rateAmount": rs['rateAmount'] ?? 0,
+            "amdSrNo": rs['amdSrNo'] ?? 0,
+            "perCValue": rs['perCValue']?.toString() ?? "0.00",
+            "incExc": rs['incExc'] ?? '',
+            "perVal": rs['perVal'] ?? 0,
+            "appliedOn": rs['appliedOn'] ?? "",
+            "pnyn": rs['pnyn'] ?? false,
+            "seqNo": rs['seqNo']?.toString() ?? "1",
+            "curCode": rs['curCode'] ?? "INR",
+            "fromLocationId": _service.locationDetails['id'] ?? 8,
+            "TaxTyp": rs['TaxTyp'] ?? '',
+            "refLine": rs['refLine'] ?? 0,
+          });
+        }
+      }
+
+      // Populate discountDetail from response
+      if (details.discountDetail != null) {
+        for (final disc in details.discountDetail!) {
+          _discountDetails.add({
+            "itemCode": disc['itemCode'] ?? '',
+            "currCode": disc['currCode'] ?? "INR",
+            "discCode": disc['discCode'] ?? "01",
+            "discType": disc['discType'] ?? '',
+            "discVal": disc['discVal'] ?? 0,
+            "fromLocationId": _service.locationDetails['id'],
+            "oditmlineno": disc['oditmlineno'] ?? 0,
+          });
+        }
+      }
+
+      _salesOrderResponse = details;
+      setState(() => _isLoading = false);
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showError("Failed to load sales order details: ${e.toString()}");
+    }
+  }
+
   Future<void> _showAddItemPage() async {
-    if (!_isEditable) return;
+    // Create the correct ProformaInvoiceService instance for AddItemPage
+    final addProformaService =
+        await AddProformaService.ProformaInvoiceService.create();
 
     final result = await Navigator.push<ProformaItem>(
       context,
       MaterialPageRoute(
         builder:
-            (context) =>
-                AddItemPage(service: _service, rateStructures: rateStructures),
+            (context) => AddItemPage(
+              service: addProformaService, // Use the correct service type
+              rateStructures: rateStructures,
+            ),
       ),
     );
 
+    // if (result != null) {
+    //   setState(() {
+    //     result.lineNo = items.length + 1;
+    //     items.add(result);
+    //   });
+    // }
     if (result != null) {
       setState(() {
+        // Set proper line number
         result.lineNo = items.length + 1;
         items.add(result);
+
+        // Append rate structure details if they exist (don't replace)
+        if (result.rateStructureRows != null &&
+            result.rateStructureRows!.isNotEmpty) {
+          final lineNo = result.lineNo;
+
+          // Add rate structure rows for this item
+          for (final row in result.rateStructureRows!) {
+            _rsGrid.add({
+              "docType": "PI",
+              "docSubType": "PI",
+              "xdtdtmcd": result.itemCode,
+              "rateCode": row['msprtcd'],
+              "rateStructCode": result.rateStructure,
+              "rateAmount": row['rateAmount'] ?? 0,
+              "amdSrNo": 0,
+              "perCValue": row['msprtval']?.toString() ?? "0.00",
+              "incExc": row['mspincexc'],
+              "perVal": row['mspperval'],
+              "appliedOn": row['mtrslvlno'] ?? "",
+              "pnyn": row['msppnyn'] == "True" || row['msppnyn'] == true,
+              "seqNo": row['mspseqno']?.toString() ?? "1",
+              "curCode": row['mprcurcode'] ?? "INR",
+              "fromLocationId": _service.locationDetails['id'] ?? 8,
+              "TaxTyp": row['mprtaxtyp'],
+              "refLine": lineNo,
+            });
+          }
+        }
+
+        // Append discount details if they exist
+        if (result.discountAmount != null && result.discountAmount! > 0) {
+          _discountDetails.add({
+            "itemCode": result.itemCode,
+            "currCode": "INR",
+            // "discCode": result.discountCode,
+            "discType": result.discountType,
+            "discVal":
+                result.discountType == "Percentage"
+                    ? result.discountPercentage ?? 0
+                    : result.discountAmount ?? 0,
+            "fromLocationId": _service.locationDetails['id'] ?? 8,
+            "oditmlineno": result.lineNo,
+          });
+        }
       });
     }
-  }
-
-  void _removeItem(int index) {
-    if (!_isEditable) return;
-
-    setState(() {
-      items.removeAt(index);
-      // Reassign line numbers
-      for (int i = 0; i < items.length; i++) {
-        items[i].lineNo = i + 1;
-      }
-    });
   }
 
   double _calculateTotalBasic() {
@@ -249,10 +619,14 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
     }
   }
 
-  Map<String, dynamic> _buildUpdatePayload() {
+  Map<String, dynamic> _buildSubmissionPayload() {
+    final userDetails = _service.userDetails;
+    final locationDetails = _service.locationDetails;
+    final financeDetails = _service.financeDetails;
+
     if (userDetails?['id'] == null) throw Exception("User ID is null");
-    if (locationDetails?['id'] == null) throw Exception("Location ID is null");
-    if (locationDetails?['code'] == null)
+    if (locationDetails['id'] == null) throw Exception("Location ID is null");
+    if (locationDetails['code'] == null)
       throw Exception("Location code is null");
     if (selectedCustomer == null) throw Exception("Customer is null");
 
@@ -260,11 +634,10 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
     List<Map<String, dynamic>> rsGrid = [];
     List<Map<String, dynamic>> discountDetails = [];
 
-    final userId = userDetails?['id'] ?? 0;
-    final locationId = locationDetails?['id'] ?? 0;
-    final locationCode = locationDetails?['code'] ?? "";
+    final userId = userDetails!['id'] ?? 0;
+    final locationId = locationDetails['id'] ?? 0;
+    final locationCode = locationDetails['code'] ?? "";
 
-    // Calculate totals
     final totalBasic = _calculateTotalBasic();
     final totalDiscount = _calculateTotalDiscount();
     final totalTax = _calculateTaxFromRateStructure();
@@ -279,10 +652,19 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
       itemJson['lineNo'] = lineNo;
       itemJson['seqNo'] = lineNo;
       itemJson['fromLocationId'] = locationId;
+      if (selectPreference == "On Quotation") {
+        itemJson['ordYear'] = financeDetails['financialYear'];
+        itemJson['ordGroup'] = defaultQuotation!.groupCode;
+        itemJson['ordNumber'] = selectedQuotationNumber;
+      } else if (selectPreference == "On Sales Order") {
+        itemJson['ordYear'] = financeDetails['financialYear'];
+        itemJson['ordGroup'] = defaultSalesOrder!.groupCode;
+        itemJson['ordNumber'] = selectedSalesOrderNumber;
+      }
       itemDetails.add(itemJson);
     }
 
-    // Handle rsGrid and discountDetails
+    // Handle rsGrid and discountDetails based on preference
     if (selectPreference == "On Quotation" ||
         selectPreference == "On Sales Order") {
       rsGrid =
@@ -307,7 +689,7 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
             return Map<String, dynamic>.from(disc);
           }).toList();
     } else {
-      // For "On Other" - build from item data
+      // For "On Other" - build rsGrid and discountDetails from item data
       for (int i = 0; i < items.length; i++) {
         final item = items[i];
         final lineNo = i + 1;
@@ -365,10 +747,9 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
     final transportDetail = _buildTransportDetail(userId);
 
     return {
-      "action": "edit",
-      "autoId": widget.proformaId,
+      "action": "update", // Changed from "add" to "update"
       "ExchangeRate": 1.0,
-      "autoNoRequired": "N",
+      "autoNoRequired": "N", // Changed from "Y" to "N" for edit
       "customerPoNumber": null,
       "customerPoDate": null,
       "itemHeaderDetial": itemHeaderDetial,
@@ -390,8 +771,7 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
     int locationId,
     String locationCode,
   ) {
-    final header = widget.proformaDetails.headerDetail;
-    final financeDetails = _financeDetails ?? {};
+    final financeDetails = _service.financeDetails;
     final financialYear = financeDetails['financialYear'] ?? "25-26";
 
     String discountType = "None";
@@ -408,9 +788,9 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
     final finalAmount = netAmount + totalTax;
 
     return {
-      "autoId": widget.proformaId,
+      "autoId": widget.invoice.id, // Use original autoId for update
       "invYear": financialYear,
-      "invGroup": header['invGroup'] ?? "PI",
+      "invGroup": "PI",
       "invSite": locationId,
       "invSiteCode": locationCode,
       "invIssueDate":
@@ -421,9 +801,9 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
       "invAmount": finalAmount.toStringAsFixed(2),
       "invRoValue": finalAmount.round(),
       "invTax": totalTax.toStringAsFixed(2),
-      "invType": header['invType'] ?? "M",
+      "invType": "M",
       "invCustCode": selectedCustomer!.custCode,
-      "invStatus": header['invStatus'] ?? "O",
+      "invStatus": "O",
       "invOn":
           selectPreference == "On Quotation"
               ? "Q"
@@ -436,30 +816,31 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
       "invCreatedUserId": userId,
       "invCurrCode": "INR",
       "invRate": 0,
-      "invNumber": header['invNumber'] ?? "",
+      "invNumber": widget.invoice.number, // Use original invoice number
       "invBacAmount": basicAmount.toStringAsFixed(2),
       "invSiteReq": "Y",
     };
   }
 
   Map<String, dynamic> _buildTransportDetail(int userId) {
-    final transport =
-        widget.proformaDetails.gridDetail['transportDetail'] ?? {};
+    // Use original transport details if available
+    final originalTransport = _originalInvoiceDetails?.transPortDetail;
+
     return {
-      "refId": transport['refId'] ?? 0,
-      "shipVIa": transport['shipVIa'] ?? "",
-      "portLoad": transport['portLoad'] ?? "",
-      "portDischarg": transport['portDischarg'] ?? "",
-      "kindAttention": transport['kindAttention'] ?? "",
-      "attencontactno": transport['attencontactno'] ?? "",
-      "finDestination": transport['finDestination'] ?? "",
-      "shippingMark": transport['shippingMark'] ?? "",
-      "bookCode": transport['bookCode'] ?? "",
+      "refId": originalTransport?['refId'] ?? 0,
+      "shipVIa": originalTransport?['shipVIa'] ?? "",
+      "portLoad": originalTransport?['portLoad'] ?? "",
+      "portDischarg": originalTransport?['portDischarg'] ?? "",
+      "kindAttention": originalTransport?['kindAttention'] ?? "",
+      "attencontactno": originalTransport?['attencontactno'] ?? "",
+      "finDestination": originalTransport?['finDestination'] ?? "",
+      "shippingMark": originalTransport?['shippingMark'] ?? "",
+      "bookCode": originalTransport?['bookCode'] ?? "",
       "createdBy": userId,
     };
   }
 
-  Future<void> _updateProformaInvoice() async {
+  Future<void> _submitProformaInvoice() async {
     if (!_formKey.currentState!.validate()) return;
 
     if (!_validateForm()) return;
@@ -470,7 +851,7 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
     try {
       setState(() => _isLoading = true);
 
-      final payload = _buildUpdatePayload();
+      final payload = _buildSubmissionPayload();
       final success = await _service.updateProformaInvoice(payload);
 
       setState(() => _isLoading = false);
@@ -481,8 +862,9 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
       } else {
         _showError("Failed to update Proforma Invoice");
       }
-    } catch (e) {
+    } catch (e, st) {
       setState(() => _isLoading = false);
+      debugPrint("Error stacktrace during update: $st");
       _showError("Error during update: ${e.toString()}");
     }
   }
@@ -500,6 +882,17 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
 
     if (selectedCustomer == null) {
       _showError("Please select a customer");
+      return false;
+    }
+
+    if (selectPreference == "On Quotation" && selectedQuotationNumber == null) {
+      _showError("Please select a quotation number");
+      return false;
+    }
+
+    if (selectPreference == "On Sales Order" &&
+        selectedSalesOrderNumber == null) {
+      _showError("Please select a sales order number");
       return false;
     }
 
@@ -550,7 +943,10 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Edit Proforma Invoice"), elevation: 1),
+      appBar: AppBar(
+        title: Text("Edit Proforma Invoice - ${widget.invoice.number}"),
+        elevation: 1,
+      ),
       body:
           _isLoading
               ? const Center(child: CircularProgressIndicator())
@@ -568,18 +964,18 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
                       _buildCustomerField(),
                       const SizedBox(height: 16),
                       if (selectPreference == "On Quotation") ...[
-                        _buildQuotationField(),
+                        _buildQuotationDropdown(),
                         const SizedBox(height: 16),
                       ],
                       if (selectPreference == "On Sales Order") ...[
-                        _buildSalesOrderField(),
+                        _buildSalesOrderDropdown(),
                         const SizedBox(height: 16),
                       ],
                       if (items.isNotEmpty) ...[
                         _buildItemsList(),
                         const SizedBox(height: 16),
                       ],
-                      if (_isEditable) ...[
+                      if (selectPreference == "On Other") ...[
                         _buildAddItemButton(),
                         const SizedBox(height: 16),
                       ],
@@ -587,7 +983,7 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
                         _buildTotalCard(),
                         const SizedBox(height: 24),
                       ],
-                      _buildUpdateButton(),
+                      _buildSubmitButton(),
                     ],
                   ),
                 ),
@@ -605,11 +1001,14 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
       items:
           preferenceOptions
               .map(
-                (pref) =>
-                    DropdownMenuItem<String>(value: pref, child: Text(pref)),
+                (pref) => DropdownMenuItem<String>(
+                  value: pref,
+                  child: Text(pref, style: TextStyle(color: Colors.black)),
+                ),
               )
               .toList(),
-      onChanged: null, // Disabled in edit mode
+      // onChanged: _onPreferenceChanged,
+      onChanged: null,
       validator: (val) => val == null ? "Select Preference is required" : null,
     );
   }
@@ -622,50 +1021,95 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
         suffixIcon: Icon(Icons.calendar_today),
         border: OutlineInputBorder(),
       ),
-      readOnly: !_isEditable,
-      onTap:
-          _isEditable
-              ? () async {
-                final picked = await showDatePicker(
-                  context: context,
-                  initialDate: selectedDate ?? DateTime.now(),
-                  firstDate: startDate,
-                  lastDate: endDate,
-                );
-                if (picked != null) {
-                  setState(() {
-                    selectedDate = picked;
-                    dateController.text = FormatUtils.formatDateForUser(picked);
-                  });
-                }
-              }
-              : null,
+      readOnly: true,
+      // onTap: () async {
+      //   final picked = await showDatePicker(
+      //     context: context,
+      //     initialDate: selectedDate ?? DateTime.now(),
+      //     firstDate: startDate,
+      //     lastDate: DateTime.now(),
+      //   );
+      //   if (picked != null) {
+      //     setState(() {
+      //       selectedDate = picked;
+      //       dateController.text = FormatUtils.formatDateForUser(picked);
+      //     });
+      //   }
+      // },
       validator:
           (val) => val == null || val.isEmpty ? "Date is required" : null,
     );
   }
 
   Widget _buildCustomerField() {
-    return TextFormField(
+    return TypeAheadField<Customer>(
+      showOnFocus: false,
+      debounceDuration: const Duration(milliseconds: 400),
       controller: customerController,
-      decoration: const InputDecoration(
-        labelText: "Customer Name",
-        border: OutlineInputBorder(),
-      ),
-      readOnly: true, // Always read-only in edit mode
-      validator:
-          (val) =>
-              val == null || val.isEmpty ? "Customer Name is required" : null,
+      builder: (context, controller, focusNode) {
+        return TextFormField(
+          readOnly: true,
+          controller: controller,
+          focusNode: focusNode,
+          decoration: const InputDecoration(
+            labelText: "Customer Name",
+            border: OutlineInputBorder(),
+          ),
+          validator:
+              (val) =>
+                  val == null || val.isEmpty
+                      ? "Customer Name is required"
+                      : null,
+        );
+      },
+      // suggestionsCallback: (pattern) async {
+      //   if (pattern.length < 4) return [];
+      //   try {
+      //     return await _service.fetchCustomerSuggestions(pattern);
+      //   } catch (e) {
+      //     return [];
+      //   }
+      // },
+      suggestionsCallback: (pattern) async {
+        return [];
+      },
+      itemBuilder: (context, suggestion) {
+        return ListTile(
+          title: Text(suggestion.custName),
+          subtitle: Text(suggestion.custCode),
+        );
+      },
+      onSelected: _onCustomerSelected,
     );
   }
 
-  Widget _buildQuotationField() {
+  // Widget _buildQuotationDropdown() {
+  //   return DropdownButtonFormField<String>(
+  //     decoration: const InputDecoration(
+  //       labelText: "Quotation Number",
+  //       border: OutlineInputBorder(),
+  //     ),
+  //     value: selectedQuotationNumber,
+  //     items:
+  //         quotationNumbers
+  //             .map(
+  //               (qn) => DropdownMenuItem<String>(
+  //                 value: qn.number,
+  //                 child: Text(qn.number),
+  //               ),
+  //             )
+  //             .toList(),
+  //     onChanged: _onQuotationSelected,
+  //     validator: (val) => val == null ? "Quotation Number is required" : null,
+  //   );
+  // }
+  Widget _buildQuotationDropdown() {
     return TextFormField(
+      controller: quotationController,
       decoration: const InputDecoration(
         labelText: "Quotation Number",
         border: OutlineInputBorder(),
       ),
-      initialValue: selectedQuotationNumber,
       readOnly: true,
       validator:
           (val) =>
@@ -675,13 +1119,33 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
     );
   }
 
-  Widget _buildSalesOrderField() {
+  // Widget _buildSalesOrderDropdown() {
+  //   return DropdownButtonFormField<String>(
+  //     decoration: const InputDecoration(
+  //       labelText: "Sales Order Number",
+  //       border: OutlineInputBorder(),
+  //     ),
+  //     value: selectedSalesOrderNumber,
+  //     items:
+  //         salesOrderNumbers
+  //             .map(
+  //               (so) => DropdownMenuItem<String>(
+  //                 value: so.number,
+  //                 child: Text(so.number),
+  //               ),
+  //             )
+  //             .toList(),
+  //     onChanged: _onSalesOrderSelected,
+  //     validator: (val) => val == null ? "Sales Order Number is required" : null,
+  //   );
+  // }
+  Widget _buildSalesOrderDropdown() {
     return TextFormField(
+      controller: salesOrderController,
       decoration: const InputDecoration(
         labelText: "Sales Order Number",
         border: OutlineInputBorder(),
       ),
-      initialValue: selectedSalesOrderNumber,
       readOnly: true,
       validator:
           (val) =>
@@ -718,13 +1182,6 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
                   "Tax: ₹${(item.taxAmount ?? 0.0).toStringAsFixed(2)}\n"
                   "Total: ₹${item.totalAmount.toStringAsFixed(2)}",
                 ),
-                trailing:
-                    _isEditable
-                        ? IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: () => _removeItem(index),
-                        )
-                        : null,
                 isThreeLine: true,
               ),
             );
@@ -811,11 +1268,11 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
     );
   }
 
-  Widget _buildUpdateButton() {
+  Widget _buildSubmitButton() {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton(
-        onPressed: _updateProformaInvoice,
+        onPressed: _submitProformaInvoice,
         child: const Text("Update Proforma Invoice"),
       ),
     );
@@ -825,6 +1282,8 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
   void dispose() {
     dateController.dispose();
     customerController.dispose();
+    quotationController.dispose();
+    salesOrderController.dispose();
     super.dispose();
   }
 }

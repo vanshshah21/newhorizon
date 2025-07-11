@@ -9,7 +9,8 @@ import 'package:nhapp/utils/storage_utils.dart';
 import 'package:file_picker/file_picker.dart';
 
 class AddQuotationPage extends StatefulWidget {
-  const AddQuotationPage({super.key});
+  final Map<String, dynamic>? initialData;
+  const AddQuotationPage({super.key, this.initialData});
 
   @override
   State<AddQuotationPage> createState() => _AddQuotationPageState();
@@ -60,7 +61,121 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
     await _loadDocumentDetail();
     await _loadSalesPolicy();
     await _getExchangeRate();
+
+    // Prefill data if initial data is provided
+    if (widget.initialData != null) {
+      await _prefillData();
+    }
+
     setState(() => _isLoading = false);
+  }
+
+  Future<void> _prefillData() async {
+    final data = widget.initialData!;
+
+    try {
+      // Set quotation base to Inquiry only if quotationBases is loaded
+      if (quotationBases.isNotEmpty) {
+        selectedQuotationBase = quotationBases.firstWhere(
+          (base) => base.code == 'I',
+          orElse: () => quotationBases.first,
+        );
+      }
+
+      // Set customer data only if both customerCode and customerName are available
+      if (data['customerCode'] != null &&
+          data['customerCode'].toString().isNotEmpty &&
+          data['customerName'] != null &&
+          data['customerName'].toString().isNotEmpty) {
+        selectedCustomer = Customer(
+          customerCode: data['customerCode'].toString(),
+          customerName: data['customerName'].toString(),
+          telephoneNo: data['telephoneNo']?.toString() ?? '',
+          gstNumber: data['gstNumber']?.toString() ?? '',
+          customerFullName: data['customerName'].toString(),
+        );
+        customerController.text = data['customerName'].toString();
+
+        // Set bill to customer as same as customer
+        selectedBillToCustomer = selectedCustomer;
+        billToController.text = data['customerName'].toString();
+      }
+
+      // Set salesman if available and salesmanList is loaded
+      if (salesmanList.isNotEmpty &&
+          data['salesmanCode'] != null &&
+          data['salesmanCode'].toString().isNotEmpty) {
+        final matchingSalesman = salesmanList.firstWhere(
+          (s) => s.salesmanCode == data['salesmanCode'].toString(),
+          orElse:
+              () => Salesman(
+                salesmanCode: '',
+                salesmanName: '',
+                salesManFullName: '',
+              ),
+        );
+
+        if (matchingSalesman.salesmanCode.isNotEmpty) {
+          selectedSalesman = matchingSalesman;
+        }
+      }
+
+      // Load inquiry list and set the specific inquiry only if customer is set and quotation base is 'I'
+      if (selectedCustomer != null && selectedQuotationBase?.code == 'I') {
+        try {
+          inquiryList = await _service.fetchInquiryList(
+            selectedCustomer!.customerCode,
+          );
+
+          // Find and select the specific inquiry only if inquiryID is available
+          if (data['inquiryID'] != null && data['inquiryID'] != 0) {
+            final matchingInquiry = inquiryList.firstWhere(
+              (inq) => inq.inquiryId == data['inquiryID'],
+              orElse:
+                  () => Inquiry(
+                    inquiryId: 0,
+                    inquiryNumber: '',
+                    customerName: '',
+                  ),
+            );
+
+            if (matchingInquiry.inquiryId != 0) {
+              selectedInquiry = matchingInquiry;
+              // Load inquiry details and populate items
+              await _onInquirySelected(selectedInquiry);
+            }
+          }
+        } catch (e) {
+          debugPrint('Error loading inquiry list: $e');
+          // Continue without inquiry data
+        }
+      }
+
+      // Set a default subject with available data
+      String subject = "Quotation";
+      if (data['inquiryNumber'] != null &&
+          data['inquiryNumber'].toString().isNotEmpty) {
+        subject = "Quotation for Lead ${data['inquiryNumber']}";
+      } else if (data['customerName'] != null &&
+          data['customerName'].toString().isNotEmpty) {
+        subject = "Quotation for ${data['customerName']}";
+      }
+      subjectController.text = subject;
+
+      // Trigger UI update
+      setState(() {});
+    } catch (e) {
+      debugPrint('Error in prefill data: $e');
+      // Show error message but don't prevent form from loading
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Some data could not be prefilled: $e'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _getExchangeRate() async {
@@ -504,6 +619,81 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
     };
   }
 
+  // Future<void> _submitQuotation() async {
+  //   if (!_formKey.currentState!.validate()) return;
+  //   if (selectedCustomer == null) {
+  //     _showError("Please select a customer");
+  //     return;
+  //   }
+  //   if (selectedBillToCustomer == null) {
+  //     _showError("Please select Bill To customer");
+  //     return;
+  //   }
+  //   if (selectedSalesman == null) {
+  //     _showError("Please select a salesman");
+  //     return;
+  //   }
+  //   if (subjectController.text.isEmpty) {
+  //     _showError("Please enter subject");
+  //     return;
+  //   }
+  //   if (selectedQuotationBase?.code == "I" && selectedInquiry == null) {
+  //     _showError("Please select Lead Number");
+  //     return;
+  //   }
+  //   if (items.isEmpty) {
+  //     _showError("Please add at least one item");
+  //     return;
+  //   }
+
+  //   setState(() => _submitting = true);
+
+  //   try {
+  //     final payload = _buildSubmissionPayload();
+  //     final response = await _service.submitQuotation(payload);
+
+  //     if (response['success'] == true) {
+  //       // Upload attachments if any
+  //       if (attachments.isNotEmpty) {
+  //         final quotationNumber =
+  //             response['data']?['quotationDetails']?['quotationNumber']
+  //                 ?.toString() ??
+  //             "";
+  //         final docYear = _financeDetails?['financialYear'] ?? "";
+
+  //         if (quotationNumber.isNotEmpty) {
+  //           final uploadSuccess = await _service.uploadAttachments(
+  //             filePaths: attachments.map((f) => f.path!).toList(),
+  //             documentNo: quotationNumber,
+  //             documentId: "SQ",
+  //             docYear: docYear,
+  //             formId: "QUOTATION",
+  //             locationCode: _service.locationDetails['code'] ?? "",
+  //             companyCode: _service.companyDetails['code'] ?? "",
+  //             locationId: _service.locationDetails['id'] ?? 0,
+  //             companyId: _service.companyId,
+  //             userId: _service.tokenDetails['user']['id'] ?? 0,
+  //           );
+
+  //           if (!uploadSuccess) {
+  //             _showError("Quotation saved, but attachment upload failed!");
+  //           }
+  //         }
+  //       }
+
+  //       _showSuccess(response['message'] ?? "Quotation submitted successfully");
+  //       // Ensure we return true to trigger refresh
+  //       Navigator.pop(context, true);
+  //     } else {
+  //       _showError(response['errorMessage'] ?? "Failed to submit quotation");
+  //     }
+  //   } catch (e) {
+  //     _showError("Error during submission: ${e.toString()}");
+  //   } finally {
+  //     setState(() => _submitting = false);
+  //   }
+  // }
+
   Future<void> _submitQuotation() async {
     if (!_formKey.currentState!.validate()) return;
     if (selectedCustomer == null) {
@@ -544,15 +734,18 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
               response['data']?['quotationDetails']?['quotationNumber']
                   ?.toString() ??
               "";
+          final quotationId =
+              response['data']?['quotationDetails']?['quotationId'] ?? 0;
           final docYear = _financeDetails?['financialYear'] ?? "";
 
           if (quotationNumber.isNotEmpty) {
             final uploadSuccess = await _service.uploadAttachments(
               filePaths: attachments.map((f) => f.path!).toList(),
               documentNo: quotationNumber,
-              documentId: "SQ",
+              documentId: quotationId.toString(),
               docYear: docYear,
-              formId: "QUOTATION",
+              formId: 06103,
+              groupCode: documentDetail?.groupCode ?? "QA",
               locationCode: _service.locationDetails['code'] ?? "",
               companyCode: _service.companyDetails['code'] ?? "",
               locationId: _service.locationDetails['id'] ?? 0,
@@ -567,7 +760,6 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
         }
 
         _showSuccess(response['message'] ?? "Quotation submitted successfully");
-        // Ensure we return true to trigger refresh
         Navigator.pop(context, true);
       } else {
         _showError(response['errorMessage'] ?? "Failed to submit quotation");
@@ -650,6 +842,45 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
     );
   }
 
+  // Widget _buildQuotationBaseDropdown() {
+  //   return DropdownButtonFormField<QuotationBase>(
+  //     decoration: const InputDecoration(
+  //       labelText: "Quotation Base",
+  //       border: OutlineInputBorder(),
+  //     ),
+  //     value: selectedQuotationBase,
+  //     items:
+  //         quotationBases
+  //             .map(
+  //               (base) => DropdownMenuItem<QuotationBase>(
+  //                 value: base,
+  //                 child: Text(base.name),
+  //               ),
+  //             )
+  //             .toList(),
+  //     onChanged:
+  //         _submitting
+  //             ? null
+  //             : (val) async {
+  //               setState(() {
+  //                 selectedQuotationBase = val;
+  //                 // Clear fields below quotation base
+  //                 items.clear();
+  //                 selectedInquiry = null;
+  //                 inquiryList.clear();
+  //               });
+
+  //               // Load inquiry list if "I" is selected and we have a customer
+  //               if (val?.code == "I" && selectedCustomer != null) {
+  //                 inquiryList = await _service.fetchInquiryList(
+  //                   selectedCustomer!.customerCode,
+  //                 );
+  //                 setState(() {});
+  //               }
+  //             },
+  //     validator: (val) => val == null ? "Quotation Base is required" : null,
+  //   );
+  // }
   Widget _buildQuotationBaseDropdown() {
     return DropdownButtonFormField<QuotationBase>(
       decoration: const InputDecoration(
@@ -667,18 +898,18 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
               )
               .toList(),
       onChanged:
-          _submitting
+          widget.initialData != null
+              ? null // Disable when prefilled
+              : _submitting
               ? null
               : (val) async {
                 setState(() {
                   selectedQuotationBase = val;
-                  // Clear fields below quotation base
                   items.clear();
                   selectedInquiry = null;
                   inquiryList.clear();
                 });
 
-                // Load inquiry list if "I" is selected and we have a customer
                 if (val?.code == "I" && selectedCustomer != null) {
                   inquiryList = await _service.fetchInquiryList(
                     selectedCustomer!.customerCode,
@@ -722,15 +953,56 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
     );
   }
 
+  // Widget _buildCustomerField() {
+  //   return TypeAheadField<Customer>(
+  //     debounceDuration: const Duration(milliseconds: 400),
+  //     controller: customerController,
+  //     builder: (context, controller, focusNode) {
+  //       return TextFormField(
+  //         controller: controller,
+  //         focusNode: focusNode,
+  //         enabled: !_submitting,
+  //         decoration: const InputDecoration(
+  //           labelText: "Customer Name",
+  //           border: OutlineInputBorder(),
+  //         ),
+  //         validator:
+  //             (val) =>
+  //                 val == null || val.isEmpty
+  //                     ? "Customer Name is required"
+  //                     : null,
+  //       );
+  //     },
+  //     suggestionsCallback:
+  //         _submitting
+  //             ? (pattern) async => []
+  //             : (pattern) async {
+  //               if (pattern.length < 4) return [];
+  //               try {
+  //                 return await _service.fetchCustomerSuggestions(pattern);
+  //               } catch (e) {
+  //                 return [];
+  //               }
+  //             },
+  //     itemBuilder: (context, suggestion) {
+  //       return ListTile(
+  //         title: Text(suggestion.customerName),
+  //         subtitle: Text(suggestion.customerCode),
+  //       );
+  //     },
+  //     onSelected: _submitting ? null : _onCustomerSelected,
+  //   );
+  // }
   Widget _buildCustomerField() {
     return TypeAheadField<Customer>(
       debounceDuration: const Duration(milliseconds: 400),
       controller: customerController,
+      showOnFocus: widget.initialData != null ? false : true,
       builder: (context, controller, focusNode) {
         return TextFormField(
           controller: controller,
           focusNode: focusNode,
-          enabled: !_submitting,
+          enabled: widget.initialData == null ? !_submitting : false,
           decoration: const InputDecoration(
             labelText: "Customer Name",
             border: OutlineInputBorder(),
@@ -743,7 +1015,9 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
         );
       },
       suggestionsCallback:
-          _submitting
+          widget.initialData != null
+              ? (pattern) async => []
+              : _submitting
               ? (pattern) async => []
               : (pattern) async {
                 if (pattern.length < 4) return [];
@@ -759,7 +1033,12 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
           subtitle: Text(suggestion.customerCode),
         );
       },
-      onSelected: _submitting ? null : _onCustomerSelected,
+      onSelected:
+          widget.initialData != null
+              ? null
+              : _submitting
+              ? null
+              : _onCustomerSelected,
     );
   }
 
@@ -843,6 +1122,26 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
     );
   }
 
+  // Widget _buildInquiryDropdown() {
+  //   return DropdownButtonFormField<Inquiry>(
+  //     decoration: const InputDecoration(
+  //       labelText: "Lead Number",
+  //       border: OutlineInputBorder(),
+  //     ),
+  //     value: selectedInquiry,
+  //     items:
+  //         inquiryList
+  //             .map(
+  //               (inq) => DropdownMenuItem<Inquiry>(
+  //                 value: inq,
+  //                 child: Text("${inq.inquiryNumber} - ${inq.customerName}"),
+  //               ),
+  //             )
+  //             .toList(),
+  //     onChanged: _submitting ? null : _onInquirySelected,
+  //     validator: (val) => val == null ? "Lead Number is required" : null,
+  //   );
+  // }
   Widget _buildInquiryDropdown() {
     return DropdownButtonFormField<Inquiry>(
       decoration: const InputDecoration(
@@ -859,7 +1158,12 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
                 ),
               )
               .toList(),
-      onChanged: _submitting ? null : _onInquirySelected,
+      onChanged:
+          widget.initialData != null
+              ? null // Disable when prefilled
+              : _submitting
+              ? null
+              : _onInquirySelected,
       validator: (val) => val == null ? "Lead Number is required" : null,
     );
   }

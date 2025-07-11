@@ -27,8 +27,9 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   String? selectedQuotationSrNo;
   String? selectedSalesOrderNumber;
   String? selectedSalesOrderSrNo;
-  DefaultDocumentDetail? DefaultQuotation;
-  DefaultDocumentDetail? DefaultSalesOrder;
+  late Map<String, dynamic> DefaultQuotation;
+  late Map<String, dynamic> DefaultSalesOrder;
+  late Map<String, dynamic> DefaultProformaInvoice;
   List<QuotationNumber> quotationNumbers = [];
   List<SalesOrderNumber> salesOrderNumbers = [];
   List<ProformaItem> items = [];
@@ -43,6 +44,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   List<Map<String, dynamic>> _discountDetails = [];
   late DateTime startDate;
   late DateTime endDate;
+  late final String currency;
 
   final List<String> preferenceOptions = [
     "On Quotation",
@@ -62,6 +64,9 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
     _service = await ProformaInvoiceService.create();
     await _loadFinancePeriod();
     await _loadRateStructures();
+    loadProformaInvoiceDefaults();
+    final curObj = await StorageUtils.readJson('domestic_currency');
+    currency = curObj?['domCurCode'] ?? 'INR';
     companyDetails = await StorageUtils.readJson('selected_company');
     if (companyDetails == null) {
       _showError("Company details not found.");
@@ -101,6 +106,10 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   void _setDefaultDate() {
     selectedDate = DateTime.now();
     dateController.text = FormatUtils.formatDateForUser(selectedDate!);
+  }
+
+  void loadProformaInvoiceDefaults() async {
+    DefaultProformaInvoice = await _service.fetchDefaultDocumentDetail("PI");
   }
 
   Future<void> _loadRateStructures() async {
@@ -384,7 +393,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
         for (final disc in details.discountDetail!) {
           _discountDetails.add({
             "itemCode": disc['discitem'] ?? '',
-            "currCode": disc['disccurr'] ?? "INR",
+            "currCode": disc['disccurr'] ?? currency ?? "INR",
             "discCode": disc['disccode'] ?? "01",
             "discType": disc['disctype'] ?? '',
             "discVal": disc['discvalue'] ?? 0,
@@ -466,7 +475,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
             "appliedOn": rs['appliedOn'] ?? "",
             "pnyn": rs['pnyn'] ?? false,
             "seqNo": rs['seqNo']?.toString() ?? "1",
-            "curCode": rs['curCode'] ?? "INR",
+            "curCode": rs['curCode'] ?? currency ?? "INR",
             "fromLocationId": locationDetails?['id'] ?? 8,
             "TaxTyp": rs['TaxTyp'] ?? '',
             "refLine": rs['refLine'] ?? 0,
@@ -479,7 +488,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
         for (final disc in details.discountDetail!) {
           _discountDetails.add({
             "itemCode": disc['itemCode'] ?? '',
-            "currCode": disc['currCode'] ?? "INR",
+            "currCode": disc['currCode'] ?? currency ?? "INR",
             "discCode": disc['discCode'] ?? "01",
             "discType": disc['discType'] ?? '',
             "discVal": disc['discVal'] ?? 0,
@@ -516,46 +525,6 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
     }
   }
 
-  // void _removeItem(int index) {
-  //   setState(() {
-  //     items.removeAt(index);
-  //     // Reassign line numbers
-  //     for (int i = 0; i < items.length; i++) {
-  //       items[i] = ProformaItem(
-  //         itemName: items[i].itemName,
-  //         itemCode: items[i].itemCode,
-  //         qty: items[i].qty,
-  //         basicRate: items[i].basicRate,
-  //         uom: items[i].uom,
-  //         discountType: items[i].discountType,
-  //         discountPercentage: items[i].discountPercentage,
-  //         discountAmount: items[i].discountAmount,
-  //         rateStructure: items[i].rateStructure,
-  //         taxAmount: items[i].taxAmount,
-  //         totalAmount: items[i].totalAmount,
-  //         rateStructureRows: items[i].rateStructureRows,
-  //         lineNo: i + 1,
-  //         hsnAccCode: items[i].hsnAccCode,
-  //       );
-  //     }
-  //   });
-  // }
-
-  // double _calculateTotalBasic() {
-  //   return items.fold(0.0, (sum, item) => sum + (item.basicRate * item.qty));
-  // }
-
-  // double _calculateTotalDiscount() {
-  //   return items.fold(0.0, (sum, item) => sum + (item.discountAmount ?? 0.0));
-  // }
-
-  // double _calculateTotalTax() {
-  //   return items.fold(0.0, (sum, item) => sum + (item.taxAmount ?? 0.0));
-  // }
-
-  // double _calculateTotalAmount() {
-  //   return items.fold(0.0, (sum, item) => sum + item.totalAmount);
-  // }
   double _calculateTotalBasic() {
     return items.fold(0.0, (sum, item) => sum + (item.basicRate * item.qty));
   }
@@ -571,359 +540,6 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   double _calculateTotalAmount() {
     return items.fold(0.0, (sum, item) => sum + item.totalAmount);
   }
-
-  // Map<String, dynamic> _buildSubmissionPayload() {
-  //   List<Map<String, dynamic>> itemDetails = [];
-  //   List<Map<String, dynamic>> rsGrid = [];
-  //   List<Map<String, dynamic>> discountDetails = [];
-
-  //   for (int i = 0; i < items.length; i++) {
-  //     final item = items[i];
-  //     final lineNo = i + 1;
-  //     final userId = userDetails?['id'] ?? 0;
-  //     final locationId = locationDetails?['id'] ?? 0;
-
-  //     // Item detail
-  //     final itemJson = item.toSubmissionJson(userId, locationId);
-  //     itemJson['lineNo'] = lineNo;
-  //     itemJson['seqNo'] = lineNo;
-  //     itemDetails.add(itemJson);
-
-  //     // rsGrid: add all rate structure rows for this item, set refLine = lineNo
-  //     if (item.rateStructureRows != null) {
-  //       for (final row in item.rateStructureRows!) {
-  //         rsGrid.add({
-  //           "docType": "PI",
-  //           "docSubType": "PI",
-  //           "xdtdtmcd": item.itemCode,
-  //           "rateCode": row['msprtcd'],
-  //           "rateStructCode": item.rateStructure,
-  //           "rateAmount": row['rateAmount'] ?? 0,
-  //           "amdSrNo": 0,
-  //           "perCValue": row['msprtval']?.toString() ?? "0.00",
-  //           "incExc": row['mspincexc'],
-  //           "perVal": row['mspperval'],
-  //           "appliedOn": row['mtrslvlno'] ?? "",
-  //           "pnyn": row['msppnyn'] == "True" || row['msppnyn'] == true,
-  //           "seqNo": row['mspseqno']?.toString() ?? "1",
-  //           "curCode": row['mprcurcode'] ?? "INR",
-  //           "fromLocationId": 8,
-  //           "TaxTyp": row['mprtaxtyp'],
-  //           "refLine": lineNo,
-  //         });
-  //       }
-  //     }
-
-  //     // Discount detail
-  //     if (item.discountAmount != null && item.discountAmount! > 0) {
-  //       discountDetails.add({
-  //         "itemCode": item.itemCode,
-  //         "currCode": "INR",
-  //         "discCode": "01",
-  //         "discType": item.discountType,
-  //         "discVal":
-  //             item.discountType == "Percentage"
-  //                 ? item.discountPercentage ?? 0
-  //                 : item.discountAmount ?? 0,
-  //         "fromLocationId": 8,
-  //         "oditmlineno": lineNo,
-  //       });
-  //     }
-  //   }
-
-  //   return {
-  //     "action": "add",
-  //     "autoNoRequired": "Y",
-  //     "customerPoNumber": null,
-  //     "customerPoDate": null,
-  //     "itemDetail": itemDetails,
-  //     "rsGrid": rsGrid,
-  //     "discountDetail": discountDetails,
-  //     "remark": [],
-  //   };
-  // }
-
-  // Map<String, dynamic> _buildSubmissionPayload() {
-  //   if (userDetails?['id'] == null) throw Exception("User ID is null");
-  //   if (locationDetails?['id'] == null) throw Exception("Location ID is null");
-  //   if (locationDetails?['code'] == null) {
-  //     throw Exception("Location code is null");
-  //   }
-  //   if (selectedCustomer == null) throw Exception("Customer is null");
-
-  //   List<Map<String, dynamic>> itemDetails = [];
-  //   List<Map<String, dynamic>> rsGrid = [];
-  //   List<Map<String, dynamic>> discountDetails = [];
-
-  //   double totalBasic = 0.0;
-  //   double totalTax = 0.0;
-  //   double totalAmount = 0.0;
-  //   double totalDiscount = 0.0;
-
-  //   final userId = userDetails?['id'] ?? 0;
-  //   final locationId = locationDetails?['id'] ?? 0;
-  //   final locationCode = locationDetails?['code'] ?? "";
-
-  //   // Build item details
-  //   for (int i = 0; i < items.length; i++) {
-  //     final item = items[i];
-  //     final lineNo = i + 1;
-
-  //     final itemJson = item.toSubmissionJson(userId, locationId);
-  //     itemJson['lineNo'] = lineNo;
-  //     itemJson['seqNo'] = lineNo;
-  //     itemDetails.add(itemJson);
-
-  //     totalBasic += (item.basicRate * item.qty);
-  //     totalTax += (item.taxAmount ?? 0.0);
-  //     totalAmount += item.totalAmount;
-  //     totalDiscount += (item.discountAmount ?? 0.0);
-  //   }
-
-  //   // Use pre-populated rsGrid and discountDetails, but update refLine numbers if needed
-  //   rsGrid =
-  //       _rsGrid.map((rs) {
-  //         // Find the corresponding item to get the correct line number
-  //         final itemIndex = items.indexWhere(
-  //           (item) => item.itemCode == rs['xdtdtmcd'],
-  //         );
-  //         if (itemIndex != -1) {
-  //           rs['refLine'] = itemIndex + 1;
-  //         }
-  //         return Map<String, dynamic>.from(rs);
-  //       }).toList();
-
-  //   discountDetails =
-  //       _discountDetails.map((disc) {
-  //         // Find the corresponding item to get the correct line number
-  //         final itemIndex = items.indexWhere(
-  //           (item) => item.itemCode == disc['itemCode'],
-  //         );
-  //         if (itemIndex != -1) {
-  //           disc['oditmlineno'] = itemIndex + 1;
-  //         }
-  //         return Map<String, dynamic>.from(disc);
-  //       }).toList();
-
-  //   // For manually added items (when preference is "On Other"), we need to add their rate structure details
-  //   if (selectPreference == "On Other") {
-  //     for (int i = 0; i < items.length; i++) {
-  //       final item = items[i];
-  //       final lineNo = i + 1;
-
-  //       // Add rate structure details for manually added items
-  //       if (item.rateStructureRows != null) {
-  //         for (final row in item.rateStructureRows!) {
-  //           rsGrid.add({
-  //             "docType": "PI",
-  //             "docSubType": "PI",
-  //             "xdtdtmcd": item.itemCode,
-  //             "rateCode": row['msprtcd'],
-  //             "rateStructCode": item.rateStructure,
-  //             "rateAmount": row['rateAmount'] ?? 0,
-  //             "amdSrNo": 0,
-  //             "perCValue": row['msprtval']?.toString() ?? "0.00",
-  //             "incExc": row['mspincexc'],
-  //             "perVal": row['mspperval'],
-  //             "appliedOn": row['mtrslvlno'] ?? "",
-  //             "pnyn": row['msppnyn'] == "True" || row['msppnyn'] == true,
-  //             "seqNo": row['mspseqno']?.toString() ?? "1",
-  //             "curCode": row['mprcurcode'] ?? "INR",
-  //             "fromLocationId": locationId,
-  //             "TaxTyp": row['mprtaxtyp'],
-  //             "refLine": lineNo,
-  //           });
-  //         }
-  //       }
-
-  //       // Add discount details for manually added items
-  //       if (item.discountAmount != null && item.discountAmount! > 0) {
-  //         discountDetails.add({
-  //           "itemCode": item.itemCode,
-  //           "currCode": "INR",
-  //           "discCode": "DISC",
-  //           "discType": item.discountType,
-  //           "discVal":
-  //               item.discountType == "Percentage"
-  //                   ? item.discountPercentage ?? 0
-  //                   : item.discountAmount ?? 0,
-  //           "fromLocationId": locationId,
-  //           "oditmlineno": lineNo,
-  //         });
-  //       }
-  //     }
-  //   }
-
-  //   // Generate itemHeaderDetial
-  //   final itemHeaderDetial = _buildItemHeaderDetail(
-  //     totalAmount,
-  //     totalTax,
-  //     totalDiscount,
-  //     userId,
-  //     locationId,
-  //     locationCode,
-  //   );
-
-  //   // Generate transport detail
-  //   final transportDetail = _buildTransportDetail(userId);
-
-  //   return {
-  //     "action": "add",
-  //     "autoNoRequired": "Y",
-  //     "customerPoNumber": null,
-  //     "customerPoDate": null,
-  //     "itemHeaderDetial": itemHeaderDetial,
-  //     "itemDetail": itemDetails,
-  //     "rsGrid": rsGrid,
-  //     "discountDetail": discountDetails,
-  //     "standardTerms": [],
-  //     "transportDetail": transportDetail,
-  //     "chargesDetail": [],
-  //     "remark": [],
-  //   };
-  // }
-
-  // Map<String, dynamic> _buildSubmissionPayload() {
-  //   if (userDetails?['id'] == null) throw Exception("User ID is null");
-  //   if (locationDetails?['id'] == null) throw Exception("Location ID is null");
-  //   if (locationDetails?['code'] == null) {
-  //     throw Exception("Location code is null");
-  //   }
-  //   if (selectedCustomer == null) throw Exception("Customer is null");
-
-  //   List<Map<String, dynamic>> itemDetails = [];
-  //   List<Map<String, dynamic>> rsGrid = [];
-  //   List<Map<String, dynamic>> discountDetails = [];
-
-  //   double totalBasic = 0.0;
-  //   double totalTax = 0.0;
-  //   double totalAmount = 0.0;
-  //   double totalDiscount = 0.0;
-
-  //   final userId = userDetails?['id'] ?? 0;
-  //   final locationId = locationDetails?['id'] ?? 0;
-  //   final locationCode = locationDetails?['code'] ?? "";
-
-  //   // Build item details
-  //   for (int i = 0; i < items.length; i++) {
-  //     final item = items[i];
-  //     final lineNo = i + 1;
-
-  //     final itemJson = item.toSubmissionJson(userId, locationId);
-  //     itemJson['lineNo'] = lineNo;
-  //     itemJson['seqNo'] = lineNo;
-  //     itemDetails.add(itemJson);
-
-  //     totalBasic += (item.basicRate * item.qty);
-  //     totalTax += (item.taxAmount ?? 0.0);
-  //     totalAmount += item.totalAmount;
-  //     totalDiscount += (item.discountAmount ?? 0.0);
-  //   }
-
-  //   // Handle rsGrid and discountDetails based on preference
-  //   if (selectPreference == "On Quotation" ||
-  //       selectPreference == "On Sales Order") {
-  //     // Use pre-populated rsGrid and discountDetails, but update refLine numbers if needed
-  //     rsGrid =
-  //         _rsGrid.map((rs) {
-  //           // Find the corresponding item to get the correct line number
-  //           final itemIndex = items.indexWhere(
-  //             (item) => item.itemCode == rs['xdtdtmcd'],
-  //           );
-  //           if (itemIndex != -1) {
-  //             rs['refLine'] = itemIndex + 1;
-  //           }
-  //           return Map<String, dynamic>.from(rs);
-  //         }).toList();
-
-  //     discountDetails =
-  //         _discountDetails.map((disc) {
-  //           // Find the corresponding item to get the correct line number
-  //           final itemIndex = items.indexWhere(
-  //             (item) => item.itemCode == disc['itemCode'],
-  //           );
-  //           if (itemIndex != -1) {
-  //             disc['oditmlineno'] = itemIndex + 1;
-  //           }
-  //           return Map<String, dynamic>.from(disc);
-  //         }).toList();
-  //   } else {
-  //     // For "On Other" - build rsGrid and discountDetails from item data
-  //     for (int i = 0; i < items.length; i++) {
-  //       final item = items[i];
-  //       final lineNo = i + 1;
-
-  //       // Add rate structure details for manually added items
-  //       if (item.rateStructureRows != null) {
-  //         for (final row in item.rateStructureRows!) {
-  //           rsGrid.add({
-  //             "docType": "PI",
-  //             "docSubType": "PI",
-  //             "xdtdtmcd": item.itemCode,
-  //             "rateCode": row['msprtcd'],
-  //             "rateStructCode": item.rateStructure,
-  //             "rateAmount": row['rateAmount'] ?? 0,
-  //             "amdSrNo": 0,
-  //             "perCValue": row['msprtval']?.toString() ?? "0.00",
-  //             "incExc": row['mspincexc'],
-  //             "perVal": row['mspperval'],
-  //             "appliedOn": row['mtrslvlno'] ?? "",
-  //             "pnyn": row['msppnyn'] == "True" || row['msppnyn'] == true,
-  //             "seqNo": row['mspseqno']?.toString() ?? "1",
-  //             "curCode": row['mprcurcode'] ?? "INR",
-  //             "fromLocationId": locationId,
-  //             "TaxTyp": row['mprtaxtyp'],
-  //             "refLine": lineNo,
-  //           });
-  //         }
-  //       }
-
-  //       // Add discount details for manually added items
-  //       if (item.discountAmount != null && item.discountAmount! > 0) {
-  //         discountDetails.add({
-  //           "itemCode": item.itemCode,
-  //           "currCode": "INR",
-  //           "discCode": "DISC",
-  //           "discType": item.discountType,
-  //           "discVal":
-  //               item.discountType == "Percentage"
-  //                   ? item.discountPercentage ?? 0
-  //                   : item.discountAmount ?? 0,
-  //           "fromLocationId": locationId,
-  //           "oditmlineno": lineNo,
-  //         });
-  //       }
-  //     }
-  //   }
-
-  //   // Always generate itemHeaderDetial regardless of preference type
-  //   final itemHeaderDetial = _buildItemHeaderDetail(
-  //     totalAmount,
-  //     totalTax,
-  //     totalDiscount,
-  //     userId,
-  //     locationId,
-  //     locationCode,
-  //   );
-
-  //   // Generate transport detail
-  //   final transportDetail = _buildTransportDetail(userId);
-
-  //   return {
-  //     "action": "add",
-  //     "autoNoRequired": "Y",
-  //     "customerPoNumber": null,
-  //     "customerPoDate": null,
-  //     "itemHeaderDetial": itemHeaderDetial,
-  //     "itemDetail": itemDetails,
-  //     "rsGrid": rsGrid,
-  //     "discountDetail": discountDetails,
-  //     "standardTerms": [],
-  //     "transportDetail": transportDetail,
-  //     "chargesDetail": [],
-  //     "remark": [],
-  //   };
-  // }
 
   // Map<String, dynamic> _buildSubmissionPayload() {
   //   if (userDetails?['id'] == null) throw Exception("User ID is null");
@@ -944,13 +560,15 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   //   // Calculate totals using the existing methods
   //   final totalBasic = _calculateTotalBasic();
   //   final totalDiscount = _calculateTotalDiscount();
-  //   final totalTax = _calculateTotalTax();
+
+  //   // Calculate tax from rate structure details instead of item tax amounts
+  //   final totalTax = _calculateTaxFromRateStructure();
   //   final totalAmount = _calculateTotalAmount();
 
   //   // Debug print to verify calculations
   //   debugPrint("Total Basic: $totalBasic");
   //   debugPrint("Total Discount: $totalDiscount");
-  //   debugPrint("Total Tax: $totalTax");
+  //   debugPrint("Total Tax (from rate structure): $totalTax");
   //   debugPrint("Total Amount: $totalAmount");
 
   //   // Build item details
@@ -961,6 +579,16 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   //     final itemJson = item.toSubmissionJson(userId, locationId);
   //     itemJson['lineNo'] = lineNo;
   //     itemJson['seqNo'] = lineNo;
+  //     itemJson['fromLocationId'] = locationId;
+  //     if (selectPreference == "On Quotation") {
+  //       itemJson['ordYear'] = _financeDetails?['financialYear'];
+  //       itemJson['ordGroup'] = DefaultQuotation!.groupCode;
+  //       itemJson['ordNumber'] = selectedQuotationNumber;
+  //     } else if (selectPreference == "On Sales Order") {
+  //       itemJson['ordYear'] = _financeDetails?['financialYear'];
+  //       itemJson['ordGroup'] = DefaultSalesOrder!.groupCode;
+  //       itemJson['ordNumber'] = selectedSalesOrderNumber;
+  //     }
   //     itemDetails.add(itemJson);
   //   }
 
@@ -993,30 +621,56 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   //         }).toList();
   //   } else {
   //     // For "On Other" - build rsGrid and discountDetails from item data
+  //     // Need to preserve rate codes from original rate structure
   //     for (int i = 0; i < items.length; i++) {
   //       final item = items[i];
   //       final lineNo = i + 1;
 
   //       // Add rate structure details for manually added items
   //       if (item.rateStructureRows != null) {
+  //         // Find the original rate structure for this item's rate structure code
+  //         // final originalRateStructure = rateStructures.firstWhere(
+  //         //   (rs) => rs.rateStructCode == item.rateStructure,
+  //         //   orElse: null,
+  //         // );
+
   //         for (final row in item.rateStructureRows!) {
+  //           // Find the matching rate code from original rate structure by sequence number
+  //           String rateCode = row['msprtcd'] ?? row['rateCode'] ?? '';
+
+  //           // If we have the original rate structure details, match by sequence number
+  //           if (row['mspseqno'] != null) {
+  //             // Try to find rate code from original structure based on sequence
+  //             // This assumes the rate structure rows maintain their sequence order
+  //             try {
+  //               final seqNo =
+  //                   int.tryParse(row['mspseqno']?.toString() ?? '0') ?? 0;
+  //               if (seqNo > 0) {
+  //                 // The rate code should be preserved from the calculated response
+  //                 rateCode = row['msprtcd'] ?? '';
+  //               }
+  //             } catch (e) {
+  //               debugPrint("Error parsing sequence number: $e");
+  //             }
+  //           }
+
   //           rsGrid.add({
   //             "docType": "PI",
   //             "docSubType": "PI",
-  //             "xdtdtmcd": item.itemCode,
-  //             "rateCode": row['msprtcd'],
+  //             "customerItemCode": item.itemCode,
+  //             "rateCode": rateCode, // Use the preserved rate code
   //             "rateStructCode": item.rateStructure,
   //             "rateAmount": row['rateAmount'] ?? 0,
   //             "amdSrNo": 0,
   //             "perCValue": row['msprtval']?.toString() ?? "0.00",
-  //             "incExc": row['mspincexc'],
-  //             "perVal": row['mspperval'],
+  //             "incExc": row['mspincexc'] ?? row['ie'] ?? '',
+  //             "perVal": row['mspperval'] ?? row['pv'] ?? 0,
   //             "appliedOn": row['mtrslvlno'] ?? "",
   //             "pnyn": row['msppnyn'] == "True" || row['msppnyn'] == true,
   //             "seqNo": row['mspseqno']?.toString() ?? "1",
   //             "curCode": row['mprcurcode'] ?? "INR",
   //             "fromLocationId": locationId,
-  //             "TaxTyp": row['mprtaxtyp'],
+  //             "TaxTyp": row['mprtaxtyp'] ?? '',
   //             "refLine": lineNo,
   //           });
   //         }
@@ -1050,14 +704,15 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   //     locationCode,
   //   );
 
-  //   // Debug print the itemHeaderDetial
-  //   debugPrint("ItemHeaderDetial: $itemHeaderDetial");
+  //   // Debug print the rsGrid to verify rate codes are preserved
+  //   debugPrint("Final rsGrid: $rsGrid");
 
   //   // Generate transport detail
   //   final transportDetail = _buildTransportDetail(userId);
 
   //   return {
   //     "action": "add",
+  //     "ExchangeRate": 1.0,
   //     "autoNoRequired": "Y",
   //     "customerPoNumber": null,
   //     "customerPoDate": null,
@@ -1091,101 +746,159 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
     // Calculate totals using the existing methods
     final totalBasic = _calculateTotalBasic();
     final totalDiscount = _calculateTotalDiscount();
-
-    // Calculate tax from rate structure details instead of item tax amounts
     final totalTax = _calculateTaxFromRateStructure();
     final totalAmount = _calculateTotalAmount();
 
-    // Debug print to verify calculations
-    debugPrint("Total Basic: $totalBasic");
-    debugPrint("Total Discount: $totalDiscount");
-    debugPrint("Total Tax (from rate structure): $totalTax");
-    debugPrint("Total Amount: $totalAmount");
-
-    // Build item details
+    // Build item details with correct field names
     for (int i = 0; i < items.length; i++) {
       final item = items[i];
       final lineNo = i + 1;
 
-      final itemJson = item.toSubmissionJson(userId, locationId);
-      itemJson['lineNo'] = lineNo;
-      itemJson['seqNo'] = lineNo;
-      itemJson['fromLocationId'] = locationId;
+      // Calculate values
+      final basicAmount = item.basicRate * item.qty;
+      final discountAmount = item.discountAmount ?? 0.0;
+      final discountedAmount = basicAmount - discountAmount;
+      final discountedRate = item.qty > 0 ? (discountedAmount / item.qty) : 0.0;
+
+      final itemJson = {
+        "ordYear": "",
+        "rcvAdv": 0,
+        "piAdv": 0,
+        "rtnAmt": 0,
+        "currCd": currency,
+        "createdBy": userId,
+        "netDiscountRate": discountedRate,
+        "discOrdRate": item.basicRate,
+        "lineNo": lineNo,
+        "salesItemCode": item.itemCode,
+        "invItemCode": item.itemCode,
+        "ordGroup": "",
+        "ordNumber": "",
+        "quantitySUOM": item.qty,
+        "invQty": item.qty,
+        "maxAllowedQty": item.qty,
+        "hsnAccCode": item.hsnAccCode ?? "",
+        "productSize": "",
+        "itemUOM": item.uom,
+        "discountedRate": discountedRate,
+        "discAmount": discountAmount.toStringAsFixed(2),
+        "discountedAmount": discountedAmount,
+        "taxStructure": item.rateStructure,
+        "seqNo": lineNo,
+        "fromLocationId": locationId,
+        "curCode": currency,
+        "headerRemark": "",
+        "invId": 0,
+        "mainitemcode": "",
+        "printseq": "",
+        "detaildescription": "",
+        "loadRate": 0,
+      };
+
       if (selectPreference == "On Quotation") {
-        itemJson['ordYear'] = _financeDetails?['financialYear'];
-        itemJson['ordGroup'] = DefaultQuotation!.groupCode;
-        itemJson['ordNumber'] = selectedQuotationNumber;
+        itemJson['ordYear'] = _financeDetails?['financialYear'] ?? "";
+        itemJson['ordGroup'] = DefaultQuotation['groupCode'] ?? "";
+        itemJson['ordNumber'] = selectedQuotationNumber ?? "";
       } else if (selectPreference == "On Sales Order") {
-        itemJson['ordYear'] = _financeDetails?['financialYear'];
-        itemJson['ordGroup'] = DefaultSalesOrder!.groupCode;
-        itemJson['ordNumber'] = selectedSalesOrderNumber;
+        itemJson['ordYear'] = _financeDetails?['financialYear'] ?? "";
+        itemJson['ordGroup'] = DefaultSalesOrder['groupCode'] ?? "";
+        itemJson['ordNumber'] = selectedSalesOrderNumber ?? "";
       }
+
       itemDetails.add(itemJson);
     }
 
-    // Handle rsGrid and discountDetails based on preference
+    // Handle rsGrid - fix field mapping
     if (selectPreference == "On Quotation" ||
         selectPreference == "On Sales Order") {
-      // Use pre-populated rsGrid and discountDetails, but update refLine numbers if needed
       rsGrid =
           _rsGrid.map((rs) {
-            // Find the corresponding item to get the correct line number
             final itemIndex = items.indexWhere(
               (item) => item.itemCode == rs['xdtdtmcd'],
             );
-            if (itemIndex != -1) {
-              rs['refLine'] = itemIndex + 1;
-            }
-            return Map<String, dynamic>.from(rs);
-          }).toList();
 
-      discountDetails =
-          _discountDetails.map((disc) {
-            // Find the corresponding item to get the correct line number
-            final itemIndex = items.indexWhere(
-              (item) => item.itemCode == disc['itemCode'],
-            );
-            if (itemIndex != -1) {
-              disc['oditmlineno'] = itemIndex + 1;
-            }
-            return Map<String, dynamic>.from(disc);
+            return {
+              "docType": "PI",
+              "docSubType": "PI",
+              "xdtdtmcd": rs['xdtdtmcd'] ?? "",
+              "rateCode": rs['rateCode'] ?? "",
+              "rateStructCode": rs['rateStructCode'] ?? "",
+              "rateAmount": rs['rateAmount'] ?? 0,
+              "amdSrNo": rs['amdSrNo'] ?? 0,
+              "perCValue": rs['perCValue']?.toString() ?? "0.00",
+              "incExc": rs['incExc'] ?? "",
+              "perVal": rs['perVal']?.toString() ?? "V", // Changed to string
+              "appliedOn": rs['appliedOn'] ?? "",
+              "pnyn": rs['pnyn'] ?? false,
+              "seqNo": rs['seqNo']?.toString() ?? "1",
+              "curCode": rs['curCode'] ?? currency ?? "INR",
+              "fromLocationId": locationId,
+              "TaxTyp": rs['TaxTyp'] ?? "",
+              "refLine": itemIndex != -1 ? itemIndex + 1 : rs['refLine'] ?? 1,
+            };
           }).toList();
     } else {
-      // For "On Other" - build rsGrid and discountDetails from item data
+      // For "On Other" - build rsGrid from item data
       for (int i = 0; i < items.length; i++) {
         final item = items[i];
         final lineNo = i + 1;
 
-        // Add rate structure details for manually added items
         if (item.rateStructureRows != null) {
           for (final row in item.rateStructureRows!) {
             rsGrid.add({
               "docType": "PI",
               "docSubType": "PI",
               "xdtdtmcd": item.itemCode,
-              "rateCode": row['msprtcd'],
+              "rateCode": row['msprtcd'] ?? "",
               "rateStructCode": item.rateStructure,
               "rateAmount": row['rateAmount'] ?? 0,
               "amdSrNo": 0,
               "perCValue": row['msprtval']?.toString() ?? "0.00",
-              "incExc": row['mspincexc'],
-              "perVal": row['mspperval'],
+              "incExc": row['mspincexc'] ?? "",
+              "perVal": row['mspperval']?.toString() ?? "V",
               "appliedOn": row['mtrslvlno'] ?? "",
               "pnyn": row['msppnyn'] == "True" || row['msppnyn'] == true,
               "seqNo": row['mspseqno']?.toString() ?? "1",
-              "curCode": row['mprcurcode'] ?? "INR",
+              "curCode": currency,
               "fromLocationId": locationId,
-              "TaxTyp": row['mprtaxtyp'],
+              "TaxTyp": row['mprtaxtyp'] ?? "",
               "refLine": lineNo,
             });
           }
         }
+      }
+    }
 
-        // Add discount details for manually added items
+    // Handle discountDetails - fix field mapping
+    if (selectPreference == "On Quotation" ||
+        selectPreference == "On Sales Order") {
+      discountDetails =
+          _discountDetails.map((disc) {
+            final itemIndex = items.indexWhere(
+              (item) => item.itemCode == disc['itemCode'],
+            );
+
+            return {
+              "itemCode": disc['itemCode'] ?? "",
+              "currCode": disc['currCode'] ?? currency ?? "INR",
+              "discCode": disc['discCode'] ?? "DISC",
+              "discType": disc['discType'] ?? "",
+              "discVal": disc['discVal'] ?? 0,
+              "fromLocationId": locationId,
+              "oditmlineno":
+                  itemIndex != -1 ? itemIndex + 1 : disc['oditmlineno'] ?? 1,
+            };
+          }).toList();
+    } else {
+      // For "On Other" - build discountDetails from item data
+      for (int i = 0; i < items.length; i++) {
+        final item = items[i];
+        final lineNo = i + 1;
+
         if (item.discountAmount != null && item.discountAmount! > 0) {
           discountDetails.add({
             "itemCode": item.itemCode,
-            "currCode": "INR",
+            "currCode": currency,
             "discCode": "DISC",
             "discType": item.discountType,
             "discVal":
@@ -1199,7 +912,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
       }
     }
 
-    // Always generate itemHeaderDetial regardless of preference type
+    // Build itemHeaderDetial with correct field values
     final itemHeaderDetial = _buildItemHeaderDetail(
       totalAmount,
       totalTax,
@@ -1209,15 +922,11 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
       locationCode,
     );
 
-    // Debug print the itemHeaderDetial
-    debugPrint("ItemHeaderDetial: $itemHeaderDetial");
-
     // Generate transport detail
     final transportDetail = _buildTransportDetail(userId);
 
     return {
       "action": "add",
-      "ExchangeRate": 1.0,
       "autoNoRequired": "Y",
       "customerPoNumber": null,
       "customerPoDate": null,
@@ -1225,6 +934,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
       "itemDetail": itemDetails,
       "rsGrid": rsGrid,
       "discountDetail": discountDetails,
+      "termsDetail": [],
       "standardTerms": [],
       "transportDetail": transportDetail,
       "chargesDetail": [],
@@ -1232,65 +942,66 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
     };
   }
 
-  // Map<String, dynamic> _buildItemHeaderDetail(
-  //   double totalAmount,
-  //   double totalTax,
-  //   double totalDiscount,
-  //   int userId,
-  //   int locationId,
-  //   String locationCode,
-  // ) {
-  //   // Use financial year from stored details or default
-  //   final financeDetails = _financeDetails ?? {};
-  //   final financialYear = financeDetails['financialYear'] ?? "25-26";
+  // Update the itemHeaderDetail method to fix discount value calculation
+  Map<String, dynamic> _buildItemHeaderDetail(
+    double totalAmount,
+    double totalTax,
+    double totalDiscount,
+    int userId,
+    int locationId,
+    String locationCode,
+  ) {
+    final financeDetails = _financeDetails ?? {};
+    final financialYear = financeDetails['financialYear'] ?? "25-26";
 
-  //   // Determine discount type - check if all items have same discount type
-  //   String discountType = "None";
-  //   if (items.isNotEmpty) {
-  //     final firstItemDiscountType = items.first.discountType;
-  //     final allSameDiscountType = items.every(
-  //       (item) => item.discountType == firstItemDiscountType,
-  //     );
-  //     discountType = allSameDiscountType ? firstItemDiscountType : "Mixed";
-  //   }
+    String discountType = "None";
+    if (items.isNotEmpty && totalDiscount > 0) {
+      final firstItemDiscountType = items.first.discountType;
+      final allSameDiscountType = items.every(
+        (item) => item.discountType == firstItemDiscountType,
+      );
+      discountType = allSameDiscountType ? firstItemDiscountType : "Mixed";
+    }
 
-  //   final netAmount = totalAmount - totalDiscount;
-  //   final finalAmount = netAmount + totalTax;
+    final basicAmount = _calculateTotalBasic();
+    final netAmount = basicAmount - totalDiscount;
+    final finalAmount = netAmount + totalTax;
 
-  //   return {
-  //     "autoId": 0,
-  //     "invYear": financialYear,
-  //     "invGroup": "PI",
-  //     "invSite": locationId,
-  //     "invSiteCode": locationCode,
-  //     "invIssueDate":
-  //         selectedDate != null
-  //             ? FormatUtils.formatDateForApi(selectedDate!)
-  //             : "",
-  //     "invValue": netAmount.toStringAsFixed(2),
-  //     "invAmount": finalAmount.toStringAsFixed(2),
-  //     "invRoValue": finalAmount.round(),
-  //     "invTax": totalTax.toStringAsFixed(2),
-  //     "invType": "M",
-  //     "invCustCode": selectedCustomer!.custCode,
-  //     "invStatus": "O",
-  //     "invOn":
-  //         selectPreference == "On Quotation"
-  //             ? "Q"
-  //             : selectPreference == "On Sales Order"
-  //             ? "O"
-  //             : "T",
-  //     "invDiscountType": discountType,
-  //     "invDiscountValue": totalDiscount,
-  //     "invFromLocationId": locationId,
-  //     "invCreatedUserId": userId,
-  //     "invCurrCode": "INR",
-  //     "invRate": 0,
-  //     "invNumber": "",
-  //     "invBacAmount": netAmount.toStringAsFixed(2),
-  //     "invSiteReq": "Y",
-  //   };
-  // }
+    return {
+      "autoId": 0,
+      "invYear": financialYear,
+      "invGroup": DefaultProformaInvoice['groupCode'] ?? "PI",
+      "invSite": locationId,
+      "invSiteCode": locationCode,
+      "invIssueDate":
+          selectedDate != null
+              ? "${selectedDate!.year.toString().padLeft(4, '0')}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}"
+              : "",
+      "invValue": netAmount.toStringAsFixed(2),
+      "invAmount": finalAmount.toStringAsFixed(2),
+      "invRoValue": finalAmount.round(),
+      "invTax": totalTax.toStringAsFixed(2),
+      "invType": "M",
+      "invCustCode": selectedCustomer!.custCode,
+      "invStatus": "O",
+      "invOn":
+          selectPreference == "On Quotation"
+              ? "Q"
+              : selectPreference == "On Sales Order"
+              ? "O"
+              : "T",
+      "invDiscountType": discountType,
+      "invDiscountValue":
+          totalDiscount, // Remove toStringAsFixed, keep as number
+      "invFromLocationId": locationId,
+      "invCreatedUserId": userId,
+      "invCurrCode": currency,
+      "invRate": 0,
+      "invNumber": "",
+      "invBacAmount": basicAmount.toStringAsFixed(2),
+      "invSiteReq": "Y",
+    };
+  }
 
   double _calculateTaxFromRateStructure() {
     if (selectPreference == "On Quotation" ||
@@ -1315,72 +1026,6 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
       // For "On Other" - use the existing calculation
       return _calculateTotalTax();
     }
-  }
-
-  Map<String, dynamic> _buildItemHeaderDetail(
-    double totalAmount,
-    double totalTax,
-    double totalDiscount,
-    int userId,
-    int locationId,
-    String locationCode,
-  ) {
-    // Use financial year from stored details or default
-    final financeDetails = _financeDetails ?? {};
-    final financialYear = financeDetails['financialYear'] ?? "25-26";
-
-    // Determine discount type - check if all items have same discount type
-    String discountType = "None";
-    if (items.isNotEmpty) {
-      final firstItemDiscountType = items.first.discountType;
-      final allSameDiscountType = items.every(
-        (item) => item.discountType == firstItemDiscountType,
-      );
-      discountType = allSameDiscountType ? firstItemDiscountType : "Mixed";
-    }
-
-    // Calculate basic amount (total before tax and discount)
-    final basicAmount = _calculateTotalBasic();
-
-    // Net amount = basic amount - discount
-    final netAmount = basicAmount - totalDiscount;
-
-    // Final amount = net amount + tax
-    final finalAmount = netAmount + totalTax;
-
-    return {
-      "autoId": 0,
-      "invYear": financialYear,
-      "invGroup": "PI",
-      "invSite": locationId,
-      "invSiteCode": locationCode,
-      "invIssueDate":
-          selectedDate != null
-              ? "${selectedDate!.year.toString().padLeft(4, '0')}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}"
-              : "",
-      "invValue": netAmount.toStringAsFixed(2),
-      "invAmount": finalAmount.toStringAsFixed(2),
-      "invRoValue": finalAmount.round(),
-      "invTax": totalTax.toStringAsFixed(2),
-      "invType": "M",
-      "invCustCode": selectedCustomer!.custCode,
-      "invStatus": "O",
-      "invOn":
-          selectPreference == "On Quotation"
-              ? "Q"
-              : selectPreference == "On Sales Order"
-              ? "O"
-              : "T",
-      "invDiscountType": discountType,
-      "invDiscountValue": totalDiscount.toStringAsFixed(2),
-      "invFromLocationId": locationId,
-      "invCreatedUserId": userId,
-      "invCurrCode": "INR",
-      "invRate": 0,
-      "invNumber": "",
-      "invBacAmount": basicAmount.toStringAsFixed(2),
-      "invSiteReq": "Y",
-    };
   }
 
   Map<String, dynamic> _buildTransportDetail(int userId) {
@@ -1723,123 +1368,6 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
     );
   }
 
-  // Widget _buildTotalCard() {
-  //   return Card(
-  //     child: Padding(
-  //       padding: const EdgeInsets.all(16),
-  //       child: Column(
-  //         crossAxisAlignment: CrossAxisAlignment.start,
-  //         children: [
-  //           const Text(
-  //             "Total Summary",
-  //             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-  //           ),
-  //           const SizedBox(height: 12),
-  //           Row(
-  //             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  //             children: [
-  //               const Text("Basic Amount:"),
-  //               Text("₹${_calculateTotalBasic().toStringAsFixed(2)}"),
-  //             ],
-  //           ),
-  //           Row(
-  //             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  //             children: [
-  //               const Text("Discount Value:"),
-  //               Text("₹${_calculateTotalDiscount().toStringAsFixed(2)}"),
-  //             ],
-  //           ),
-  //           Row(
-  //             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  //             children: [
-  //               const Text("Tax Amount:"),
-  //               Text("₹${_calculateTotalTax().toStringAsFixed(2)}"),
-  //             ],
-  //           ),
-  //           const Divider(),
-  //           Row(
-  //             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  //             children: [
-  //               const Text(
-  //                 "Total Amount:",
-  //                 style: TextStyle(fontWeight: FontWeight.bold),
-  //               ),
-  //               Text(
-  //                 "₹${_calculateTotalAmount().toStringAsFixed(2)}",
-  //                 style: const TextStyle(fontWeight: FontWeight.bold),
-  //               ),
-  //             ],
-  //           ),
-  //         ],
-  //       ),
-  //     ),
-  //   );
-  // }
-  // Widget _buildTotalCard() {
-  //   final totalBasic = _calculateTotalBasic();
-  //   final totalDiscount = _calculateTotalDiscount();
-  //   final totalTax = _calculateTotalTax();
-  //   final netAmount = totalBasic - totalDiscount;
-  //   final finalAmount = netAmount + totalTax;
-
-  //   return Card(
-  //     child: Padding(
-  //       padding: const EdgeInsets.all(16),
-  //       child: Column(
-  //         crossAxisAlignment: CrossAxisAlignment.start,
-  //         children: [
-  //           const Text(
-  //             "Total Summary",
-  //             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-  //           ),
-  //           const SizedBox(height: 12),
-  //           Row(
-  //             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  //             children: [
-  //               const Text("Basic Amount:"),
-  //               Text("₹${totalBasic.toStringAsFixed(2)}"),
-  //             ],
-  //           ),
-  //           Row(
-  //             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  //             children: [
-  //               const Text("Discount Value:"),
-  //               Text("₹${totalDiscount.toStringAsFixed(2)}"),
-  //             ],
-  //           ),
-  //           Row(
-  //             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  //             children: [
-  //               const Text("Net Amount:"),
-  //               Text("₹${netAmount.toStringAsFixed(2)}"),
-  //             ],
-  //           ),
-  //           Row(
-  //             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  //             children: [
-  //               const Text("Tax Amount:"),
-  //               Text("₹${totalTax.toStringAsFixed(2)}"),
-  //             ],
-  //           ),
-  //           const Divider(),
-  //           Row(
-  //             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  //             children: [
-  //               const Text(
-  //                 "Total Amount:",
-  //                 style: TextStyle(fontWeight: FontWeight.bold),
-  //               ),
-  //               Text(
-  //                 "₹${finalAmount.toStringAsFixed(2)}",
-  //                 style: const TextStyle(fontWeight: FontWeight.bold),
-  //               ),
-  //             ],
-  //           ),
-  //         ],
-  //       ),
-  //     ),
-  //   );
-  // }
   Widget _buildTotalCard() {
     final totalBasic = _calculateTotalBasic();
     final totalDiscount = _calculateTotalDiscount();

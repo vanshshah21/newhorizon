@@ -108,7 +108,6 @@ class ProformaInvoiceService {
     _dio.options.headers['Authorization'] = 'Bearer $token';
 
     final endpoint = "/api/Proforma/proformaInvoiceDelete";
-    ;
 
     final response = await _dio.delete(
       'http://$url$endpoint',

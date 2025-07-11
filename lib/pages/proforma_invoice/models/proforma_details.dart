@@ -5,6 +5,7 @@ class ProformaInvoiceDetails {
   final Map<String, dynamic> gridDetail;
   final List<dynamic> terms;
   final List<dynamic> charges;
+  final Map<String, dynamic> transPortDetail;
 
   ProformaInvoiceDetails({
     required this.headerDetail,
@@ -12,6 +13,7 @@ class ProformaInvoiceDetails {
     required this.gridDetail,
     required this.terms,
     required this.charges,
+    required this.transPortDetail,
   });
 
   factory ProformaInvoiceDetails.fromJson(Map<String, dynamic> json) {
@@ -21,6 +23,7 @@ class ProformaInvoiceDetails {
       gridDetail: json['gridDetail'] ?? {},
       terms: json['terms'] ?? [],
       charges: json['charges'] ?? [],
+      transPortDetail: json['transPortDetail'] ?? {},
     );
   }
 }

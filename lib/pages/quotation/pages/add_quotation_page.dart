@@ -14,11 +14,7 @@ class AddQuotationPage extends StatefulWidget {
   final LeadData? leadData;
   final LeadDetailData? leadDetailData;
 
-  const AddQuotationPage({
-    super.key,
-    this.leadData,
-    this.leadDetailData,
-  });
+  const AddQuotationPage({super.key, this.leadData, this.leadDetailData});
 
   @override
   State<AddQuotationPage> createState() => _AddQuotationPageState();
@@ -76,12 +72,14 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
     try {
       // 1. Fetch current year date range.
       final dateRange = await _service.fetchDateRange();
-      _minDate = dateRange["periodSDt"] != null
-          ? DateTime.parse(dateRange["periodSDt"])
-          : DateTime.now();
-      _maxDate = dateRange["periodEDt"] != null
-          ? DateTime.parse(dateRange["periodEDt"])
-          : DateTime.now();
+      _minDate =
+          dateRange["periodSDt"] != null
+              ? DateTime.parse(dateRange["periodSDt"])
+              : DateTime.now();
+      _maxDate =
+          dateRange["periodEDt"] != null
+              ? DateTime.parse(dateRange["periodEDt"])
+              : DateTime.now();
       _year = dateRange["financialYear"] ?? "";
       _siteId = dateRange["siteId"] ?? 0;
 
@@ -125,7 +123,11 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
     // Set quotation base to "With Inquiry Reference" if available
     final inquiryBase = _quotationBases.firstWhere(
       (base) => base.name.toLowerCase().contains('inquiry'),
-      orElse: () => _quotationBases.isNotEmpty ? _quotationBases.first : QuotationBase(code: '', name: ''),
+      orElse:
+          () =>
+              _quotationBases.isNotEmpty
+                  ? _quotationBases.first
+                  : QuotationBase(code: '', name: ''),
     );
     if (inquiryBase.code.isNotEmpty) {
       setState(() {
@@ -150,7 +152,12 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
     // Prefill salesman
     final salesman = _salesmen.firstWhere(
       (s) => s.salesmanCode == lead.salesmanCode,
-      orElse: () => Salesman(salesmanCode: '', salesmanName: '', salesManFullName: ''),
+      orElse:
+          () => Salesman(
+            salesmanCode: '',
+            salesmanName: '',
+            salesManFullName: '',
+          ),
     );
     if (salesman.salesmanCode.isNotEmpty) {
       setState(() {
@@ -168,20 +175,25 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
     _subjectToController.text = 'Quotation for Inquiry ${lead.inquiryNumber}';
 
     // Prefill items from lead detail
-    final leadItems = detail.inqEntryItemModel.map((item) => {
-      'itemCode': item.salesItemCode,
-      'itemName': item.itemName,
-      'qty': item.itemQty,
-      'uom': item.uom,
-      'rate': item.basicPrice,
-      'discountType': 'None',
-      'discountValue': 0.0,
-      'rateStructure': '',
-      'basicAmount': item.itemQty * item.basicPrice,
-      'discountAmount': 0.0,
-      'taxAmount': 0.0,
-      'totalAmount': item.itemQty * item.basicPrice,
-    }).toList();
+    final leadItems =
+        detail.inqEntryItemModel
+            .map(
+              (item) => {
+                'itemCode': item.salesItemCode,
+                'itemName': item.itemName,
+                'qty': item.itemQty,
+                'uom': item.uom,
+                'rate': item.basicPrice,
+                'discountType': 'None',
+                'discountValue': 0.0,
+                'rateStructure': '',
+                'basicAmount': item.itemQty * item.basicPrice,
+                'discountAmount': 0.0,
+                'taxAmount': 0.0,
+                'totalAmount': item.itemQty * item.basicPrice,
+              },
+            )
+            .toList();
 
     setState(() {
       _items.addAll(leadItems);
@@ -308,7 +320,8 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
     setState(() => _submitting = true);
 
     try {
-      final docDetail = await StorageUtils.readJson("docDetail") as Map<String, dynamic>?;
+      final docDetail =
+          await StorageUtils.readJson("docDetail") as Map<String, dynamic>?;
 
       if (docDetail == null || docDetail.isEmpty) {
         setState(() => _submitting = false);
@@ -333,18 +346,22 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
 
       if (submissionResponse['success'] == true) {
         final quotationData = submissionResponse['data'];
-        final quotationNumber = quotationData?['quotationDetails']?['quotationNumber'] ?? 
-                               quotationData?['QuotationNumber'] ?? 
-                               quotationData?['quotationNumber'];
+        final quotationNumber =
+            quotationData?['quotationDetails']?['quotationNumber'] ??
+            quotationData?['QuotationNumber'] ??
+            quotationData?['quotationNumber'];
 
         bool attachSuccess = true;
         if (_attachments.isNotEmpty && quotationNumber != null) {
           attachSuccess = await _service.uploadAttachments(
             filePaths: _attachments.map((f) => f.path!).toList(),
             documentNo: quotationNumber.toString(),
-            documentId: quotationData?['quotationDetails']?['quotationId']?.toString() ?? '0',
+            documentId:
+                quotationData?['quotationDetails']?['quotationId']
+                    ?.toString() ??
+                '0',
             docYear: _year!,
-            formId: 'SQ',
+            formId: '06103',
             locationCode: docDetail['locationCode'] ?? '',
             companyCode: docDetail['companyCode'] ?? '',
             locationId: docDetail['locationId'] ?? 0,
@@ -364,9 +381,10 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
         }
       } else {
         setState(() => _submitting = false);
-        final errorMessage = submissionResponse['message'] ?? 
-                           submissionResponse['errorMessage'] ?? 
-                           'Failed to create quotation';
+        final errorMessage =
+            submissionResponse['message'] ??
+            submissionResponse['errorMessage'] ??
+            'Failed to create quotation';
         showToast(errorMessage);
       }
     } catch (e) {
@@ -378,16 +396,18 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     final totals = getTotals();
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.leadData != null ? 'Create Quotation from Lead' : 'Add Quotation'),
+        title: Text(
+          widget.leadData != null
+              ? 'Create Quotation from Lead'
+              : 'Add Quotation',
+        ),
       ),
       body: AbsorbPointer(
         absorbing: _submitting,
@@ -410,8 +430,12 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
                         ),
                         const SizedBox(height: 8),
                         Text('Lead No: ${widget.leadData!.inquiryNumber}'),
-                        Text('Customer: ${widget.leadData!.customerCode} - ${widget.leadData!.customerName}'),
-                        Text('Salesman: ${widget.leadData!.salesmanCode} - ${widget.leadData!.salesmanName}'),
+                        Text(
+                          'Customer: ${widget.leadData!.customerCode} - ${widget.leadData!.customerName}',
+                        ),
+                        Text(
+                          'Salesman: ${widget.leadData!.salesmanCode} - ${widget.leadData!.salesmanName}',
+                        ),
                       ],
                     ),
                   ),
@@ -421,11 +445,17 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
 
               // Quotation Base
               DropdownButtonFormField<QuotationBase>(
-                decoration: const InputDecoration(labelText: 'Quotation Base *'),
+                decoration: const InputDecoration(
+                  labelText: 'Quotation Base *',
+                ),
                 value: _selectedQuotationBase,
-                items: _quotationBases
-                    .map((e) => DropdownMenuItem(value: e, child: Text(e.name)))
-                    .toList(),
+                items:
+                    _quotationBases
+                        .map(
+                          (e) =>
+                              DropdownMenuItem(value: e, child: Text(e.name)),
+                        )
+                        .toList(),
                 onChanged: (v) {
                   setState(() {
                     _selectedQuotationBase = v;
@@ -447,15 +477,22 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
                   if (pattern.length < 4) return [];
                   return await _service.searchCustomers(pattern);
                 },
-                builder: (context, controller, focusNode) => TextFormField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  decoration: const InputDecoration(labelText: 'Quote To *'),
-                  validator: (val) => (val == null || val.isEmpty) ? 'Select Quote To' : null,
-                ),
-                itemBuilder: (context, suggestion) => ListTile(
-                  title: Text(suggestion.customerFullName),
-                ),
+                builder:
+                    (context, controller, focusNode) => TextFormField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      decoration: const InputDecoration(
+                        labelText: 'Quote To *',
+                      ),
+                      validator:
+                          (val) =>
+                              (val == null || val.isEmpty)
+                                  ? 'Select Quote To'
+                                  : null,
+                    ),
+                itemBuilder:
+                    (context, suggestion) =>
+                        ListTile(title: Text(suggestion.customerFullName)),
                 onSelected: (suggestion) {
                   setState(() {
                     _selectedQuoteTo = suggestion;
@@ -467,10 +504,11 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
                     _loadLeadNumbers();
                   }
                 },
-                emptyBuilder: (context) => const Padding(
-                  padding: EdgeInsets.all(8.0),
-                  child: Text('Type at least 4 characters to search'),
-                ),
+                emptyBuilder:
+                    (context) => const Padding(
+                      padding: EdgeInsets.all(8.0),
+                      child: Text('Type at least 4 characters to search'),
+                    ),
               ),
               const SizedBox(height: 16),
 
@@ -481,15 +519,20 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
                   if (pattern.length < 4) return [];
                   return await _service.searchCustomers(pattern);
                 },
-                builder: (context, controller, focusNode) => TextFormField(
-                  controller: controller,
-                  focusNode: focusNode,
-                  decoration: const InputDecoration(labelText: 'Bill To *'),
-                  validator: (val) => (val == null || val.isEmpty) ? 'Select Bill To' : null,
-                ),
-                itemBuilder: (context, suggestion) => ListTile(
-                  title: Text(suggestion.customerFullName),
-                ),
+                builder:
+                    (context, controller, focusNode) => TextFormField(
+                      controller: controller,
+                      focusNode: focusNode,
+                      decoration: const InputDecoration(labelText: 'Bill To *'),
+                      validator:
+                          (val) =>
+                              (val == null || val.isEmpty)
+                                  ? 'Select Bill To'
+                                  : null,
+                    ),
+                itemBuilder:
+                    (context, suggestion) =>
+                        ListTile(title: Text(suggestion.customerFullName)),
                 onSelected: (suggestion) {
                   setState(() {
                     _selectedBillTo = suggestion;
@@ -499,10 +542,11 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
                     _loadLeadNumbers();
                   }
                 },
-                emptyBuilder: (context) => const Padding(
-                  padding: EdgeInsets.all(8.0),
-                  child: Text('Type at least 4 characters to search'),
-                ),
+                emptyBuilder:
+                    (context) => const Padding(
+                      padding: EdgeInsets.all(8.0),
+                      child: Text('Type at least 4 characters to search'),
+                    ),
               ),
               const SizedBox(height: 16),
 
@@ -510,12 +554,15 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
               DropdownButtonFormField<Salesman>(
                 decoration: const InputDecoration(labelText: 'Salesman *'),
                 value: _selectedSalesman,
-                items: _salesmen
-                    .map((e) => DropdownMenuItem(
-                          value: e,
-                          child: Text(e.salesManFullName),
-                        ))
-                    .toList(),
+                items:
+                    _salesmen
+                        .map(
+                          (e) => DropdownMenuItem(
+                            value: e,
+                            child: Text(e.salesManFullName),
+                          ),
+                        )
+                        .toList(),
                 onChanged: (v) => setState(() => _selectedSalesman = v),
                 validator: (v) => v == null ? 'Select Salesman' : null,
               ),
@@ -526,9 +573,12 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
                 DropdownButtonFormField<String>(
                   decoration: const InputDecoration(labelText: 'Lead Number *'),
                   value: _selectedLeadNumber,
-                  items: _leadNumbers
-                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                      .toList(),
+                  items:
+                      _leadNumbers
+                          .map(
+                            (e) => DropdownMenuItem(value: e, child: Text(e)),
+                          )
+                          .toList(),
                   onChanged: (v) => setState(() => _selectedLeadNumber = v),
                   validator: (v) => v == null ? 'Select Lead Number' : null,
                 ),
@@ -539,7 +589,9 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
               TextFormField(
                 controller: _subjectToController,
                 decoration: const InputDecoration(labelText: 'Subject To *'),
-                validator: (val) => (val == null || val.isEmpty) ? 'Enter Subject' : null,
+                validator:
+                    (val) =>
+                        (val == null || val.isEmpty) ? 'Enter Subject' : null,
               ),
               const SizedBox(height: 16),
 
@@ -547,9 +599,10 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
               InputDecorator(
                 decoration: InputDecoration(
                   labelText: 'Date *',
-                  errorText: _minDate != null && _maxDate != null
-                      ? 'Date should be between ${DateFormat('dd/MM/yyyy').format(_minDate!)} and ${DateFormat('dd/MM/yyyy').format(_maxDate!)}'
-                      : null,
+                  errorText:
+                      _minDate != null && _maxDate != null
+                          ? 'Date should be between ${DateFormat('dd/MM/yyyy').format(_minDate!)} and ${DateFormat('dd/MM/yyyy').format(_maxDate!)}'
+                          : null,
                 ),
                 child: InkWell(
                   onTap: () async {
@@ -581,10 +634,7 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Items',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
+                  Text('Items', style: Theme.of(context).textTheme.titleMedium),
                   ElevatedButton.icon(
                     onPressed: _submitting ? null : _openAddItem,
                     icon: const Icon(Icons.add),
@@ -621,11 +671,13 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
                         children: [
                           IconButton(
                             icon: const Icon(Icons.edit),
-                            onPressed: _submitting ? null : () => _openEditItem(idx),
+                            onPressed:
+                                _submitting ? null : () => _openEditItem(idx),
                           ),
                           IconButton(
                             icon: const Icon(Icons.delete),
-                            onPressed: _submitting ? null : () => _removeItem(idx),
+                            onPressed:
+                                _submitting ? null : () => _removeItem(idx),
                           ),
                         ],
                       ),
@@ -651,21 +703,27 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text('Basic Amount:'),
-                          Text('₹${totals['basic']?.toStringAsFixed(2) ?? '0.00'}'),
+                          Text(
+                            '₹${totals['basic']?.toStringAsFixed(2) ?? '0.00'}',
+                          ),
                         ],
                       ),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text('Discount:'),
-                          Text('₹${totals['discount']?.toStringAsFixed(2) ?? '0.00'}'),
+                          Text(
+                            '₹${totals['discount']?.toStringAsFixed(2) ?? '0.00'}',
+                          ),
                         ],
                       ),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text('Tax Amount:'),
-                          Text('₹${totals['tax']?.toStringAsFixed(2) ?? '0.00'}'),
+                          Text(
+                            '₹${totals['tax']?.toStringAsFixed(2) ?? '0.00'}',
+                          ),
                         ],
                       ),
                       const Divider(),
@@ -711,7 +769,8 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
                     title: Text(file.name),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete),
-                      onPressed: _submitting ? null : () => _removeAttachment(idx),
+                      onPressed:
+                          _submitting ? null : () => _removeAttachment(idx),
                     ),
                   );
                 }),
@@ -725,20 +784,21 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                child: _submitting
-                    ? const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                          SizedBox(width: 8),
-                          Text('Creating Quotation...'),
-                        ],
-                      )
-                    : const Text('Create Quotation'),
+                child:
+                    _submitting
+                        ? const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                            SizedBox(width: 8),
+                            Text('Creating Quotation...'),
+                          ],
+                        )
+                        : const Text('Create Quotation'),
               ),
             ],
           ),

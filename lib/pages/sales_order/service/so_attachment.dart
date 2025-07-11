@@ -1,13 +1,12 @@
 import 'package:dio/dio.dart';
 import 'package:nhapp/utils/storage_utils.dart';
-import '../models/lead_attachment.dart';
 
-class LeadAttachmentService {
+class SalesOrderAttachmentService {
   final Dio _dio;
 
-  LeadAttachmentService(this._dio);
+  SalesOrderAttachmentService(this._dio);
 
-  Future<List<LeadAttachment>> fetchAttachments({
+  Future<List<Map<String, dynamic>>> fetchAttachments({
     required String baseUrl,
     required String documentNo,
     required String formId,
@@ -34,24 +33,23 @@ class LeadAttachmentService {
     );
     if (response.statusCode == 200 && response.data['success'] == true) {
       final List data = response.data['data'] ?? [];
-      return data.map((e) => LeadAttachment.fromJson(e)).toList();
+      return data.map((e) => e as Map<String, dynamic>).toList();
     }
     throw Exception('Failed to fetch attachments');
   }
 
-  Future<List<LeadAttachment>> fetchLeadAttachments({
+  Future<List<Map<String, dynamic>>> fetchSalesOrderAttachments({
     required String baseUrl,
-    required String inquiryYear,
-    required String inquiryGroup,
-    required String locationCode,
-    required String inquiryNumber,
+    required String ioYear,
+    required String ioGroup,
+    required String ioSiteCode,
+    required String ioNumber,
   }) async {
-    final documentNo =
-        "$inquiryYear/$inquiryGroup/$locationCode/$inquiryNumber/LEADENTRY";
+    final documentNo = "$ioYear/$ioGroup/$ioSiteCode/$ioNumber/SALESORDERENTRY";
     return fetchAttachments(
       baseUrl: baseUrl,
       documentNo: documentNo,
-      formId: "06100", // Form ID for lead entry
+      formId: "06105", // Form ID for sales order
     );
   }
 
@@ -88,5 +86,64 @@ class LeadAttachmentService {
       },
     );
     return response.statusCode == 200 && response.data['success'] == true;
+  }
+
+  Future<bool> uploadAttachments({
+    required List<String> filePaths,
+    required String documentNo,
+    required String documentId,
+    required String docYear,
+    required String formId,
+    required String locationCode,
+    required String companyCode,
+    required int locationId,
+    required int companyId,
+    required int userId,
+  }) async {
+    try {
+      final baseUrl = 'http://${await StorageUtils.readValue('url')}';
+      final tokenDetails = await StorageUtils.readJson('session_token');
+      final token = tokenDetails['token']['value'];
+
+      final dio = Dio();
+      dio.options.headers = {
+        'Authorization': 'Bearer $token',
+        'companyid': companyId.toString(),
+        'Accept': 'application/json',
+      };
+
+      for (final filePath in filePaths) {
+        final formData = FormData();
+        formData.fields.addAll([
+          MapEntry("LocationID", locationId.toString()),
+          MapEntry("CompanyID", companyId.toString()),
+          MapEntry("CompanyCode", companyCode),
+          MapEntry("LocationCode", locationCode),
+          MapEntry("DocYear", docYear),
+          MapEntry("FormID", formId),
+          MapEntry("DocumentNo", documentNo),
+          MapEntry("DocumentID", documentId),
+          MapEntry("CreatedBy", userId.toString()),
+        ]);
+
+        formData.files.add(
+          MapEntry("AttachmentsFile", await MultipartFile.fromFile(filePath)),
+        );
+
+        final response = await dio.post(
+          "$baseUrl/api/Lead/uploadAttachmentnew2",
+          data: formData,
+          options: Options(contentType: 'multipart/form-data'),
+        );
+
+        if (response.statusCode != 200 || response.data['success'] != true) {
+          return false;
+        }
+      }
+      return true;
+    } catch (e) {
+      print('Error uploading attachments: $e');
+      return false;
+    }
   }
 }

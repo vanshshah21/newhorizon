@@ -4,6 +4,7 @@ import 'package:nhapp/pages/authorize_purchase_order/models/authorize_po_data.da
 import 'package:nhapp/utils/paging_extensions.dart';
 import '../services/authorize_po_service.dart';
 import 'authorize_po_card.dart';
+import 'package:flutter/services.dart';
 
 class AuthorizePOInfiniteList extends StatefulWidget {
   final AuthorizePOService service;
@@ -26,11 +27,63 @@ class AuthorizePOInfiniteList extends StatefulWidget {
 
 class _AuthorizePOInfiniteListState extends State<AuthorizePOInfiniteList>
     with AutomaticKeepAliveClientMixin<AuthorizePOInfiniteList> {
-  static const _pageSize = 20;
+  static const _pageSize = 50;
+  final Set<POData> _selectedPOs = {};
 
   late final PagingController<int, POData> _pagingController;
   final TextEditingController _searchController = TextEditingController();
   String? _currentSearchValue;
+
+  void _toggleSelection(POData po) {
+    setState(() {
+      if (_selectedPOs.contains(po)) {
+        _selectedPOs.remove(po);
+        HapticFeedback.mediumImpact();
+      } else {
+        _selectedPOs.add(po);
+        HapticFeedback.lightImpact();
+      }
+    });
+  }
+
+  Future<void> _batchAuthorize() async {
+    if (_selectedPOs.isEmpty) return;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Batch Authorize'),
+            content: Text('Authorize ${_selectedPOs.length} selected POs?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Authorize'),
+              ),
+            ],
+          ),
+    );
+    if (confirm == true) {
+      final success = await widget.service.authorizePOBatch(
+        _selectedPOs.toList(),
+        widget.isRegular,
+      );
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Batch authorization successful!')),
+        );
+        _selectedPOs.clear();
+        _pagingController.refresh();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Batch authorization failed!')),
+        );
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -101,6 +154,21 @@ class _AuthorizePOInfiniteListState extends State<AuthorizePOInfiniteList>
               ],
             ),
           ),
+          if (_selectedPOs.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  Text('${_selectedPOs.length} selected'),
+                  const Spacer(),
+                  ElevatedButton.icon(
+                    onPressed: _batchAuthorize,
+                    icon: const Icon(Icons.check),
+                    label: const Text('Batch Authorize'),
+                  ),
+                ],
+              ),
+            ),
           Expanded(
             child: PagingListener<int, POData>(
               controller: _pagingController,
@@ -110,24 +178,22 @@ class _AuthorizePOInfiniteListState extends State<AuthorizePOInfiniteList>
                     fetchNextPage: fetchNextPage,
                     builderDelegate: PagedChildBuilderDelegate<POData>(
                       itemBuilder:
-                          (context, po, index) => AuthorizePOCard(
-                            po: po,
-                            onPdfTap: () => widget.onPdfTap(po),
-                            onAuthorizeTap: () async {
-                              final authorized = await widget.onAuthorizeTap(
-                                po,
-                              );
-                              if (authorized) {
-                                _pagingController.refresh();
-                              }
-                            },
+                          (context, po, index) => GestureDetector(
+                            onLongPress: () => _toggleSelection(po),
+                            child: AuthorizePOCard(
+                              po: po,
+                              onPdfTap: () => widget.onPdfTap(po),
+                              onAuthorizeTap: () async {
+                                final authorized = await widget.onAuthorizeTap(
+                                  po,
+                                );
+                                if (authorized) {
+                                  _pagingController.refresh();
+                                }
+                              },
+                              selected: _selectedPOs.contains(po),
+                            ),
                           ),
-                      noItemsFoundIndicatorBuilder:
-                          (context) =>
-                              const Center(child: Text('No data found.')),
-                      firstPageErrorIndicatorBuilder:
-                          (context) =>
-                              const Center(child: Text('Error loading data.')),
                     ),
                   ),
             ),

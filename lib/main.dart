@@ -16,6 +16,7 @@ import 'package:nhapp/pages/followup/followup.dart';
 import 'package:nhapp/pages/followup/pages/add_follow_up.dart';
 import 'package:nhapp/pages/leads/lead_list_page.dart';
 import 'package:nhapp/pages/login/login_screen.dart';
+import 'package:nhapp/pages/proforma_invoice/models/proforma_invoice_item.dart';
 import 'package:nhapp/pages/proforma_invoice/pages/add_proforma_invoice.dart';
 import 'package:nhapp/pages/proforma_invoice/porforma_invoice.dart';
 import 'package:nhapp/pages/quotation/quotation.dart';
@@ -45,7 +46,7 @@ import 'package:nhapp/toast.dart';
 void main() {
   // Initialize global error handling
   ErrorHandler.initialize();
-  
+
   runZonedGuarded(
     () {
       runApp(
@@ -193,10 +194,6 @@ class MyApp extends StatelessWidget {
                       as bool,
             ),
         '/add_proforma_invoice': (context) => const AddProformaInvoiceForm(),
-        '/edit_proforma_invoice':
-            (context) => EditProformaInvoiceScreen(
-              item: ModalRoute.of(context)?.settings.arguments as String,
-            ),
         '/authorize_purchase_orders': (context) => const AuthorizePOListPage(),
         '/authorize_service_orders': (context) => const ServiceOrderListPage(),
         '/authorize_labour_purchase_orders':
@@ -795,21 +792,21 @@ class AddProformaInvoiceScreen extends StatelessWidget {
   }
 }
 
-class EditProformaInvoiceScreen extends StatelessWidget {
-  final String item;
+// class EditProformaInvoiceScreen extends StatelessWidget {
+//   final String item;
 
-  const EditProformaInvoiceScreen({super.key, required this.item});
+//   const EditProformaInvoiceScreen({super.key, required this.item, required invoice});
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('Edit Proforma Invoice')),
-      body: Center(
-        child: Column(children: [Text('Details of Proforma Invoice $item')]),
-      ),
-    );
-  }
-}
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       appBar: AppBar(title: Text('Edit Proforma Invoice')),
+//       body: Center(
+//         child: Column(children: [Text('Details of Proforma Invoice $item')]),
+//       ),
+//     );
+//   }
+// }
 
 class MyNotificationScreen extends StatelessWidget {
   const MyNotificationScreen({super.key});
