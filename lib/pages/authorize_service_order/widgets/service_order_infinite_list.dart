@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 import 'package:nhapp/utils/paging_extensions.dart';
 import '../models/service_order_data.dart';
@@ -25,10 +26,63 @@ class ServiceOrderInfiniteList extends StatefulWidget {
 class _ServiceOrderInfiniteListState extends State<ServiceOrderInfiniteList>
     with AutomaticKeepAliveClientMixin<ServiceOrderInfiniteList> {
   static const _pageSize = 50;
+  final Set<ServiceOrderData> _selectedSOs = {};
 
   late final PagingController<int, ServiceOrderData> _pagingController;
   final TextEditingController _searchController = TextEditingController();
   String? _currentSearchValue;
+
+  void _toggleSelection(ServiceOrderData so) {
+    setState(() {
+      if (_selectedSOs.contains(so)) {
+        _selectedSOs.remove(so);
+        HapticFeedback.mediumImpact();
+      } else {
+        _selectedSOs.add(so);
+        HapticFeedback.lightImpact();
+      }
+    });
+  }
+
+  Future<void> _batchAuthorize() async {
+    if (_selectedSOs.isEmpty) return;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Batch Authorize'),
+            content: Text(
+              'Authorize ${_selectedSOs.length} selected Service Orders?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Authorize'),
+              ),
+            ],
+          ),
+    );
+    if (confirm == true) {
+      final success = await widget.service.authorizeServiceOrderBatch(
+        _selectedSOs.toList(),
+      );
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Batch authorization successful!')),
+        );
+        _selectedSOs.clear();
+        _pagingController.refresh();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Batch authorization failed!')),
+        );
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -98,6 +152,21 @@ class _ServiceOrderInfiniteListState extends State<ServiceOrderInfiniteList>
               ],
             ),
           ),
+          if (_selectedSOs.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  Text('${_selectedSOs.length} selected'),
+                  const Spacer(),
+                  ElevatedButton.icon(
+                    onPressed: _batchAuthorize,
+                    icon: const Icon(Icons.check),
+                    label: const Text('Batch Authorize'),
+                  ),
+                ],
+              ),
+            ),
           Expanded(
             child: PagingListener<int, ServiceOrderData>(
               controller: _pagingController,
@@ -109,16 +178,20 @@ class _ServiceOrderInfiniteListState extends State<ServiceOrderInfiniteList>
                         builderDelegate:
                             PagedChildBuilderDelegate<ServiceOrderData>(
                               itemBuilder:
-                                  (context, so, index) => ServiceOrderCard(
-                                    so: so,
-                                    onPdfTap: () => widget.onPdfTap(so),
-                                    onAuthorizeTap: () async {
-                                      final authorized = await widget
-                                          .onAuthorizeTap(so);
-                                      if (authorized) {
-                                        _pagingController.refresh();
-                                      }
-                                    },
+                                  (context, so, index) => GestureDetector(
+                                    onLongPress: () => _toggleSelection(so),
+                                    child: ServiceOrderCard(
+                                      so: so,
+                                      onPdfTap: () => widget.onPdfTap(so),
+                                      onAuthorizeTap: () async {
+                                        final authorized = await widget
+                                            .onAuthorizeTap(so);
+                                        if (authorized) {
+                                          _pagingController.refresh();
+                                        }
+                                      },
+                                      selected: _selectedSOs.contains(so),
+                                    ),
                                   ),
                               noItemsFoundIndicatorBuilder:
                                   (context) => const Center(

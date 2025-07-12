@@ -175,4 +175,64 @@ class ServiceOrderService {
       return false;
     }
   }
+
+  Future<bool> authorizeServiceOrderBatch(List<ServiceOrderData> soList) async {
+    debugPrint("Batch Authorizing Service Orders: ${soList.length}");
+    final url = await StorageUtils.readValue('url');
+    final companyDetails = await StorageUtils.readJson('selected_company');
+    if (companyDetails == null) throw Exception("Company not set");
+
+    final locationDetails = await StorageUtils.readJson('selected_location');
+    if (locationDetails == null) throw Exception("Location not set");
+
+    final tokenDetails = await StorageUtils.readJson('session_token');
+    if (tokenDetails == null) throw Exception("Session token not found");
+
+    final companyId = companyDetails['id'];
+    final locationId = locationDetails['id'];
+    final locationCode = locationDetails['code'];
+    final locationName = locationDetails['name'];
+    final token = tokenDetails['token']['value'];
+
+    final body = {
+      "siteid": locationId,
+      "sitecode": locationCode,
+      "ServicePOAthList":
+          soList
+              .map(
+                (so) =>
+                    ServicePOAth(
+                      id: so.id,
+                      year: so.year,
+                      grp: so.grp,
+                      number: so.number,
+                      siteid: so.siteid,
+                      sitecode: so.sitecode,
+                      vendorcode: so.vendorcode,
+                      vendorname: so.vendorname,
+                      loginsiteid: locationId,
+                      loginsitecode: locationCode,
+                      loginsitename: locationName,
+                      formid: "01116",
+                    ).toJson(),
+              )
+              .toList(),
+    };
+
+    final String endpoint = '/api/Podata/servicePOAuth';
+
+    _dio.options.headers['Content-Type'] = 'application/json';
+    _dio.options.headers['Accept'] = 'application/json';
+    _dio.options.headers['companyid'] = companyId.toString();
+    _dio.options.headers['Authorization'] = 'Bearer $token';
+
+    final response = await _dio.post('http://$url$endpoint', data: body);
+    if (response.statusCode == 200 && response.data['success'] == true) {
+      debugPrint("Batch Service Orders authorized successfully");
+      return true;
+    } else {
+      debugPrint("Failed to authorize batch Service Orders");
+      return false;
+    }
+  }
 }

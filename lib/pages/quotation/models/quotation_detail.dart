@@ -22,11 +22,13 @@ class QuotationDetail {
   final Map<String, dynamic> quotationDetails;
   final List<Map<String, dynamic>> modelDetails;
   final List<Map<String, dynamic>> rateStructureDetails;
+  final List<Map<String, dynamic>> discountDetails;
 
   QuotationDetail({
     required this.quotationDetails,
     required this.modelDetails,
     required this.rateStructureDetails,
+    required this.discountDetails,
   });
 
   factory QuotationDetail.fromJson(Map<String, dynamic> json) {
@@ -41,6 +43,10 @@ class QuotationDetail {
               .toList(),
       rateStructureDetails:
           (json['rateStructureDetails'] as List<dynamic>? ?? [])
+              .map((e) => e as Map<String, dynamic>)
+              .toList(),
+      discountDetails:
+          (json['discountDetails'] as List<dynamic>? ?? [])
               .map((e) => e as Map<String, dynamic>)
               .toList(),
     );

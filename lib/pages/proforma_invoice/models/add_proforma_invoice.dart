@@ -24,45 +24,147 @@ class Customer {
   }
 }
 
+// class QuotationNumber {
+//   final String number;
+//   final DateTime orderDate;
+//   final int srNo;
+
+//   QuotationNumber({
+//     required this.number,
+//     required this.orderDate,
+//     required this.srNo,
+//   });
+
+//   factory QuotationNumber.fromJson(Map<String, dynamic> json) {
+//     return QuotationNumber(
+//       number: json['number'] ?? '',
+//       orderDate: DateTime.parse(json['orderDate']),
+//       srNo: json['srNo'] ?? 0,
+//     );
+//   }
+// }
 class QuotationNumber {
   final String number;
   final DateTime orderDate;
   final int srNo;
+  final String discType;
+  final double discAmount;
+  final String ordGroup;
+  final String ordNo;
+  final String curCode;
+  final String consultantCode;
+  final String consultantName;
+  final String kindAttention;
+  final String attencontactno;
+  final int id;
 
   QuotationNumber({
     required this.number,
     required this.orderDate,
     required this.srNo,
+    required this.discType,
+    required this.discAmount,
+    required this.ordGroup,
+    required this.ordNo,
+    required this.curCode,
+    required this.consultantCode,
+    required this.consultantName,
+    required this.kindAttention,
+    required this.attencontactno,
+    required this.id,
   });
 
   factory QuotationNumber.fromJson(Map<String, dynamic> json) {
     return QuotationNumber(
       number: json['number'] ?? '',
-      orderDate: DateTime.parse(json['orderDate']),
+      orderDate: DateTime.parse(
+        json['orderDate'] ?? DateTime.now().toIso8601String(),
+      ),
       srNo: json['srNo'] ?? 0,
+      discType: json['discType'] ?? '',
+      discAmount: (json['discAmount'] ?? 0.0).toDouble(),
+      ordGroup: json['ordGroup'] ?? '',
+      ordNo: json['ordNo'] ?? '',
+      curCode: json['curCode'] ?? '',
+      consultantCode: json['consultantCode'] ?? '',
+      consultantName: json['consultantName'] ?? '',
+      kindAttention: json['kindAttention'] ?? '',
+      attencontactno: json['attencontactno'] ?? '',
+      id: json['id'] ?? 0,
     );
   }
 }
 
+// class SalesOrderNumber {
+//   final String number;
+//   final DateTime orderDate;
+//   final int srNo;
+//   final String ordNo;
+
+//   SalesOrderNumber({
+//     required this.number,
+//     required this.orderDate,
+//     required this.srNo,
+//     required this.ordNo,
+//   });
+
+//   factory SalesOrderNumber.fromJson(Map<String, dynamic> json) {
+//     return SalesOrderNumber(
+//       number: json['number'] ?? '',
+//       orderDate: DateTime.parse(json['orderDate']),
+//       srNo: json['srNo'] ?? 0,
+//       ordNo: json['ordNo'] ?? '',
+//     );
+//   }
+// }
 class SalesOrderNumber {
   final String number;
   final DateTime orderDate;
   final int srNo;
+  final String discType;
+  final double discAmount;
+  final String ordGroup;
   final String ordNo;
+  final String curCode;
+  final String consultantCode;
+  final String consultantName;
+  final String kindAttention;
+  final String attencontactno;
+  final int id;
 
   SalesOrderNumber({
     required this.number,
     required this.orderDate,
     required this.srNo,
+    required this.discType,
+    required this.discAmount,
+    required this.ordGroup,
     required this.ordNo,
+    required this.curCode,
+    required this.consultantCode,
+    required this.consultantName,
+    required this.kindAttention,
+    required this.attencontactno,
+    required this.id,
   });
 
   factory SalesOrderNumber.fromJson(Map<String, dynamic> json) {
     return SalesOrderNumber(
       number: json['number'] ?? '',
-      orderDate: DateTime.parse(json['orderDate']),
+      orderDate: DateTime.parse(
+        json['orderDate'] ?? DateTime.now().toIso8601String(),
+      ),
       srNo: json['srNo'] ?? 0,
+      discType: json['discType'] ?? '',
+      discAmount: (json['discAmount'] ?? 0.0).toDouble(),
+      ordGroup: json['ordGroup'] ?? '',
       ordNo: json['ordNo'] ?? '',
+      curCode: json['curCode'] ?? '',
+      consultantCode: json['consultantCode'] ?? '',
+      consultantName: json['consultantName'] ?? '',
+      kindAttention: json['kindAttention'] ?? '',
+      attencontactno: json['attencontactno'] ?? '',
+      id: json['id'] ?? 0,
     );
   }
 }

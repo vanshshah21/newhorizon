@@ -10,7 +10,13 @@ import 'package:nhapp/utils/storage_utils.dart';
 import 'package:file_picker/file_picker.dart';
 
 class AddSalesOrderPage extends StatefulWidget {
-  const AddSalesOrderPage({super.key});
+  final Map<String, dynamic>? quotationData;
+  final Map<String, dynamic>? quotationListItem;
+  const AddSalesOrderPage({
+    super.key,
+    this.quotationData,
+    this.quotationListItem,
+  });
 
   @override
   State<AddSalesOrderPage> createState() => _AddSalesOrderPageState();
@@ -80,7 +86,95 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
         }
       }
     }
+
+    // Prefill data if coming from quotation
+    if (widget.quotationData != null && widget.quotationListItem != null) {
+      await _prefillFromQuotation();
+    }
     setState(() => _isLoading = false);
+  }
+
+  Future<void> _prefillFromQuotation() async {
+    final quotationData = widget.quotationData!;
+    final quotationItem = widget.quotationListItem!;
+
+    try {
+      // Set sales order reference to "With Quotation Reference"
+      setState(() {
+        salesOrderReference = "With Quotation Reference";
+      });
+
+      // Extract quotation details
+      final quotationDetails =
+          quotationData['quotationDetails'] as Map<String, dynamic>;
+
+      // Create customer data from quotation
+      final customerCode = quotationDetails['customerCode']?.toString() ?? '';
+      final customerName = quotationDetails['customerName']?.toString() ?? '';
+      final billToCode =
+          quotationDetails['billToCode']?.toString() ?? customerCode;
+      final billToName =
+          quotationDetails['billToName']?.toString() ?? customerName;
+
+      if (customerCode.isNotEmpty && customerName.isNotEmpty) {
+        // Set Order From customer
+        selectedOrderFrom = Customer(
+          customerCode: customerCode,
+          customerName: customerName,
+          customerFullName: customerCode + ' - ' + customerName,
+          gstNumber: quotationDetails['gstNumber']?.toString() ?? '',
+          telephoneNo: quotationDetails['telephoneNo']?.toString() ?? '',
+        );
+        orderFromController.text = customerName;
+
+        // Set Bill To customer
+        selectedBillTo = Customer(
+          customerCode: billToCode,
+          customerName: billToName,
+          customerFullName: customerCode + ' - ' + customerName,
+          gstNumber: quotationDetails['gstNumber']?.toString() ?? '',
+          telephoneNo: quotationDetails['telephoneNo']?.toString() ?? '',
+        );
+        billToController.text = billToName;
+
+        // Load quotation numbers for this customer
+        await _loadQuotationNumbers(customerCode);
+
+        // Find and select the current quotation from the loaded list
+        final quotationId = quotationItem['quotationId'] as int? ?? 0;
+        if (quotationId > 0) {
+          final matchingQuotation =
+              quotationNumbers
+                  .where((q) => q.quotationID == quotationId)
+                  .firstOrNull;
+          if (matchingQuotation != null) {
+            // This will trigger the API call to fetch quotation details
+            await _onQuotationNumberSelected(matchingQuotation);
+          }
+        }
+      }
+
+      // Prefill customer PO details if available
+      final custPONumber = quotationDetails['custPONumber']?.toString() ?? '';
+      if (custPONumber.isNotEmpty) {
+        customerPONumberController.text = custPONumber;
+      }
+
+      final custPODate = quotationDetails['custPODate']?.toString();
+      if (custPODate != null && custPODate.isNotEmpty) {
+        try {
+          selectedCustomerPODate = DateTime.parse(custPODate);
+          customerPODateController.text = FormatUtils.formatDateForUser(
+            selectedCustomerPODate!,
+          );
+        } catch (e) {
+          // Use default date if parsing fails
+          debugPrint('Error parsing customer PO date: $e');
+        }
+      }
+    } catch (e) {
+      debugPrint('Error prefilling quotation data: $e');
+    }
   }
 
   Future<void> _loadDiscountCodes() async {

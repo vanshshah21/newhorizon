@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:nhapp/pages/proforma_invoice/pages/add_proforma_invoice.dart';
 import 'package:nhapp/pages/sales_order/models/sales_order.dart';
 import 'package:nhapp/pages/sales_order/service/sales_order_service.dart';
 import 'package:nhapp/pages/sales_order/service/so_attachment.dart';
@@ -364,12 +365,7 @@ class _SalesOrderDetailPageState extends State<SalesOrderDetailPage> {
 
     double totalTax = 0;
     for (var rateDetail in detail!.rateStructureDetails) {
-      // Only include tax types (M, N, I) - CGST, SGST, IGST, etc.
-      if (rateDetail['taxType'] == 'M' ||
-          rateDetail['taxType'] == 'N' ||
-          rateDetail['taxType'] == 'I') {
-        totalTax += (rateDetail['rateAmount'] ?? 0).toDouble();
-      }
+      totalTax += (rateDetail['rateAmount'] ?? 0).toDouble();
     }
     return totalTax;
   }
@@ -396,6 +392,53 @@ class _SalesOrderDetailPageState extends State<SalesOrderDetailPage> {
       totalDiscount += (item['discountAmt'] ?? 0).toDouble();
     }
     return totalDiscount;
+  }
+
+  Future<void> _navigateToAddProformaInvoice() async {
+    if (detail == null) return;
+
+    // Convert SalesOrderDetail to Map format for Proforma Invoice
+    final salesOrderData = {
+      'salesOrderDetails': detail!.salesOrderDetails,
+      'modelDetails': detail!.modelDetails,
+      'rateStructureDetails': detail!.rateStructureDetails,
+      'discountDetails': detail!.discountDetails,
+    };
+
+    // Convert SalesOrder to Map format
+    final salesOrderItem = {
+      'salesOrderId': widget.salesOrder.orderId,
+      'ioNumber': widget.salesOrder.ioNumber,
+      'ioYear': widget.salesOrder.ioYear,
+      'ioGroup': widget.salesOrder.ioGroup,
+      'siteCode': widget.salesOrder.siteCode,
+      'ioDate': widget.salesOrder.date,
+      'customerName': widget.salesOrder.customerFullName,
+      'customerCode': widget.salesOrder.customerCode,
+      'isAuthorized': widget.salesOrder.isAuthorized,
+      'orderStatus': widget.salesOrder.orderStatus,
+    };
+
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) => AddProformaInvoiceForm(
+              salesOrderData: salesOrderData,
+              salesOrderItem: salesOrderItem,
+            ),
+      ),
+    );
+
+    if (result == true) {
+      // Proforma Invoice was created successfully
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Proforma Invoice created successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 
   @override
@@ -440,6 +483,11 @@ class _SalesOrderDetailPageState extends State<SalesOrderDetailPage> {
 
     final so = detail!.salesOrderDetails;
     final items = detail!.modelDetails;
+
+    final isAuthorized = widget.salesOrder.isAuthorized == true;
+    final isNotCancelled =
+        widget.salesOrder.orderStatus.toLowerCase() != 'close';
+    final canCreateProformaInvoice = isAuthorized && isNotCancelled;
 
     return Scaffold(
       appBar: AppBar(
@@ -491,6 +539,23 @@ class _SalesOrderDetailPageState extends State<SalesOrderDetailPage> {
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
+              if (canCreateProformaInvoice) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _navigateToAddProformaInvoice,
+                    icon: const Icon(Icons.receipt_long),
+                    label: const Text('Add Proforma Invoice'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
               Card(
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),

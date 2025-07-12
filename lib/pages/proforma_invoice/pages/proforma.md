@@ -101,3 +101,5 @@ public class PrformaInvoiceInsertModel
         public decimal discVal { get; set; } // @PIDDiscVal
         public int fromLocationId { get; set; } // @PIDPFMLOCID
     }
+
+- SrNo is in proformaInvoiceGetSONumberList

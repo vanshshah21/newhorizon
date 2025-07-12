@@ -1,76 +1,3 @@
-// import 'package:flutter/material.dart';
-// import 'package:flutter_slidable/flutter_slidable.dart';
-// import 'package:nhapp/utils/call_utils.dart';
-// import 'package:nhapp/utils/format_utils.dart';
-// import '../models/service_order_data.dart';
-
-// class ServiceOrderCard extends StatelessWidget {
-//   final ServiceOrderData so;
-//   final VoidCallback onPdfTap;
-//   final VoidCallback onAuthorizeTap;
-
-//   const ServiceOrderCard({
-//     required this.so,
-//     required this.onPdfTap,
-//     required this.onAuthorizeTap,
-//     super.key,
-//   });
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Slidable(
-//       key: ValueKey(so.id),
-//       endActionPane: ActionPane(
-//         motion: const DrawerMotion(),
-//         children: [
-//           SlidableAction(
-//             onPressed: (_) => onPdfTap(),
-//             backgroundColor: Colors.blue,
-//             foregroundColor: Colors.white,
-//             icon: Icons.picture_as_pdf,
-//             label: 'PDF',
-//           ),
-//           SlidableAction(
-//             onPressed: (_) => onAuthorizeTap(),
-//             backgroundColor: Colors.green,
-//             foregroundColor: Colors.white,
-//             icon: Icons.check,
-//             label: 'Authorize',
-//           ),
-//         ],
-//       ),
-//       child: Card(
-//         margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-//         child: ListTile(
-//           title: Text(
-//             'SO#: ${so.number} | Vendor: ${so.vendorname.trim()}',
-//             style: const TextStyle(fontWeight: FontWeight.bold),
-//           ),
-//           subtitle: Text(
-//             'Buyer: ${so.buyer.trim()}\n'
-//             'Amount: ${FormatUtils.formatAmount(so.totalpovalue)}\n'
-//             'Date: ${FormatUtils.formatDateForUser(DateTime.parse(so.date))}',
-//           ),
-
-//           trailing: IconButton(
-//             color:
-//                 so.mobile.isNotEmpty
-//                     ? Theme.of(context).primaryColor
-//                     : Theme.of(context).disabledColor,
-//             icon: const Icon(Icons.phone),
-//             onPressed:
-//                 () =>
-//                     so.mobile.isNotEmpty
-//                         ? CallUtils.makePhoneCall(so.mobile)
-//                         : null,
-//             tooltip: 'Call',
-//           ),
-//         ),
-//       ),
-//     );
-//   }
-// }
-
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:nhapp/utils/call_utils.dart';
@@ -81,11 +8,13 @@ class ServiceOrderCard extends StatelessWidget {
   final ServiceOrderData so;
   final VoidCallback onPdfTap;
   final VoidCallback onAuthorizeTap;
+  final bool selected;
 
   const ServiceOrderCard({
     required this.so,
     required this.onPdfTap,
     required this.onAuthorizeTap,
+    this.selected = false,
     super.key,
   });
 
@@ -125,8 +54,22 @@ class ServiceOrderCard extends StatelessWidget {
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         // elevation: 2,
         // shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        shape:
+            selected
+                ? RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: theme.colorScheme.primary, width: 2),
+                )
+                : null,
         child: Container(
           padding: const EdgeInsets.all(16),
+          decoration:
+              selected
+                  ? BoxDecoration(
+                    color: theme.colorScheme.primary.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(12),
+                  )
+                  : null,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

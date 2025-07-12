@@ -170,7 +170,45 @@ class ProformaInvoiceService {
     return data.map((item) => SalesOrderNumber.fromJson(item)).toList();
   }
 
-  Future<QuotationDetails> fetchQuotationDetails(String quotationNumber) async {
+  // Future<QuotationDetails> fetchQuotationDetails(String quotationNumber) async {
+  //   final endpoint =
+  //       "/api/Proforma/proformaInvoiceGetModelItemDetails_Quatation";
+
+  //   final response = await _dio.get(
+  //     "$_baseUrl$endpoint",
+  //     queryParameters: {
+  //       "PILocationId": _locationDetails['id'],
+  //       "year": _financeDetails['financialYear'],
+  //       "groupCode": _quotationDocumentDetails['groupCode'],
+  //       "SONumber": quotationNumber,
+  //       "srNo": 0,
+  //     },
+  //   );
+  //   return QuotationDetails.fromJson(response.data['data']);
+  // }
+
+  // Future<SalesOrderDetails> fetchSalesOrderDetails(
+  //   String salesOrderNumber,
+  // ) async {
+  //   final endpoint = "/api/Proforma/proformaInvoiceGetModelItemDetails_SO";
+
+  //   final response = await _dio.get(
+  //     "$_baseUrl$endpoint",
+  //     queryParameters: {
+  //       "PILocationId": _locationDetails['id'],
+  //       "year": _financeDetails['financialYear'],
+  //       "groupCode": _salesOrderDocumentDetails['groupCode'],
+  //       "SONumber": salesOrderNumber,
+  //       "srNo": 0,
+  //     },
+  //   );
+  //   return SalesOrderDetails.fromJson(response.data['data']);
+  // }
+  // Update fetchQuotationDetails method
+  Future<QuotationDetails> fetchQuotationDetails(
+    String quotationNumber,
+    int srNo,
+  ) async {
     final endpoint =
         "/api/Proforma/proformaInvoiceGetModelItemDetails_Quatation";
 
@@ -181,14 +219,16 @@ class ProformaInvoiceService {
         "year": _financeDetails['financialYear'],
         "groupCode": _quotationDocumentDetails['groupCode'],
         "SONumber": quotationNumber,
-        "srNo": 0,
+        "srNo": srNo,
       },
     );
     return QuotationDetails.fromJson(response.data['data']);
   }
 
+  // Update fetchSalesOrderDetails method
   Future<SalesOrderDetails> fetchSalesOrderDetails(
     String salesOrderNumber,
+    int srNo,
   ) async {
     final endpoint = "/api/Proforma/proformaInvoiceGetModelItemDetails_SO";
 
@@ -199,7 +239,7 @@ class ProformaInvoiceService {
         "year": _financeDetails['financialYear'],
         "groupCode": _salesOrderDocumentDetails['groupCode'],
         "SONumber": salesOrderNumber,
-        "srNo": 1,
+        "srNo": srNo,
       },
     );
     return SalesOrderDetails.fromJson(response.data['data']);

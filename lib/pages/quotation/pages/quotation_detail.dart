@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:nhapp/pages/proforma_invoice/pages/add_proforma_invoice.dart';
 import 'package:nhapp/pages/quotation/service/quotation_service.dart';
 import 'package:nhapp/utils/storage_utils.dart';
 import 'package:path_provider/path_provider.dart';
@@ -350,12 +351,7 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
 
     double totalTax = 0;
     for (var rateDetail in detail!.rateStructureDetails) {
-      // Only include tax types (M, N) - CGST, SGST, IGST, etc.
-      if (rateDetail['taxType'] == 'M' ||
-          rateDetail['taxType'] == 'N' ||
-          rateDetail['taxType'] == 'I') {
-        totalTax += (rateDetail['rateAmount'] ?? 0).toDouble();
-      }
+      totalTax += (rateDetail['rateAmount'] ?? 0).toDouble();
     }
     return totalTax;
   }
@@ -366,6 +362,96 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
             .toDouble();
     final taxAmount = _calculateTotalTaxAmount();
     return totalAmountAfterTax - taxAmount;
+  }
+
+  Future<void> _navigateToAddSalesOrder() async {
+    if (detail == null) return;
+
+    // Convert QuotationDetail to Map format
+    final quotationData = {
+      'quotationDetails': detail!.quotationDetails,
+      'modelDetails': detail!.modelDetails,
+      'rateStructureDetails': detail!.rateStructureDetails,
+      'discountDetails': detail!.discountDetails,
+    };
+
+    // Convert QuotationListItem to Map format
+    final quotationListItem = {
+      'quotationId': widget.quotation.qtnID,
+      'qtnNumber': widget.quotation.qtnNumber,
+      'qtnYear': widget.quotation.qtnYear,
+      'qtnGroup': widget.quotation.qtnGroup,
+      'siteCode': widget.quotation.siteCode,
+      'date': widget.quotation.date,
+      'customerFullName': widget.quotation.customerFullName,
+      'isAuthorized': widget.quotation.isAuthorized,
+    };
+
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) => AddSalesOrderPage(
+              quotationData: quotationData,
+              quotationListItem: quotationListItem,
+            ),
+      ),
+    );
+
+    if (result == true) {
+      // Sales order was created successfully
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Sales Order created successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
+  }
+
+  Future<void> _navigateToAddProformaInvoice() async {
+    if (detail == null) return;
+
+    // Convert QuotationDetail to Map format for Proforma Invoice
+    final quotationData = {
+      'quotationDetails': detail!.quotationDetails,
+      'modelDetails': detail!.modelDetails,
+      'rateStructureDetails': detail!.rateStructureDetails,
+      'discountDetails': detail!.discountDetails,
+    };
+
+    // Convert QuotationListItem to Map format
+    final quotationListItem = {
+      'quotationId': widget.quotation.qtnID,
+      'qtnNumber': widget.quotation.qtnNumber,
+      'qtnYear': widget.quotation.qtnYear,
+      'qtnGroup': widget.quotation.qtnGroup,
+      'siteCode': widget.quotation.siteCode,
+      'date': widget.quotation.date,
+      'customerFullName': widget.quotation.customerFullName,
+      'isAuthorized': widget.quotation.isAuthorized,
+    };
+
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder:
+            (context) => AddProformaInvoiceForm(
+              quotationData: quotationData,
+              quotationListItem: quotationListItem,
+            ),
+      ),
+    );
+
+    if (result == true) {
+      // Proforma Invoice was created successfully
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Proforma Invoice created successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    }
   }
 
   Widget _buildAttachmentsSection() {
@@ -722,6 +808,37 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
+              if (_isAuthorized) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _navigateToAddSalesOrder,
+                    icon: const Icon(Icons.add_shopping_cart),
+                    label: const Text('Add Sales Order'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _navigateToAddProformaInvoice,
+                    icon: const Icon(Icons.add_shopping_cart),
+                    label: const Text('Add Proforma Invoice'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
               Card(
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),

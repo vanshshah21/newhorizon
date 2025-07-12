@@ -7,7 +7,17 @@ import 'package:nhapp/utils/format_utils.dart';
 import '../../../utils/storage_utils.dart';
 
 class AddProformaInvoiceForm extends StatefulWidget {
-  const AddProformaInvoiceForm({super.key});
+  final Map<String, dynamic>? quotationData;
+  final Map<String, dynamic>? quotationListItem;
+  final Map<String, dynamic>? salesOrderData;
+  final Map<String, dynamic>? salesOrderItem;
+  const AddProformaInvoiceForm({
+    super.key,
+    this.quotationData,
+    this.quotationListItem,
+    this.salesOrderData,
+    this.salesOrderItem,
+  });
 
   @override
   State<AddProformaInvoiceForm> createState() => _AddProformaInvoiceFormState();
@@ -84,6 +94,15 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
       _showError("User details not found.");
       return;
     }
+
+    // Prefill data if coming from quotation
+    if (widget.quotationData != null && widget.quotationListItem != null) {
+      await _prefillFromQuotation();
+    }
+
+    if (widget.salesOrderData != null && widget.salesOrderItem != null) {
+      await _prefillFromSalesOrder();
+    }
     setState(() => _isLoading = false);
   }
 
@@ -110,6 +129,108 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
 
   void loadProformaInvoiceDefaults() async {
     DefaultProformaInvoice = await _service.fetchDefaultDocumentDetail("PI");
+  }
+
+  Future<void> _prefillFromQuotation() async {
+    final quotationData = widget.quotationData!;
+    final quotationItem = widget.quotationListItem!;
+
+    try {
+      // Set preference to "On Quotation"
+      setState(() {
+        selectPreference = "On Quotation";
+      });
+
+      // Load quotation defaults
+      DefaultQuotation = await _service.fetchDefaultDocumentDetail("SQ");
+
+      // Extract quotation details
+      final quotationDetails =
+          quotationData['quotationDetails'] as Map<String, dynamic>;
+
+      // Create customer data from quotation
+      final customerCode = quotationDetails['customerCode']?.toString() ?? '';
+      final customerName = quotationDetails['customerName']?.toString() ?? '';
+
+      if (customerCode.isNotEmpty && customerName.isNotEmpty) {
+        // Create customer object
+        final customer = Customer(
+          custCode: customerCode,
+          custName: customerName,
+          cityCode: "",
+          cityName: "",
+          totalRows: 0,
+        );
+
+        // Set customer and trigger related loading
+        await _onCustomerSelected(customer);
+
+        // Find and select the quotation from the loaded list
+        final qtnNumber = quotationItem['qtnNumber']?.toString() ?? '';
+        if (qtnNumber.isNotEmpty) {
+          final matchingQuotation =
+              quotationNumbers.where((q) => q.number == qtnNumber).firstOrNull;
+          if (matchingQuotation != null) {
+            // This will trigger the API call to fetch quotation details
+            await _onQuotationSelected(matchingQuotation.number);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error prefilling quotation data: $e');
+    }
+  }
+
+  Future<void> _prefillFromSalesOrder() async {
+    final salesOrderData = widget.salesOrderData!;
+    final salesOrderItem = widget.salesOrderItem!;
+
+    try {
+      // Set preference to "On Sales Order"
+      setState(() {
+        selectPreference = "On Sales Order";
+      });
+
+      // Load sales order defaults
+      DefaultSalesOrder = await _service.fetchDefaultDocumentDetail("OB");
+
+      // Extract sales order details
+      final salesOrderDetails =
+          salesOrderData['salesOrderDetails'] as Map<String, dynamic>;
+
+      // Create customer data from sales order
+      final customerCode = salesOrderDetails['customerCode']?.toString() ?? '';
+      final customerName = salesOrderDetails['customerName']?.toString() ?? '';
+
+      if (customerCode.isNotEmpty && customerName.isNotEmpty) {
+        // Create customer object
+        final customer = Customer(
+          custCode: customerCode,
+          custName: customerName,
+          cityCode: "",
+          cityName: "",
+          totalRows: 0,
+        );
+
+        // Set customer and trigger related loading
+        await _onCustomerSelected(customer);
+
+        // Find and select the sales order from the loaded list
+        final ioNumber = salesOrderItem['ioNumber']?.toString() ?? '';
+        if (ioNumber.isNotEmpty) {
+          final matchingSalesOrder =
+              salesOrderNumbers
+                  .where((so) => so.number == ioNumber)
+                  .firstOrNull;
+          if (matchingSalesOrder != null) {
+            // This will trigger the API call to fetch sales order details
+            await _onSalesOrderSelected(matchingSalesOrder.number);
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error prefilling sales order data: $e');
+    }
   }
 
   Future<void> _loadRateStructures() async {
@@ -319,8 +440,15 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   Future<void> _onQuotationSelected(String? quotationNumber) async {
     if (quotationNumber == null) return;
 
+    // Find the selected quotation to get its srNo
+    final selectedQuotation = quotationNumbers.firstWhere(
+      (q) => q.number == quotationNumber,
+      orElse: () => throw Exception("Selected quotation not found"),
+    );
+
     setState(() {
       selectedQuotationNumber = quotationNumber;
+      selectedQuotationSrNo = selectedQuotation.srNo.toString();
       items.clear();
       _rsGrid.clear();
       _discountDetails.clear();
@@ -328,7 +456,10 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
     });
 
     try {
-      final details = await _service.fetchQuotationDetails(quotationNumber);
+      final details = await _service.fetchQuotationDetails(
+        quotationNumber,
+        selectedQuotation.srNo,
+      );
       items = [];
       _rsGrid = [];
       _discountDetails = [];
@@ -412,11 +543,19 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
     }
   }
 
+  // Update the onSalesOrderSelected method
   Future<void> _onSalesOrderSelected(String? salesOrderNumber) async {
     if (salesOrderNumber == null) return;
 
+    // Find the selected sales order to get its srNo
+    final selectedSalesOrder = salesOrderNumbers.firstWhere(
+      (so) => so.number == salesOrderNumber,
+      orElse: () => throw Exception("Selected sales order not found"),
+    );
+
     setState(() {
       selectedSalesOrderNumber = salesOrderNumber;
+      selectedSalesOrderSrNo = selectedSalesOrder.srNo.toString();
       items.clear();
       _rsGrid.clear();
       _discountDetails.clear();
@@ -424,7 +563,10 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
     });
 
     try {
-      final details = await _service.fetchSalesOrderDetails(salesOrderNumber);
+      final details = await _service.fetchSalesOrderDetails(
+        salesOrderNumber,
+        selectedSalesOrder.srNo,
+      );
       items = [];
       _rsGrid = [];
       _discountDetails = [];
@@ -458,7 +600,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
         lineNo++;
       }
 
-      // Populate rsGrid from response
+      // Populate rsGrid from response - use exact same structure as quotation
       if (details.rateStructDetail != null) {
         for (final rs in details.rateStructDetail!) {
           _rsGrid.add({
@@ -475,7 +617,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
             "appliedOn": rs['appliedOn'] ?? "",
             "pnyn": rs['pnyn'] ?? false,
             "seqNo": rs['seqNo']?.toString() ?? "1",
-            "curCode": rs['curCode'] ?? currency ?? "INR",
+            "curCode": rs['curCode'] ?? currency,
             "fromLocationId": locationDetails?['id'] ?? 8,
             "TaxTyp": rs['TaxTyp'] ?? '',
             "refLine": rs['refLine'] ?? 0,
@@ -483,16 +625,16 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
         }
       }
 
-      // Populate discountDetail from response
+      // Populate discountDetail from response - use exact same structure as quotation
       if (details.discountDetail != null) {
         for (final disc in details.discountDetail!) {
           _discountDetails.add({
             "itemCode": disc['itemCode'] ?? '',
-            "currCode": disc['currCode'] ?? currency ?? "INR",
+            "currCode": disc['currCode'] ?? currency,
             "discCode": disc['discCode'] ?? "01",
             "discType": disc['discType'] ?? '',
             "discVal": disc['discVal'] ?? 0,
-            "fromLocationId": locationDetails?['id'],
+            "fromLocationId": locationDetails?['id'] ?? 8,
             "oditmlineno": disc['oditmlineno'] ?? 0,
           });
         }
@@ -503,9 +645,105 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
       setState(() => _isLoading = false);
     } catch (e) {
       setState(() => _isLoading = false);
+      debugPrint("Error loading sales order details: $e");
       _showError("Failed to load sales order details: ${e.toString()}");
     }
   }
+
+  // Future<void> _onSalesOrderSelected(String? salesOrderNumber) async {
+  //   if (salesOrderNumber == null) return;
+
+  //   setState(() {
+  //     selectedSalesOrderNumber = salesOrderNumber;
+  //     items.clear();
+  //     _rsGrid.clear();
+  //     _discountDetails.clear();
+  //     _isLoading = true;
+  //   });
+
+  //   try {
+  //     final details = await _service.fetchSalesOrderDetails(salesOrderNumber);
+  //     items = [];
+  //     _rsGrid = [];
+  //     _discountDetails = [];
+
+  //     int lineNo = 1;
+  //     for (final item in details.itemDetail) {
+  //       // Use maxInvoiceQty if qty is 0
+  //       final quantity =
+  //           (item['qty'] ?? 0).toDouble() == 0.0
+  //               ? (item['maxInvoiceQty'] ?? 0).toDouble()
+  //               : (item['qty'] ?? 0).toDouble();
+
+  //       items.add(
+  //         ProformaItem(
+  //           itemName: item['itemName'] ?? '',
+  //           itemCode: item['itemCode'] ?? '',
+  //           qty: quantity,
+  //           basicRate: (item['itemRate'] ?? 0).toDouble(),
+  //           uom: item['suom'] ?? 'NOS',
+  //           discountType: (item['discountAmount'] ?? 0) > 0 ? 'Value' : 'None',
+  //           discountAmount: (item['discountAmount'] ?? 0).toDouble(),
+  //           discountPercentage: null,
+  //           rateStructure: item['rateStructureCode'] ?? '',
+  //           taxAmount: (item['totalTax'] ?? 0).toDouble(),
+  //           totalAmount: (item['totalValue'] ?? 0).toDouble(),
+  //           rateStructureRows: null,
+  //           lineNo: lineNo,
+  //           hsnAccCode: item['hsnAccCode'] ?? '',
+  //         ),
+  //       );
+  //       lineNo++;
+  //     }
+
+  //     // Populate rsGrid from response
+  //     if (details.rateStructDetail != null) {
+  //       for (final rs in details.rateStructDetail!) {
+  //         _rsGrid.add({
+  //           "docType": "PI",
+  //           "docSubType": "PI",
+  //           "xdtdtmcd": rs['xdtdtmcd'] ?? '',
+  //           "rateCode": rs['rateCode'] ?? '',
+  //           "rateStructCode": rs['rateStructCode'] ?? '',
+  //           "rateAmount": rs['rateAmount'] ?? 0,
+  //           "amdSrNo": rs['amdSrNo'] ?? 0,
+  //           "perCValue": rs['perCValue']?.toString() ?? "0.00",
+  //           "incExc": rs['incExc'] ?? '',
+  //           "perVal": rs['perVal'] ?? 0,
+  //           "appliedOn": rs['appliedOn'] ?? "",
+  //           "pnyn": rs['pnyn'] ?? false,
+  //           "seqNo": rs['seqNo']?.toString() ?? "1",
+  //           "curCode": rs['curCode'] ?? currency ?? "INR",
+  //           "fromLocationId": locationDetails?['id'] ?? 8,
+  //           "TaxTyp": rs['TaxTyp'] ?? '',
+  //           "refLine": rs['refLine'] ?? 0,
+  //         });
+  //       }
+  //     }
+
+  //     // Populate discountDetail from response
+  //     if (details.discountDetail != null) {
+  //       for (final disc in details.discountDetail!) {
+  //         _discountDetails.add({
+  //           "itemCode": disc['itemCode'] ?? '',
+  //           "currCode": disc['currCode'] ?? currency ?? "INR",
+  //           "discCode": disc['discCode'] ?? "01",
+  //           "discType": disc['discType'] ?? '',
+  //           "discVal": disc['discVal'] ?? 0,
+  //           "fromLocationId": locationDetails?['id'],
+  //           "oditmlineno": disc['oditmlineno'] ?? 0,
+  //         });
+  //       }
+  //     }
+
+  //     // Store the full response for later use
+  //     _salesOrderResponse = details;
+  //     setState(() => _isLoading = false);
+  //   } catch (e) {
+  //     setState(() => _isLoading = false);
+  //     _showError("Failed to load sales order details: ${e.toString()}");
+  //   }
+  // }
 
   Future<void> _showAddItemPage() async {
     final result = await Navigator.push<ProformaItem>(
@@ -730,38 +968,39 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   Map<String, dynamic> _buildSubmissionPayload() {
     if (userDetails?['id'] == null) throw Exception("User ID is null");
     if (locationDetails?['id'] == null) throw Exception("Location ID is null");
-    if (locationDetails?['code'] == null) {
+    if (locationDetails?['code'] == null)
       throw Exception("Location code is null");
-    }
     if (selectedCustomer == null) throw Exception("Customer is null");
-
-    List<Map<String, dynamic>> itemDetails = [];
-    List<Map<String, dynamic>> rsGrid = [];
-    List<Map<String, dynamic>> discountDetails = [];
 
     final userId = userDetails?['id'] ?? 0;
     final locationId = locationDetails?['id'] ?? 0;
     final locationCode = locationDetails?['code'] ?? "";
 
-    // Calculate totals using the existing methods
+    // Calculate totals
     final totalBasic = _calculateTotalBasic();
     final totalDiscount = _calculateTotalDiscount();
     final totalTax = _calculateTaxFromRateStructure();
     final totalAmount = _calculateTotalAmount();
 
-    // Build item details with correct field names
+    // Build itemDetail list
+    List<Map<String, dynamic>> itemDetail = [];
     for (int i = 0; i < items.length; i++) {
       final item = items[i];
       final lineNo = i + 1;
 
-      // Calculate values
+      // Calculate values for this item
       final basicAmount = item.basicRate * item.qty;
       final discountAmount = item.discountAmount ?? 0.0;
       final discountedAmount = basicAmount - discountAmount;
       final discountedRate = item.qty > 0 ? (discountedAmount / item.qty) : 0.0;
 
-      final itemJson = {
-        "ordYear": "",
+      final itemMap = {
+        "ordYear":
+            selectPreference == "On Quotation"
+                ? (_financeDetails?['financialYear'] ?? "")
+                : selectPreference == "On Sales Order"
+                ? (_financeDetails?['financialYear'] ?? "")
+                : "",
         "rcvAdv": 0,
         "piAdv": 0,
         "rtnAmt": 0,
@@ -772,8 +1011,18 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
         "lineNo": lineNo,
         "salesItemCode": item.itemCode,
         "invItemCode": item.itemCode,
-        "ordGroup": "",
-        "ordNumber": "",
+        "ordGroup":
+            selectPreference == "On Quotation"
+                ? (DefaultQuotation['groupCode'] ?? "")
+                : selectPreference == "On Sales Order"
+                ? (DefaultSalesOrder['groupCode'] ?? "")
+                : "",
+        "ordNumber":
+            selectPreference == "On Quotation"
+                ? (selectedQuotationNumber ?? "")
+                : selectPreference == "On Sales Order"
+                ? (selectedSalesOrderNumber ?? "")
+                : "",
         "quantitySUOM": item.qty,
         "invQty": item.qty,
         "maxAllowedQty": item.qty,
@@ -793,52 +1042,47 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
         "printseq": "",
         "detaildescription": "",
         "loadRate": 0,
+        "remarks": "",
       };
 
-      if (selectPreference == "On Quotation") {
-        itemJson['ordYear'] = _financeDetails?['financialYear'] ?? "";
-        itemJson['ordGroup'] = DefaultQuotation['groupCode'] ?? "";
-        itemJson['ordNumber'] = selectedQuotationNumber ?? "";
-      } else if (selectPreference == "On Sales Order") {
-        itemJson['ordYear'] = _financeDetails?['financialYear'] ?? "";
-        itemJson['ordGroup'] = DefaultSalesOrder['groupCode'] ?? "";
-        itemJson['ordNumber'] = selectedSalesOrderNumber ?? "";
-      }
-
-      itemDetails.add(itemJson);
+      itemDetail.add(itemMap);
     }
 
-    // Handle rsGrid - fix field mapping
+    // Build rsGrid list (ProformaRateStructureDetail)
+    List<Map<String, dynamic>> rsGrid = [];
     if (selectPreference == "On Quotation" ||
         selectPreference == "On Sales Order") {
-      rsGrid =
-          _rsGrid.map((rs) {
-            final itemIndex = items.indexWhere(
-              (item) => item.itemCode == rs['xdtdtmcd'],
-            );
+      for (final rs in _rsGrid) {
+        final itemIndex = items.indexWhere(
+          (item) => item.itemCode == rs['xdtdtmcd'],
+        );
 
-            return {
-              "docType": "PI",
-              "docSubType": "PI",
-              "xdtdtmcd": rs['xdtdtmcd'] ?? "",
-              "rateCode": rs['rateCode'] ?? "",
-              "rateStructCode": rs['rateStructCode'] ?? "",
-              "rateAmount": rs['rateAmount'] ?? 0,
-              "amdSrNo": rs['amdSrNo'] ?? 0,
-              "perCValue": rs['perCValue']?.toString() ?? "0.00",
-              "incExc": rs['incExc'] ?? "",
-              "perVal": rs['perVal']?.toString() ?? "V", // Changed to string
-              "appliedOn": rs['appliedOn'] ?? "",
-              "pnyn": rs['pnyn'] ?? false,
-              "seqNo": rs['seqNo']?.toString() ?? "1",
-              "curCode": rs['curCode'] ?? currency ?? "INR",
-              "fromLocationId": locationId,
-              "TaxTyp": rs['TaxTyp'] ?? "",
-              "refLine": itemIndex != -1 ? itemIndex + 1 : rs['refLine'] ?? 1,
-            };
-          }).toList();
+        rsGrid.add({
+          "docType": "PI",
+          "docSubType": "PI",
+          "docId": 0,
+          "xdtdtmcd": rs['xdtdtmcd'] ?? "",
+          "rateCode": rs['rateCode'] ?? "",
+          "rateAmount": rs['rateAmount'] ?? 0,
+          "amdSrNo": rs['amdSrNo'] ?? 0,
+          "perCValue": rs['perCValue'] ?? 0,
+          "incExc": rs['incExc'] ?? "",
+          "perVal": rs['perVal']?.toString() ?? "0",
+          "appliedOn": rs['appliedOn'] ?? "",
+          "pnyn": rs['pnyn'] ?? false,
+          "rateStructCode": rs['rateStructCode'] ?? "",
+          "seqNo": rs['seqNo'] ?? 1,
+          "fromLocationId": locationId,
+          "py": 0,
+          "curCode": rs['curCode'] ?? currency,
+          "taxTyp": rs['TaxTyp'] ?? "",
+          "refId": 0,
+          "percentage": 0,
+          "refLine": itemIndex != -1 ? itemIndex + 1 : (rs['refLine'] ?? 1),
+        });
+      }
     } else {
-      // For "On Other" - build rsGrid from item data
+      // For "On Other" - build from item rate structure data
       for (int i = 0; i < items.length; i++) {
         final item = items[i];
         final lineNo = i + 1;
@@ -848,20 +1092,27 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
             rsGrid.add({
               "docType": "PI",
               "docSubType": "PI",
+              "docId": 0,
               "xdtdtmcd": item.itemCode,
-              "rateCode": row['msprtcd'] ?? "",
-              "rateStructCode": item.rateStructure,
+              "rateCode": row['msprtcd'] ?? row['rateCode'] ?? "",
               "rateAmount": row['rateAmount'] ?? 0,
               "amdSrNo": 0,
-              "perCValue": row['msprtval']?.toString() ?? "0.00",
-              "incExc": row['mspincexc'] ?? "",
-              "perVal": row['mspperval']?.toString() ?? "V",
-              "appliedOn": row['mtrslvlno'] ?? "",
+              "perCValue": row['msprtval'] ?? row['perCValue'] ?? 0,
+              "incExc": row['mspincexc'] ?? row['ie'] ?? "",
+              "perVal":
+                  row['mspperval']?.toString() ??
+                  row['perVal']?.toString() ??
+                  "0",
+              "appliedOn": row['mtrslvlno'] ?? row['appliedOn'] ?? "",
               "pnyn": row['msppnyn'] == "True" || row['msppnyn'] == true,
-              "seqNo": row['mspseqno']?.toString() ?? "1",
-              "curCode": currency,
+              "rateStructCode": item.rateStructure,
+              "seqNo": int.tryParse(row['mspseqno']?.toString() ?? '1') ?? 1,
               "fromLocationId": locationId,
-              "TaxTyp": row['mprtaxtyp'] ?? "",
+              "py": 0,
+              "curCode": currency,
+              "taxTyp": row['mprtaxtyp'] ?? row['TaxTyp'] ?? "",
+              "refId": 0,
+              "percentage": 0,
               "refLine": lineNo,
             });
           }
@@ -869,42 +1120,44 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
       }
     }
 
-    // Handle discountDetails - fix field mapping
+    // Build discountDetail list (ProformaDiscountDetail)
+    List<Map<String, dynamic>> discountDetail = [];
     if (selectPreference == "On Quotation" ||
         selectPreference == "On Sales Order") {
-      discountDetails =
-          _discountDetails.map((disc) {
-            final itemIndex = items.indexWhere(
-              (item) => item.itemCode == disc['itemCode'],
-            );
+      for (final disc in _discountDetails) {
+        final itemIndex = items.indexWhere(
+          (item) => item.itemCode == disc['itemCode'],
+        );
 
-            return {
-              "itemCode": disc['itemCode'] ?? "",
-              "currCode": disc['currCode'] ?? currency ?? "INR",
-              "discCode": disc['discCode'] ?? "DISC",
-              "discType": disc['discType'] ?? "",
-              "discVal": disc['discVal'] ?? 0,
-              "fromLocationId": locationId,
-              "oditmlineno":
-                  itemIndex != -1 ? itemIndex + 1 : disc['oditmlineno'] ?? 1,
-            };
-          }).toList();
+        discountDetail.add({
+          "invId": 0,
+          "itemCode": disc['itemCode'] ?? "",
+          "currCode": disc['currCode'] ?? currency,
+          "discCode": disc['discCode'] ?? "DISC",
+          "discType": disc['discType'] ?? "",
+          "discVal": disc['discVal'] ?? 0,
+          "fromLocationId": locationId,
+          "oditmlineno":
+              itemIndex != -1 ? itemIndex + 1 : (disc['oditmlineno'] ?? 1),
+        });
+      }
     } else {
-      // For "On Other" - build discountDetails from item data
+      // For "On Other" - build from item discount data
       for (int i = 0; i < items.length; i++) {
         final item = items[i];
         final lineNo = i + 1;
 
         if (item.discountAmount != null && item.discountAmount! > 0) {
-          discountDetails.add({
+          discountDetail.add({
+            "invId": 0,
             "itemCode": item.itemCode,
             "currCode": currency,
             "discCode": "DISC",
             "discType": item.discountType,
             "discVal":
                 item.discountType == "Percentage"
-                    ? item.discountPercentage ?? 0
-                    : item.discountAmount ?? 0,
+                    ? (item.discountPercentage ?? 0)
+                    : (item.discountAmount ?? 0),
             "fromLocationId": locationId,
             "oditmlineno": lineNo,
           });
@@ -912,7 +1165,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
       }
     }
 
-    // Build itemHeaderDetial with correct field values
+    // Build itemHeaderDetial (InvoiceHeaderModel)
     final itemHeaderDetial = _buildItemHeaderDetail(
       totalAmount,
       totalTax,
@@ -922,27 +1175,88 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
       locationCode,
     );
 
-    // Generate transport detail
+    // Build transportDetail (TransPortDetail)
     final transportDetail = _buildTransportDetail(userId);
 
+    // Build the main payload matching PrformaInvoiceInsertModel
     return {
       "action": "add",
       "autoNoRequired": "Y",
+      "exchangeRate": 1.0,
       "customerPoNumber": null,
       "customerPoDate": null,
       "itemHeaderDetial": itemHeaderDetial,
-      "itemDetail": itemDetails,
+      "itemDetail": itemDetail,
       "rsGrid": rsGrid,
-      "discountDetail": discountDetails,
+      "discountDetail": discountDetail,
       "termsDetail": [],
-      "standardTerms": [],
       "transportDetail": transportDetail,
       "chargesDetail": [],
       "remark": [],
+      "standardTerms": [],
     };
   }
 
   // Update the itemHeaderDetail method to fix discount value calculation
+  // Map<String, dynamic> _buildItemHeaderDetail(
+  //   double totalAmount,
+  //   double totalTax,
+  //   double totalDiscount,
+  //   int userId,
+  //   int locationId,
+  //   String locationCode,
+  // ) {
+  //   final financeDetails = _financeDetails ?? {};
+  //   final financialYear = financeDetails['financialYear'] ?? "25-26";
+
+  //   String discountType = "None";
+  //   if (items.isNotEmpty && totalDiscount > 0) {
+  //     final firstItemDiscountType = items.first.discountType;
+  //     final allSameDiscountType = items.every(
+  //       (item) => item.discountType == firstItemDiscountType,
+  //     );
+  //     discountType = allSameDiscountType ? firstItemDiscountType : "Mixed";
+  //   }
+
+  //   final basicAmount = _calculateTotalBasic();
+  //   final netAmount = basicAmount - totalDiscount;
+  //   final finalAmount = netAmount + totalTax;
+
+  //   return {
+  //     "autoId": 0,
+  //     "invYear": financialYear,
+  //     "invGroup": DefaultProformaInvoice['groupCode'] ?? "PI",
+  //     "invSite": locationId,
+  //     "invSiteCode": locationCode,
+  //     "invIssueDate":
+  //         selectedDate != null
+  //             ? "${selectedDate!.year.toString().padLeft(4, '0')}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}"
+  //             : "",
+  //     "invValue": netAmount.toStringAsFixed(2),
+  //     "invAmount": finalAmount.toStringAsFixed(2),
+  //     "invRoValue": finalAmount.round(),
+  //     "invTax": totalTax.toStringAsFixed(2),
+  //     "invType": "M",
+  //     "invCustCode": selectedCustomer!.custCode,
+  //     "invStatus": "O",
+  //     "invOn":
+  //         selectPreference == "On Quotation"
+  //             ? "Q"
+  //             : selectPreference == "On Sales Order"
+  //             ? "O"
+  //             : "T",
+  //     "invDiscountType": discountType,
+  //     "invDiscountValue":
+  //         totalDiscount, // Remove toStringAsFixed, keep as number
+  //     "invFromLocationId": locationId,
+  //     "invCreatedUserId": userId,
+  //     "invCurrCode": currency,
+  //     "invRate": 0,
+  //     "invNumber": "",
+  //     "invBacAmount": basicAmount.toStringAsFixed(2),
+  //     "invSiteReq": "Y",
+  //   };
+  // }
   Map<String, dynamic> _buildItemHeaderDetail(
     double totalAmount,
     double totalTax,
@@ -954,6 +1268,10 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
     final financeDetails = _financeDetails ?? {};
     final financialYear = financeDetails['financialYear'] ?? "25-26";
 
+    final basicAmount = _calculateTotalBasic();
+    final netAmount = basicAmount - totalDiscount;
+    final finalAmount = netAmount + totalTax;
+
     String discountType = "None";
     if (items.isNotEmpty && totalDiscount > 0) {
       final firstItemDiscountType = items.first.discountType;
@@ -962,10 +1280,6 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
       );
       discountType = allSameDiscountType ? firstItemDiscountType : "Mixed";
     }
-
-    final basicAmount = _calculateTotalBasic();
-    final netAmount = basicAmount - totalDiscount;
-    final finalAmount = netAmount + totalTax;
 
     return {
       "autoId": 0,
@@ -977,10 +1291,9 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
           selectedDate != null
               ? "${selectedDate!.year.toString().padLeft(4, '0')}-${selectedDate!.month.toString().padLeft(2, '0')}-${selectedDate!.day.toString().padLeft(2, '0')}"
               : "",
-      "invValue": netAmount.toStringAsFixed(2),
-      "invAmount": finalAmount.toStringAsFixed(2),
-      "invRoValue": finalAmount.round(),
-      "invTax": totalTax.toStringAsFixed(2),
+      "invValue": netAmount, // Keep as decimal
+      "invAmount": finalAmount, // Keep as decimal
+      "invTax": totalTax, // Keep as decimal
       "invType": "M",
       "invCustCode": selectedCustomer!.custCode,
       "invStatus": "O",
@@ -991,14 +1304,15 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
               ? "O"
               : "T",
       "invDiscountType": discountType,
-      "invDiscountValue":
-          totalDiscount, // Remove toStringAsFixed, keep as number
+      "invDiscountValue": totalDiscount, // Keep as decimal
       "invFromLocationId": locationId,
       "invCreatedUserId": userId,
       "invCurrCode": currency,
-      "invRate": 0,
+      "exchangeRate": 1.0,
+      "customerPoNumber": null,
+      "customerPoDate": null,
       "invNumber": "",
-      "invBacAmount": basicAmount.toStringAsFixed(2),
+      "invBacAmount": basicAmount, // Keep as decimal
       "invSiteReq": "Y",
     };
   }
