@@ -575,12 +575,10 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
     final finalAmount = totalAfterDiscount + totalTax;
 
     return {
-      "authorizationRequired": documentDetail['authorizationRequired'] ?? "Y",
-      "autoNumberRequired": "Y",
-      "siteRequired": "Y",
-      "authorizationDate": FormatUtils.formatDateForApi(
-        selectedDate ?? DateTime.now(),
-      ),
+      "authorizationRequired": documentDetail['isAutorisationRequired'] ?? "Y",
+      "autoNumberRequired": documentDetail['isAutoNumberGenerated'] ?? "Y",
+      "siteRequired": documentDetail['isLocationRequired'] ?? "Y",
+      "authorizationDate": null,
       "fromLocationId": locationId,
       "userId": userId,
       "companyId": companyId,
@@ -650,8 +648,6 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
         "xobCredit": "",
         "xobcrauth": "",
         "amendSrNo": 0,
-        "authBy": "",
-        "authDate": null,
         "ioYear": docYear,
         "ioGroup": documentDetail['groupCode'] ?? "SO",
         "ioSiteId": locationId.toString(),
@@ -978,7 +974,9 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
                       ],
                       _buildDateField(),
                       const SizedBox(height: 16),
-                      _buildOAFGroupField(),
+                      _autogenerateoafonsalesorder
+                          ? _buildOAFGroupField()
+                          : Container(),
                       const SizedBox(height: 16),
                       _buildCustomerPONumberField(),
                       const SizedBox(height: 16),

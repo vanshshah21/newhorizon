@@ -30,7 +30,7 @@ class InquiryDetailsPage extends StatefulWidget {
 
 class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
   LeadDetailData? data;
-  late List<LeadAttachment> attachments;
+  List<LeadAttachment> attachments = []; // Fixed: Initialize instead of late
   String? error;
   String? attachmentError;
 
@@ -50,7 +50,33 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
     _fetchLocationData();
   }
 
+  @override
+  void dispose() {
+    // Clean up any cached files on dispose
+    _cleanupCachedFiles();
+    super.dispose();
+  }
+
+  Future<void> _cleanupCachedFiles() async {
+    try {
+      final cacheDir = await getTemporaryDirectory();
+      final files = cacheDir.listSync();
+
+      for (final file in files) {
+        if (file.path.contains('Lead_${widget.lead.inquiryNumber}') &&
+            file.path.endsWith('.pdf')) {
+          await file.delete();
+        }
+      }
+    } catch (e) {
+      // Ignore cleanup errors
+      debugPrint('Cache cleanup error: $e');
+    }
+  }
+
   Future<void> _fetchLocationData() async {
+    if (!mounted) return;
+
     setState(() {
       _isLoadingLocation = true;
       locationError = null;
@@ -75,33 +101,44 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
     }
   }
 
-  // Add location button handler
+  // Fixed location button handler with better error handling
   Future<void> _handleLocationButton() async {
+    if (!mounted) return;
+
     if (locationData == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Location data not available'),
-          backgroundColor: Colors.orange,
-        ),
-      );
+      _showSnackBar('Location data not available', Colors.orange);
       return;
     }
 
     try {
-      // Use the parsed double values or parse the string values
-      final latitude = double.tryParse(
-        locationData!['mLOCLATITUDE'].toString(),
-      );
-      final longitude = double.tryParse(
-        locationData!['mLOCLONGITUDE'].toString(),
-      );
+      // Better error handling for location parsing
+      final latStr = locationData!['mLOCLATITUDE']?.toString();
+      final lngStr = locationData!['mLOCLONGITUDE']?.toString();
+
+      if (latStr == null ||
+          lngStr == null ||
+          latStr.isEmpty ||
+          lngStr.isEmpty) {
+        _showSnackBar('Location coordinates not available', Colors.orange);
+        return;
+      }
+
+      final latitude = double.tryParse(latStr);
+      final longitude = double.tryParse(lngStr);
 
       if (latitude == null || longitude == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Invalid location coordinates'),
-            backgroundColor: Colors.red,
-          ),
+        _showSnackBar('Invalid location coordinates format', Colors.red);
+        return;
+      }
+
+      // Validate coordinate ranges
+      if (latitude < -90 ||
+          latitude > 90 ||
+          longitude < -180 ||
+          longitude > 180) {
+        _showSnackBar(
+          'Location coordinates are out of valid range',
+          Colors.red,
         );
         return;
       }
@@ -113,23 +150,29 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
         label: 'Lead ${widget.lead.inquiryNumber}',
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error opening location: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      _showSnackBar('Error opening location: $e', Colors.red);
     }
   }
 
+  // Helper method for showing snackbars
+  void _showSnackBar(String message, Color backgroundColor) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: backgroundColor),
+    );
+  }
+
   Future<void> _fetchDetail() async {
+    if (!mounted) return;
+
     setState(() {
       data = null;
       error = null;
     });
 
-    LeadService service = LeadService();
     try {
+      final service = LeadService();
       final detail = await service.fetchLeadDetails(
         customerCode: widget.lead.customerCode,
         salesmanCode: widget.lead.salesmanCode,
@@ -139,15 +182,18 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
         inquiryNumber: widget.lead.inquiryNumber,
         inquiryID: widget.lead.inquiryID,
       );
+
       if (!mounted) return;
       setState(() => data = detail);
     } catch (e) {
       if (!mounted) return;
-      setState(() => error = 'Error: $e');
+      setState(() => error = 'Error loading lead details: $e');
     }
   }
 
   Future<void> _fetchAttachments() async {
+    if (!mounted) return;
+
     setState(() {
       _isLoadingAttachments = true;
       attachmentError = null;
@@ -155,7 +201,6 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
 
     try {
       final service = LeadAttachmentService(Dio());
-      final leadService = LeadService();
       final baseUrl = 'http://${await StorageUtils.readValue('url')}';
 
       final fetchedAttachments = await service.fetchLeadAttachments(
@@ -176,12 +221,13 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
       setState(() {
         attachmentError = 'Failed to load attachments: $e';
         _isLoadingAttachments = false;
+        attachments = []; // Ensure attachments is always a valid list
       });
     }
   }
 
   void _navigateToFollowUp() {
-    if (data == null) return;
+    if (data == null || !mounted) return;
 
     final followUpData = {
       'customerCode': data!.customerCode,
@@ -200,7 +246,7 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
   }
 
   void _navigateToQuotation() {
-    if (data == null) return;
+    if (data == null || !mounted) return;
 
     final quotationData = {
       'customerCode': data!.customerCode,
@@ -222,6 +268,8 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
   }
 
   void _viewPdf() {
+    if (!mounted) return;
+
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => LeadPdfLoaderPage(lead: widget.lead),
@@ -273,7 +321,9 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
 
         if (openSettings) {
           await openAppSettings();
-          return await permission.isGranted;
+          // Re-check permission after user returns from settings
+          status = await permission.status;
+          return status.isGranted;
         }
         return false;
       }
@@ -281,12 +331,7 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
       return false;
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error checking permissions: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _showSnackBar('Error checking permissions: $e', Colors.red);
       }
       return false;
     }
@@ -297,6 +342,8 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
     required String message,
     bool showSettingsButton = false,
   }) async {
+    if (!mounted) return false;
+
     return await showDialog<bool>(
           context: context,
           barrierDismissible: false,
@@ -335,36 +382,33 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
   /* ---------- Downloader ---------- */
 
   Future<String?> _downloadPdfFile({required bool toCache}) async {
-    final service = LeadService();
-    final pdfUrl = await service.fetchLeadPdfUrl(widget.lead);
-
-    if (pdfUrl.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('PDF not available')));
-      }
-      return null;
-    }
-
-    if (!toCache && !(await _ensureStoragePermission())) return null;
-
-    final dir = toCache ? await _cacheDir() : await _downloadsDir();
-    final name =
-        'Lead_${widget.lead.inquiryNumber}_${DateTime.now().millisecondsSinceEpoch}.pdf';
-    final path = '$dir/$name';
-
-    final file = File(path);
-    if (await file.exists()) return path;
-
     try {
-      await Dio().download(pdfUrl, path);
+      final service = LeadService();
+      final pdfUrl = await service.fetchLeadPdfUrl(widget.lead);
+
+      if (pdfUrl.isEmpty) {
+        if (mounted) {
+          _showSnackBar('PDF not available', Colors.orange);
+        }
+        return null;
+      }
+
+      if (!toCache && !(await _ensureStoragePermission())) return null;
+
+      final dir = toCache ? await _cacheDir() : await _downloadsDir();
+      final name =
+          'Lead_${widget.lead.inquiryNumber}_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final path = '$dir/$name';
+
+      final file = File(path);
+      if (await file.exists()) return path;
+
+      final dio = Dio();
+      await dio.download(pdfUrl, path);
       return path;
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Download failed: $e')));
+        _showSnackBar('Download failed: $e', Colors.red);
       }
       return null;
     }
@@ -373,24 +417,24 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
   /* ---------- Download ---------- */
 
   Future<void> _handleDownload() async {
-    if (_isDownloading) return;
+    if (_isDownloading || !mounted) return;
+
     setState(() => _isDownloading = true);
 
     try {
       final path = await _downloadPdfFile(toCache: false);
       if (path == null) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Download cancelled or permission denied'),
-              backgroundColor: Colors.orange,
-            ),
+          _showSnackBar(
+            'Download cancelled or permission denied',
+            Colors.orange,
           );
         }
         return;
       }
 
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -411,7 +455,8 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
   /* ---------- Share ---------- */
 
   Future<void> _handleShare() async {
-    if (_isSharing) return;
+    if (_isSharing || !mounted) return;
+
     setState(() => _isSharing = true);
 
     try {
@@ -425,13 +470,9 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
           subject: 'Lead ${widget.lead.inquiryNumber} PDF',
         ),
       );
-      // Optionally delete cached copy afterwards
-      // await File(path).delete();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Share failed: $e')));
+        _showSnackBar('Share failed: $e', Colors.red);
       }
     } finally {
       if (mounted) setState(() => _isSharing = false);
@@ -506,7 +547,7 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
                 ],
               ),
             )
-          else if (attachments == null || attachments!.isEmpty)
+          else if (attachments.isEmpty) // Fixed: Remove null check
             Padding(
               padding: const EdgeInsets.all(24),
               child: Column(
@@ -527,7 +568,7 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
               ),
             )
           else
-            ...attachments!.map(
+            ...attachments.map(
               (attachment) => _buildAttachmentItem(attachment),
             ),
         ],
@@ -546,7 +587,7 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
         borderRadius: BorderRadius.circular(8),
       ),
       child: ListTile(
-        // leading: _getFileIcon(attachment.extension),
+        leading: _getFileIcon(attachment),
         title: Text(
           attachment.originalName,
           style: theme.textTheme.bodyMedium?.copyWith(
@@ -562,23 +603,70 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
             ),
           ],
         ),
-        // trailing: Row(
-        //   mainAxisSize: MainAxisSize.min,
-        //   children: [
-        //     IconButton(
-        //       onPressed: () => _viewAttachment(attachment),
-        //       icon: const Icon(Icons.visibility),
-        //       tooltip: 'View',
-        //     ),
-        //     IconButton(
-        //       onPressed: () => _downloadAttachment(attachment),
-        //       icon: const Icon(Icons.download),
-        //       tooltip: 'Download',
-        //     ),
-        //   ],
-        // ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              onPressed: () => _viewAttachment(attachment),
+              icon: const Icon(Icons.visibility),
+              tooltip: 'View',
+            ),
+            IconButton(
+              onPressed: () => _downloadAttachment(attachment),
+              icon: const Icon(Icons.download),
+              tooltip: 'Download',
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  // Added file icon helper
+  Widget _getFileIcon(LeadAttachment attachment) {
+    final extension = attachment.originalName.split('.').last.toLowerCase();
+
+    IconData iconData;
+    Color iconColor = Colors.grey;
+
+    switch (extension) {
+      case 'pdf':
+        iconData = Icons.picture_as_pdf;
+        iconColor = Colors.red;
+        break;
+      case 'doc':
+      case 'docx':
+        iconData = Icons.description;
+        iconColor = Colors.blue;
+        break;
+      case 'xls':
+      case 'xlsx':
+        iconData = Icons.table_chart;
+        iconColor = Colors.green;
+        break;
+      case 'jpg':
+      case 'jpeg':
+      case 'png':
+      case 'gif':
+        iconData = Icons.image;
+        iconColor = Colors.orange;
+        break;
+      default:
+        iconData = Icons.insert_drive_file;
+    }
+
+    return Icon(iconData, color: iconColor);
+  }
+
+  // Added attachment actions
+  Future<void> _viewAttachment(LeadAttachment attachment) async {
+    // Implement attachment viewing logic
+    _showSnackBar('View attachment feature coming soon', Colors.blue);
+  }
+
+  Future<void> _downloadAttachment(LeadAttachment attachment) async {
+    // Implement attachment download logic
+    _showSnackBar('Download attachment feature coming soon', Colors.blue);
   }
 
   String _formatFileSize(int bytes) {
@@ -587,32 +675,61 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 
+  // Added refresh method for pull-to-refresh
+  Future<void> _refreshData() async {
+    await Future.wait([
+      _fetchDetail(),
+      _fetchAttachments(),
+      _fetchLocationData(),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final cardColor = theme.cardColor;
     final borderColor = theme.dividerColor;
 
     if (error != null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Inquiry Details')),
         body: RefreshIndicator(
-          onRefresh: () async {
-            await _fetchDetail();
-            await _fetchAttachments();
-            await _fetchLocationData();
-          },
+          onRefresh: _refreshData,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             child: Container(
               height: MediaQuery.of(context).size.height * 0.8,
-              child: Center(child: Text(error!)),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: theme.colorScheme.error,
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      error!,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: theme.colorScheme.error,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: _refreshData,
+                      icon: const Icon(Icons.refresh),
+                      label: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
       );
     }
+
     if (data == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('Inquiry Details')),
@@ -624,560 +741,424 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(title: const Text('View Lead')),
       body: RefreshIndicator(
-        onRefresh: () async {
-          await _fetchDetail();
-          await _fetchAttachments();
-          await _fetchLocationData();
-        },
+        onRefresh: _refreshData,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-          child: Center(
-            child: Column(
-              children: [
-                Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    side: BorderSide(color: borderColor, width: 2),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(2.0),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton.filledTonal(
-                              onPressed:
-                                  _isDownloading ? null : _handleDownload,
-                              icon:
-                                  _isDownloading
-                                      ? const SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      )
-                                      : const Icon(Icons.download, size: 20),
-                            ),
-                            const SizedBox(width: 6),
-                            IconButton.filledTonal(
-                              onPressed: _viewPdf,
-                              icon: const Icon(Icons.picture_as_pdf, size: 20),
-                            ),
-                            const SizedBox(width: 6),
-                            IconButton.filledTonal(
-                              onPressed: _isSharing ? null : _handleShare,
-                              icon:
-                                  _isSharing
-                                      ? const SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                        ),
-                                      )
-                                      : const Icon(Icons.share, size: 20),
-                            ),
-                            const SizedBox(width: 6),
-                            IconButton.filledTonal(
-                              onPressed: _handleLocationButton,
-                              icon: const Icon(Icons.location_on, size: 20),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
+          child: Column(
+            children: [
+              // Action Buttons Card
+              Card(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  side: BorderSide(color: borderColor, width: 2),
                 ),
-                // Card(
-                //   child: Row(
-                //     children: [
-                //       ElevatedButton.icon(
-                //         onPressed: () async {
-                //           final result = await Navigator.of(context).push(
-                //             MaterialPageRoute(
-                //               builder:
-                //                   (context) => AddQuotationPage(
-                //                     leadData: widget.lead,
-                //                     leadDetailData: data,
-                //                   ),
-                //             ),
-                //           );
-                //           if (result == true) {
-                //             // Quotation created successfully
-                //             ScaffoldMessenger.of(context).showSnackBar(
-                //               const SnackBar(
-                //                 content: Text(
-                //                   'Quotation created successfully!',
-                //                 ),
-                //               ),
-                //             );
-                //           }
-                //         },
-                //         icon: const Icon(Icons.add_business, size: 18),
-                //         label: const Text('Create Quotation'),
-                //         style: ElevatedButton.styleFrom(
-                //           padding: const EdgeInsets.symmetric(
-                //             horizontal: 12,
-                //             vertical: 8,
-                //           ),
-                //         ),
-                //       ),
-                //     ],
-                //   ),
-                // ),
-                Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: borderColor, width: 1),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: _navigateToFollowUp,
-                            icon: const Icon(Icons.schedule_send, size: 18),
-                            label: const Text('Add Follow Up'),
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: borderColor, width: 1),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: _navigateToQuotation,
-                            icon: const Icon(Icons.add_business, size: 18),
-                            label: const Text('Create Quotation'),
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 12,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                Card(
-                  color: cardColor,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
-                    side: BorderSide(color: borderColor, width: 2),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      // CardHeader
-                      Container(
-                        padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-                        decoration: BoxDecoration(
-                          border: Border(
-                            bottom: BorderSide(color: borderColor, width: 1),
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "Lead No. ${data!.inquiryNumber}",
-                              style: theme.textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 24,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              "Customer: ${data!.customerCode} - ${data!.customerName}",
-                              style: theme.textTheme.bodySmall,
-                            ),
-                          ],
-                        ),
+                      _buildActionButton(
+                        onPressed: _isDownloading ? null : _handleDownload,
+                        icon:
+                            _isDownloading
+                                ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                                : const Icon(Icons.download, size: 20),
+                        label: 'Download',
                       ),
-
-                      // Customer Information Section
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        "Customer Code",
-                                        style: theme.textTheme.labelSmall,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text.rich(
-                                        TextSpan(
-                                          text: data!.customerCode,
-                                          style: theme.textTheme.bodyMedium
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        "Customer Name",
-                                        style: theme.textTheme.labelSmall,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text.rich(
-                                        TextSpan(
-                                          text: data!.customerName,
-                                          style: theme.textTheme.bodyMedium
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                      _buildActionButton(
+                        onPressed: _viewPdf,
+                        icon: const Icon(Icons.picture_as_pdf, size: 20),
+                        label: 'View PDF',
                       ),
-
-                      // Sales Team Section
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    "Salesman",
-                                    style: theme.textTheme.labelSmall,
+                      _buildActionButton(
+                        onPressed: _isSharing ? null : _handleShare,
+                        icon:
+                            _isSharing
+                                ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
                                   ),
-                                  const SizedBox(height: 4),
-                                  Text.rich(
-                                    TextSpan(
-                                      text:
-                                          "${data!.salesmanCode} - ${data!.salesmanName}",
-                                      style: theme.textTheme.bodyMedium
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    "Region",
-                                    style: theme.textTheme.labelSmall,
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text.rich(
-                                    TextSpan(
-                                      text:
-                                          "${data!.salesRegionCode} - ${data!.salesRegionCodeDesc}",
-                                      style: theme.textTheme.bodyMedium
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
+                                )
+                                : const Icon(Icons.share, size: 20),
+                        label: 'Share',
                       ),
-
-                      // Inquiry Summary Section
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        "Lead Date",
-                                        style: theme.textTheme.labelSmall,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text.rich(
-                                        TextSpan(
-                                          text: FormatUtils.formatDateForUser(
-                                            DateTime.parse(data!.inquiryDate),
-                                          ),
-                                          style: theme.textTheme.bodyMedium
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                        ),
-                                      ),
-                                    ],
+                      _buildActionButton(
+                        onPressed:
+                            _isLoadingLocation ? null : _handleLocationButton,
+                        icon:
+                            _isLoadingLocation
+                                ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
                                   ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        "Source",
-                                        style: theme.textTheme.labelSmall,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text.rich(
-                                        TextSpan(
-                                          text: data!.inquirySourceDesc,
-                                          style: theme.textTheme.bodyMedium
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        "Consultant",
-                                        style: theme.textTheme.labelSmall,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text.rich(
-                                        TextSpan(
-                                          text: data!.consultantFullName,
-                                          style: theme.textTheme.bodyMedium
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        "Group",
-                                        style: theme.textTheme.labelSmall,
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text.rich(
-                                        TextSpan(
-                                          text: data!.inquiryGroup,
-                                          style: theme.textTheme.bodyMedium
-                                              ?.copyWith(
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                          ],
-                        ),
+                                )
+                                : const Icon(Icons.location_on, size: 20),
+                        label: 'Location',
                       ),
-
-                      // Items Section Header
-                      Container(
-                        padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-                        decoration: BoxDecoration(
-                          border: Border(
-                            top: BorderSide(color: borderColor, width: 1),
-                          ),
-                        ),
-                        child: Text(
-                          "Items",
-                          style: theme.textTheme.titleMedium,
-                        ),
-                      ),
-
-                      // Items Section
-                      ...List.generate(data!.inqEntryItemModel.length, (index) {
-                        final item = data!.inqEntryItemModel[index];
-                        return Padding(
-                          padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
-                          child: Column(
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          "Item Code/ Name",
-                                          style: theme.textTheme.labelSmall,
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text.rich(
-                                          TextSpan(
-                                            text:
-                                                "${item.salesItemCode} - ${item.itemName}",
-                                            style: theme.textTheme.bodyMedium
-                                                ?.copyWith(
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          "Quantity",
-                                          style: theme.textTheme.labelSmall,
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text.rich(
-                                          TextSpan(
-                                            text: FormatUtils.formatQuantity(
-                                              item.itemQty,
-                                            ),
-                                            style: theme.textTheme.bodyMedium
-                                                ?.copyWith(
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          "SUOM",
-                                          style: theme.textTheme.labelSmall,
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text.rich(
-                                          TextSpan(
-                                            text: item.uom,
-                                            style: theme.textTheme.bodyMedium
-                                                ?.copyWith(
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          "Rate",
-                                          style: theme.textTheme.labelSmall,
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text.rich(
-                                          TextSpan(
-                                            text: FormatUtils.formatAmount(
-                                              item.basicPrice,
-                                            ),
-                                            style: theme.textTheme.bodyMedium
-                                                ?.copyWith(
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                            ],
-                          ),
-                        );
-                      }),
                     ],
                   ),
                 ),
-                _buildAttachmentsSection(),
-              ],
+              ),
+
+              // Follow Up Card
+              // Card(
+              //   shape: RoundedRectangleBorder(
+              //     borderRadius: BorderRadius.circular(12),
+              //     side: BorderSide(color: borderColor, width: 1),
+              //   ),
+              //   child: Padding(
+              //     padding: const EdgeInsets.all(16.0),
+              //     child: SizedBox(
+              //       width: double.infinity,
+              //       child: ElevatedButton.icon(
+              //         onPressed: _navigateToFollowUp,
+              //         icon: const Icon(Icons.schedule_send, size: 18),
+              //         label: const Text('Add Follow Up'),
+              //         style: ElevatedButton.styleFrom(
+              //           padding: const EdgeInsets.symmetric(
+              //             horizontal: 16,
+              //             vertical: 12,
+              //           ),
+              //         ),
+              //       ),
+              //     ),
+              //   ),
+              // ),
+
+              // // Quotation Card
+              // Card(
+              //   shape: RoundedRectangleBorder(
+              //     borderRadius: BorderRadius.circular(12),
+              //     side: BorderSide(color: borderColor, width: 1),
+              //   ),
+              //   child: Padding(
+              //     padding: const EdgeInsets.all(16.0),
+              //     child: SizedBox(
+              //       width: double.infinity,
+              //       child: ElevatedButton.icon(
+              //         onPressed: _navigateToQuotation,
+              //         icon: const Icon(Icons.add_business, size: 18),
+              //         label: const Text('Create Quotation'),
+              //         style: ElevatedButton.styleFrom(
+              //           padding: const EdgeInsets.symmetric(
+              //             horizontal: 16,
+              //             vertical: 12,
+              //           ),
+              //         ),
+              //       ),
+              //     ),
+              //   ),
+              // ),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _navigateToFollowUp,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Text('Follow Up'),
+                          SizedBox(width: 4),
+                          Icon(Icons.arrow_forward, size: 14),
+                        ],
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 8,
+                          horizontal: 2,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.only(
+                            bottomLeft: Radius.circular(6),
+                            topLeft: Radius.circular(6),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _navigateToQuotation,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Text('Quotation'),
+                          SizedBox(width: 4),
+                          Icon(Icons.arrow_forward, size: 14),
+                        ],
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.only(
+                            bottomRight: Radius.circular(6),
+                            topRight: Radius.circular(6),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              // Main Details Card
+              Card(
+                color: theme.cardColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  side: BorderSide(color: borderColor, width: 2),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Card Header
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: borderColor, width: 1),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Lead No. ${data!.inquiryNumber}",
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 24,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            "Customer: ${data!.customerCode} - ${data!.customerName}",
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Customer Information Section
+                    _buildInfoSection("Customer Information", [
+                      _buildInfoRow("Customer Code", data!.customerCode),
+                      _buildInfoRow("Customer Name", data!.customerName),
+                    ]),
+
+                    // Sales Team Section
+                    _buildInfoSection("Sales Team", [
+                      _buildInfoRow(
+                        "Salesman",
+                        "${data!.salesmanCode} - ${data!.salesmanName}",
+                      ),
+                      _buildInfoRow(
+                        "Region",
+                        "${data!.salesRegionCode} - ${data!.salesRegionCodeDesc}",
+                      ),
+                    ]),
+
+                    // Inquiry Summary Section
+                    _buildInfoSection("Inquiry Summary", [
+                      _buildInfoRow(
+                        "Lead Date",
+                        FormatUtils.formatDateForUser(
+                          DateTime.parse(data!.inquiryDate),
+                        ),
+                      ),
+                      _buildInfoRow("Source", data!.inquirySourceDesc),
+                      _buildInfoRow("Consultant", data!.consultantFullName),
+                      _buildInfoRow("Group", data!.inquiryGroup),
+                    ]),
+
+                    // Items Section
+                    _buildItemsSection(),
+                  ],
+                ),
+              ),
+
+              // Attachments Section
+              _buildAttachmentsSection(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Helper method for action buttons
+  Widget _buildActionButton({
+    required VoidCallback? onPressed,
+    required Widget icon,
+    required String label,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton.filledTonal(onPressed: onPressed, icon: icon),
+        const SizedBox(height: 4),
+        Text(label, style: Theme.of(context).textTheme.labelSmall),
+      ],
+    );
+  }
+
+  // Helper method for info sections
+  Widget _buildInfoSection(String title, List<Widget> children) {
+    final theme = Theme.of(context);
+    final borderColor = theme.dividerColor;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+          decoration: BoxDecoration(
+            border: Border(top: BorderSide(color: borderColor, width: 1)),
+          ),
+          child: Text(
+            title,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+          child: Column(children: children),
+        ),
+      ],
+    );
+  }
+
+  // Helper method for info rows
+  Widget _buildInfoRow(String label, String value) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text(label, style: theme.textTheme.labelSmall),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            flex: 3,
+            child: Text(
+              value,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Helper method for items section
+  Widget _buildItemsSection() {
+    final theme = Theme.of(context);
+    final borderColor = theme.dividerColor;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+          decoration: BoxDecoration(
+            border: Border(top: BorderSide(color: borderColor, width: 1)),
+          ),
+          child: Text(
+            "Items",
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        ...List.generate(data!.inqEntryItemModel.length, (index) {
+          final item = data!.inqEntryItemModel[index];
+          return Container(
+            margin: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border.all(color: borderColor, width: 1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Item ${index + 1}",
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _buildItemDetailRow(
+                  "Item Code/Name",
+                  "${item.salesItemCode} - ${item.itemName}",
+                ),
+                _buildItemDetailRow(
+                  "Quantity",
+                  FormatUtils.formatQuantity(item.itemQty),
+                ),
+                _buildItemDetailRow("UOM", item.uom),
+                _buildItemDetailRow(
+                  "Rate",
+                  FormatUtils.formatAmount(item.basicPrice),
+                ),
+              ],
+            ),
+          );
+        }),
+        const SizedBox(height: 16),
+      ],
+    );
+  }
+
+  // Helper method for item detail rows
+  Widget _buildItemDetailRow(String label, String value) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text(
+              label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 3,
+            child: Text(
+              value,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

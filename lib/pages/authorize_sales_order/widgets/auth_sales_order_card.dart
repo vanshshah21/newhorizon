@@ -8,11 +8,13 @@
 //   final SalesOrderData so;
 //   final VoidCallback onPdfTap;
 //   final VoidCallback onAuthorizeTap;
+//   final bool selected;
 
 //   const SalesOrderCard({
 //     required this.so,
 //     required this.onPdfTap,
 //     required this.onAuthorizeTap,
+//     this.selected = false,
 //     super.key,
 //   });
 
@@ -98,12 +100,27 @@
 //       ),
 //       child: Card(
 //         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+//         elevation: widget.selected ? 6 : 2,
+//         shape:
+//             widget.selected
+//                 ? RoundedRectangleBorder(
+//                   borderRadius: BorderRadius.circular(12),
+//                   side: BorderSide(color: theme.colorScheme.primary, width: 2),
+//                 )
+//                 : null,
 //         clipBehavior: Clip.antiAlias,
 //         child: Column(
 //           children: [
 //             // Main content
 //             Container(
 //               padding: const EdgeInsets.all(16),
+//               decoration:
+//                   widget.selected
+//                       ? BoxDecoration(
+//                         color: theme.colorScheme.primary.withOpacity(0.08),
+//                         borderRadius: BorderRadius.circular(12),
+//                       )
+//                       : null,
 //               child: Column(
 //                 crossAxisAlignment: CrossAxisAlignment.start,
 //                 children: [
@@ -493,12 +510,16 @@ class SalesOrderCard extends StatefulWidget {
   final VoidCallback onPdfTap;
   final VoidCallback onAuthorizeTap;
   final bool selected;
+  final bool showCheckbox;
+  final VoidCallback? onCheckboxChanged;
 
   const SalesOrderCard({
     required this.so,
     required this.onPdfTap,
     required this.onAuthorizeTap,
     this.selected = false,
+    this.showCheckbox = false,
+    this.onCheckboxChanged,
     super.key,
   });
 
@@ -548,6 +569,224 @@ class _SalesOrderCardState extends State<SalesOrderCard>
     if (widget.so.orderStatus == "DELETED") {
       return const SizedBox.shrink();
     }
+
+    Widget cardContent = Card(
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      elevation: widget.selected ? 6 : 2,
+      shape:
+          widget.selected
+              ? RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: theme.colorScheme.primary, width: 2),
+              )
+              : null,
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          // Main content
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration:
+                widget.selected
+                    ? BoxDecoration(
+                      color: theme.colorScheme.primary.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(12),
+                    )
+                    : null,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header row with checkbox, SO number and customer
+                Row(
+                  children: [
+                    if (widget.showCheckbox) ...[
+                      Checkbox(
+                        value: widget.selected,
+                        onChanged:
+                            widget.so.isAuthorized
+                                ? null
+                                : (_) => widget.onCheckboxChanged?.call(),
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                'SO #${widget.so.ioNumber}',
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: theme.primaryColor,
+                                ),
+                              ),
+                              if (widget.so.isAuthorized) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.green.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text(
+                                    'Authorized',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: Colors.green.shade700,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            widget.so.customerFullName,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Details section
+                _DetailSection(so: widget.so),
+                const SizedBox(height: 12),
+                // Expand/Collapse button and action hint
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    InkWell(
+                      onTap: _toggleExpand,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.inventory_2_outlined,
+                              size: 16,
+                              color: theme.colorScheme.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '${widget.so.itemDetail.length} item${widget.so.itemDetail.length == 1 ? '' : 's'}',
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            AnimatedBuilder(
+                              animation: _expandAnimation,
+                              builder: (context, child) {
+                                return Transform.rotate(
+                                  angle: _expandAnimation.value * math.pi,
+                                  child: Icon(
+                                    Icons.keyboard_arrow_down,
+                                    size: 20,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    // Action hint - only show when not in checkbox mode
+                    if (!widget.showCheckbox)
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.swipe_left,
+                            size: 16,
+                            color: theme.colorScheme.onSurface.withOpacity(0.5),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Swipe for actions',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurface.withOpacity(
+                                0.5,
+                              ),
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // Expandable item details
+          AnimatedSize(
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+            child:
+                _expanded
+                    ? Container(
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest
+                            .withOpacity(0.3),
+                        borderRadius: const BorderRadius.only(
+                          bottomLeft: Radius.circular(12),
+                          bottomRight: Radius.circular(12),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.list_alt,
+                                  size: 18,
+                                  color: theme.colorScheme.primary,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Item Details',
+                                  style: theme.textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          _ItemDetailsList(items: widget.so.itemDetail),
+                          const SizedBox(height: 8),
+                        ],
+                      ),
+                    )
+                    : const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+
+    // If showing checkboxes, disable sliding actions
+    if (widget.showCheckbox) {
+      return cardContent;
+    }
+
     return Slidable(
       key: ValueKey(widget.so.orderId),
       endActionPane: ActionPane(
@@ -582,181 +821,7 @@ class _SalesOrderCardState extends State<SalesOrderCard>
           ),
         ],
       ),
-      child: Card(
-        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        elevation: widget.selected ? 6 : 2,
-        shape:
-            widget.selected
-                ? RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: theme.colorScheme.primary, width: 2),
-                )
-                : null,
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          children: [
-            // Main content
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration:
-                  widget.selected
-                      ? BoxDecoration(
-                        color: theme.colorScheme.primary.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(12),
-                      )
-                      : null,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header row with SO number and customer
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'SO #${widget.so.ioNumber}',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: theme.primaryColor,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              widget.so.customerFullName,
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: theme.colorScheme.onSurface,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  // Details section
-                  _DetailSection(so: widget.so),
-                  const SizedBox(height: 12),
-                  // Expand/Collapse button and action hint
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      InkWell(
-                        onTap: _toggleExpand,
-                        borderRadius: BorderRadius.circular(8),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.inventory_2_outlined,
-                                size: 16,
-                                color: theme.colorScheme.primary,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                '${widget.so.itemDetail.length} item${widget.so.itemDetail.length == 1 ? '' : 's'}',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: theme.colorScheme.primary,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              AnimatedBuilder(
-                                animation: _expandAnimation,
-                                builder: (context, child) {
-                                  return Transform.rotate(
-                                    angle: _expandAnimation.value * math.pi,
-                                    child: Icon(
-                                      Icons.keyboard_arrow_down,
-                                      size: 20,
-                                      color: theme.colorScheme.primary,
-                                    ),
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.swipe_left,
-                            size: 16,
-                            color: theme.colorScheme.onSurface.withOpacity(0.5),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Swipe for actions',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurface.withOpacity(
-                                0.5,
-                              ),
-                              fontStyle: FontStyle.italic,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            // Expandable item details
-            AnimatedSize(
-              duration: const Duration(milliseconds: 300),
-              curve: Curves.easeInOut,
-              child:
-                  _expanded
-                      ? Container(
-                        decoration: BoxDecoration(
-                          color: theme.colorScheme.surfaceContainerHighest
-                              .withOpacity(0.3),
-                          borderRadius: const BorderRadius.only(
-                            bottomLeft: Radius.circular(12),
-                            bottomRight: Radius.circular(12),
-                          ),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.list_alt,
-                                    size: 18,
-                                    color: theme.colorScheme.primary,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    'Item Details',
-                                    style: theme.textTheme.titleSmall?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: theme.colorScheme.primary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            _ItemDetailsList(items: widget.so.itemDetail),
-                            const SizedBox(height: 8),
-                          ],
-                        ),
-                      )
-                      : const SizedBox.shrink(),
-            ),
-          ],
-        ),
-      ),
+      child: cardContent,
     );
   }
 }

@@ -135,11 +135,11 @@ class _AddItemPageState extends State<AddItemPage> {
                         _buildDiscountCodeField(),
                         const SizedBox(height: 16),
                         _buildDiscountTypeField(),
-                        if (discountType == "Percentage") ...[
+                        if (discountType == "P") ...[
                           const SizedBox(height: 16),
                           _buildDiscountPercentageField(),
                         ],
-                        if (discountType == "Value") ...[
+                        if (discountType == "V") ...[
                           const SizedBox(height: 16),
                           _buildDiscountAmountField(),
                         ],
@@ -351,6 +351,31 @@ class _AddItemPageState extends State<AddItemPage> {
     );
   }
 
+  // Widget _buildDiscountTypeField() {
+  //   return DropdownButtonFormField<String>(
+  //     value: discountType,
+  //     decoration: const InputDecoration(
+  //       labelText: "Discount Type",
+  //       border: OutlineInputBorder(),
+  //     ),
+  //     items:
+  //         [
+  //           "None",
+  //           "Percentage",
+  //           "Value",
+  //         ].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+  //     onChanged: (val) {
+  //       if (val != null) {
+  //         setState(() {
+  //           discountType = val;
+  //           discountPercentageController.clear();
+  //           discountAmountController.clear();
+  //           _formDirty = true;
+  //         });
+  //       }
+  //     },
+  //   );
+  // }
   Widget _buildDiscountTypeField() {
     return DropdownButtonFormField<String>(
       value: discountType,
@@ -361,8 +386,8 @@ class _AddItemPageState extends State<AddItemPage> {
       items:
           [
             "None",
-            "Percentage",
-            "Value",
+            "P",
+            "V",
           ].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
       onChanged: (val) {
         if (val != null) {
@@ -377,6 +402,54 @@ class _AddItemPageState extends State<AddItemPage> {
     );
   }
 
+  // Widget _buildDiscountPercentageField() {
+  //   return TextFormField(
+  //     controller: discountPercentageController,
+  //     keyboardType: TextInputType.number,
+  //     decoration: const InputDecoration(
+  //       labelText: "Discount Percentage (1-99)",
+  //       border: OutlineInputBorder(),
+  //     ),
+  //     onChanged: (_) => _setDirty(),
+  //     validator: (value) {
+  //       if (discountType == "Percentage") {
+  //         if (value == null || value.isEmpty) {
+  //           return "Discount Percentage is required";
+  //         }
+  //         final perc = double.tryParse(value);
+  //         if (perc == null || perc < 1 || perc >= 100) {
+  //           return "Value must be between 1 and 99";
+  //         }
+  //       }
+  //       return null;
+  //     },
+  //   );
+  // }
+
+  // Widget _buildDiscountAmountField() {
+  //   return TextFormField(
+  //     controller: discountAmountController,
+  //     keyboardType: TextInputType.number,
+  //     decoration: const InputDecoration(
+  //       labelText: "Discount Amount (less than Basic Rate)",
+  //       border: OutlineInputBorder(),
+  //     ),
+  //     onChanged: (_) => _setDirty(),
+  //     validator: (value) {
+  //       if (discountType == "Value") {
+  //         if (value == null || value.isEmpty) {
+  //           return "Discount Amount is required";
+  //         }
+  //         final disc = double.tryParse(value);
+  //         final rate = double.tryParse(basicRateController.text) ?? 0;
+  //         if (disc == null || disc >= rate) {
+  //           return "Discount must be less than Basic Rate";
+  //         }
+  //       }
+  //       return null;
+  //     },
+  //   );
+  // }
   Widget _buildDiscountPercentageField() {
     return TextFormField(
       controller: discountPercentageController,
@@ -387,7 +460,7 @@ class _AddItemPageState extends State<AddItemPage> {
       ),
       onChanged: (_) => _setDirty(),
       validator: (value) {
-        if (discountType == "Percentage") {
+        if (discountType == "P") {
           if (value == null || value.isEmpty) {
             return "Discount Percentage is required";
           }
@@ -411,7 +484,7 @@ class _AddItemPageState extends State<AddItemPage> {
       ),
       onChanged: (_) => _setDirty(),
       validator: (value) {
-        if (discountType == "Value") {
+        if (discountType == "V") {
           if (value == null || value.isEmpty) {
             return "Discount Amount is required";
           }
@@ -498,11 +571,23 @@ class _AddItemPageState extends State<AddItemPage> {
     double? discountPercentage;
 
     // Discount calculation logic (keep existing logic)
-    if (discountType == "Percentage") {
+    // if (discountType == "Percentage") {
+    //   discountPercentage = double.parse(discountPercentageController.text);
+    //   final totalBeforeDiscount = basicRate * qty;
+    //   discountAmount = totalBeforeDiscount * (discountPercentage / 100);
+    // } else if (discountType == "Value") {
+    //   discountAmount = double.parse(discountAmountController.text);
+    //   final totalBeforeDiscount = basicRate * qty;
+    //   discountPercentage =
+    //       totalBeforeDiscount > 0
+    //           ? (discountAmount / totalBeforeDiscount) * 100
+    //           : 0;
+    // }
+    if (discountType == "P") {
       discountPercentage = double.parse(discountPercentageController.text);
       final totalBeforeDiscount = basicRate * qty;
       discountAmount = totalBeforeDiscount * (discountPercentage / 100);
-    } else if (discountType == "Value") {
+    } else if (discountType == "V") {
       discountAmount = double.parse(discountAmountController.text);
       final totalBeforeDiscount = basicRate * qty;
       discountPercentage =
@@ -557,8 +642,7 @@ class _AddItemPageState extends State<AddItemPage> {
           basicRate: basicRate,
           uom: selectedItem?.salesUOM ?? "NOS",
           discountType: discountType,
-          discountPercentage:
-              discountType == "Percentage" ? discountPercentage : null,
+          discountPercentage: discountType == "P" ? discountPercentage : null,
           discountAmount: discountAmount > 0 ? discountAmount : null,
           discountCode: selectedDiscountCode?.code, // Add discount code
           rateStructure: selectedRateStructure!,

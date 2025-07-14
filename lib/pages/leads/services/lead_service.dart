@@ -224,7 +224,7 @@ class LeadService {
           'functionid': functionId,
         },
       );
-      final data = jsonDecode(response.data) as Map<String, dynamic>;
+      final data = jsonDecode(response.data);
 
       if (response.statusCode == 200 && data.isNotEmpty) {
         // Parse the location data and convert strings to doubles

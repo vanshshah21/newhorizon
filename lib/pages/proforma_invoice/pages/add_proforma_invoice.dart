@@ -764,6 +764,42 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
     }
   }
 
+  void _removeItem(int index) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text("Confirm Delete"),
+            content: Text(
+              "Are you sure you want to delete ${items[index].itemName}?",
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Cancel"),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    items.removeAt(index);
+                    // Update line numbers for remaining items
+                    for (int i = 0; i < items.length; i++) {
+                      items[i].lineNo = i + 1;
+                    }
+                  });
+                  Navigator.pop(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text("Delete"),
+              ),
+            ],
+          ),
+    );
+  }
+
   double _calculateTotalBasic() {
     return items.fold(0.0, (sum, item) => sum + (item.basicRate * item.qty));
   }
@@ -1615,10 +1651,12 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   }
 
   Widget _buildPreferenceDropdown() {
+    final isPrefilled =
+        widget.salesOrderData != null || widget.quotationData != null;
     return DropdownButtonFormField<String>(
-      decoration: const InputDecoration(
+      decoration: InputDecoration(
         labelText: "Select Preference",
-        border: OutlineInputBorder(),
+        border: const OutlineInputBorder(),
       ),
       value: selectPreference,
       items:
@@ -1628,7 +1666,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
                     DropdownMenuItem<String>(value: pref, child: Text(pref)),
               )
               .toList(),
-      onChanged: _onPreferenceChanged,
+      onChanged: isPrefilled ? null : _onPreferenceChanged,
       validator: (val) => val == null ? "Select Preference is required" : null,
     );
   }
@@ -1662,6 +1700,8 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   }
 
   Widget _buildCustomerField() {
+    final isPrefilled =
+        widget.salesOrderData != null || widget.quotationData != null;
     return TypeAheadField<Customer>(
       debounceDuration: const Duration(milliseconds: 400),
       controller: customerController,
@@ -1673,6 +1713,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
             labelText: "Customer Name",
             border: OutlineInputBorder(),
           ),
+          enabled: !isPrefilled,
           validator:
               (val) =>
                   val == null || val.isEmpty
@@ -1699,6 +1740,8 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   }
 
   Widget _buildQuotationDropdown() {
+    final isPrefilled =
+        widget.salesOrderData != null || widget.quotationData != null;
     return DropdownButtonFormField<String>(
       decoration: const InputDecoration(
         labelText: "Quotation Number",
@@ -1714,12 +1757,14 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
                 ),
               )
               .toList(),
-      onChanged: _onQuotationSelected,
+      onChanged: isPrefilled ? null : _onQuotationSelected,
       validator: (val) => val == null ? "Quotation Number is required" : null,
     );
   }
 
   Widget _buildSalesOrderDropdown() {
+    final isPrefilled =
+        widget.salesOrderData != null || widget.quotationData != null;
     return DropdownButtonFormField<String>(
       decoration: const InputDecoration(
         labelText: "Sales Order Number",
@@ -1735,11 +1780,50 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
                 ),
               )
               .toList(),
-      onChanged: _onSalesOrderSelected,
+      onChanged: isPrefilled ? null : _onSalesOrderSelected,
       validator: (val) => val == null ? "Sales Order Number is required" : null,
     );
   }
 
+  // Widget _buildItemsList() {
+  //   return Column(
+  //     crossAxisAlignment: CrossAxisAlignment.start,
+  //     children: [
+  //       const Text(
+  //         "Items:",
+  //         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+  //       ),
+  //       const SizedBox(height: 8),
+  //       ListView.builder(
+  //         shrinkWrap: true,
+  //         physics: const NeverScrollableScrollPhysics(),
+  //         itemCount: items.length,
+  //         itemBuilder: (context, index) {
+  //           final item = items[index];
+  //           return Card(
+  //             child: ListTile(
+  //               title: Text(item.itemName),
+  //               subtitle: Text(
+  //                 "Code: ${item.itemCode}\n"
+  //                 "Qty: ${item.qty.toStringAsFixed(2)} ${item.uom}\n"
+  //                 "Rate: ₹${item.basicRate.toStringAsFixed(2)}\n"
+  //                 "Basic Amount: ₹${(item.basicRate * item.qty).toStringAsFixed(2)}\n"
+  //                 "Discount: ₹${(item.discountAmount ?? 0.0).toStringAsFixed(2)}\n"
+  //                 "Tax: ₹${(item.taxAmount ?? 0.0).toStringAsFixed(2)}\n"
+  //                 "Total: ₹${item.totalAmount.toStringAsFixed(2)}",
+  //               ),
+  //               // trailing: IconButton(
+  //               //   icon: const Icon(Icons.delete, color: Colors.red),
+  //               //   onPressed: () => _removeItem(index),
+  //               // ),
+  //               isThreeLine: true,
+  //             ),
+  //           );
+  //         },
+  //       ),
+  //     ],
+  //   );
+  // }
   Widget _buildItemsList() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1767,10 +1851,13 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
                   "Tax: ₹${(item.taxAmount ?? 0.0).toStringAsFixed(2)}\n"
                   "Total: ₹${item.totalAmount.toStringAsFixed(2)}",
                 ),
-                // trailing: IconButton(
-                //   icon: const Icon(Icons.delete, color: Colors.red),
-                //   onPressed: () => _removeItem(index),
-                // ),
+                trailing:
+                    selectPreference == "On Other"
+                        ? IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () => _removeItem(index),
+                        )
+                        : null,
                 isThreeLine: true,
               ),
             );

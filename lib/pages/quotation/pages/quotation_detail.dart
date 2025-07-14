@@ -8,6 +8,7 @@ import 'package:nhapp/pages/proforma_invoice/pages/add_proforma_invoice.dart';
 import 'package:nhapp/pages/quotation/service/quotation_service.dart';
 import 'package:nhapp/utils/map_utils.dart';
 import 'package:nhapp/utils/storage_utils.dart';
+import 'package:nhapp/utils/theme.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
@@ -949,34 +950,57 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
           child: Column(
             children: [
               if (_isAuthorized) ...[
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _navigateToAddSalesOrder,
-                    icon: const Icon(Icons.add_shopping_cart),
-                    label: const Text('Add Sales Order'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _navigateToAddSalesOrder,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Text('Sales Order'),
+                            SizedBox(width: 4),
+                            Icon(Icons.arrow_forward, size: 14),
+                          ],
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 8,
+                            horizontal: 2,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.only(
+                              bottomLeft: Radius.circular(6),
+                              topLeft: Radius.circular(6),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _navigateToAddProformaInvoice,
-                    icon: const Icon(Icons.add_shopping_cart),
-                    label: const Text('Add Proforma Invoice'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _navigateToAddProformaInvoice,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Text('Proforma Invoice'),
+                            SizedBox(width: 4),
+                            Icon(Icons.arrow_forward, size: 14),
+                          ],
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.only(
+                              bottomRight: Radius.circular(6),
+                              topRight: Radius.circular(6),
+                            ),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
               ],
               Card(

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/widgets.dart';
 import '../models/lead_form.dart';
@@ -436,29 +438,30 @@ class LeadFormService {
       final body = {
         "strFunction": "LD",
         "intFunctionID": functionId,
-        "Longitude": longitude,
-        "Latitude": latitude,
+        "LocLONGITUDE": longitude,
+        "LocLATITUDE": latitude,
       };
 
       debugPrint("Submitting location with body: ${body.toString()}");
 
-      final response = await _dio.post('$baseUrl$endpoint', data: body);
+      final response = await _dio.get(
+        '$baseUrl$endpoint',
+        queryParameters: body,
+      );
 
       debugPrint("Location submission response: ${response.data}");
 
       if (response.statusCode == 200) {
-        final data = response.data;
-        if (data is Map<String, dynamic>) {
-          final success = data['success'];
-          if (success == true || success == 'true') {
-            debugPrint("Location submission successful");
-            return true;
-          } else {
-            debugPrint(
-              "Location submission failed: ${data['message'] ?? 'Unknown error'}",
-            );
-            return false;
-          }
+        final data = jsonDecode(response.data);
+        final success = data['success'];
+        if (success == true || success == 'true') {
+          debugPrint("Location submission successful");
+          return true;
+        } else {
+          debugPrint(
+            "Location submission failed: ${data['message'] ?? 'Unknown error'}",
+          );
+          return false;
         }
       }
 

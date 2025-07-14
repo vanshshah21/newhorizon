@@ -332,13 +332,16 @@ class EditProformaInvoiceService {
       final body = {
         "strFunction": "PI",
         "intFunctionID": functionId,
-        "Longitude": longitude,
-        "Latitude": latitude,
+        "LocLONGITUDE": longitude,
+        "LocLATITUDE": latitude,
       };
 
       debugPrint("Submitting location with body: ${body.toString()}");
 
-      final response = await _dio.post('$_baseUrl$endpoint', data: body);
+      final response = await _dio.get(
+        '$_baseUrl$endpoint',
+        queryParameters: body,
+      );
 
       debugPrint("Location submission response: ${response.data}");
 
