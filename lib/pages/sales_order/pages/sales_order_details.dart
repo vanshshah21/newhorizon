@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +8,7 @@ import 'package:nhapp/pages/sales_order/models/sales_order.dart';
 import 'package:nhapp/pages/sales_order/service/sales_order_service.dart';
 import 'package:nhapp/pages/sales_order/service/so_attachment.dart';
 import 'package:nhapp/utils/format_utils.dart';
+import 'package:nhapp/utils/map_utils.dart';
 import 'package:nhapp/utils/storage_utils.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -38,12 +40,83 @@ class _SalesOrderDetailPageState extends State<SalesOrderDetailPage> {
   bool _isDownloading = false;
   bool _isSharing = false;
 
+  Map<String, dynamic>? locationData;
+  bool _isLoadingLocation = false;
+  String? locationError;
+
   @override
   void initState() {
     super.initState();
     _attachmentService = SalesOrderAttachmentService(Dio());
     _fetchDetail();
     _fetchAttachments();
+    _fetchLocationData();
+  }
+
+  Future<void> _fetchLocationData() async {
+    setState(() {
+      _isLoadingLocation = true;
+      locationError = null;
+    });
+
+    try {
+      final companyDetails = await StorageUtils.readJson('selected_company');
+      if (companyDetails == null) throw Exception("Company not set");
+
+      final tokenDetails = await StorageUtils.readJson('session_token');
+      if (tokenDetails == null) throw Exception("Session token not found");
+
+      final companyId = companyDetails['id'];
+      final token = tokenDetails['token']['value'];
+      final baseUrl = 'http://${await StorageUtils.readValue('url')}';
+
+      final dio = Dio();
+      dio.options.headers['Content-Type'] = 'application/json';
+      dio.options.headers['Accept'] = 'application/json';
+      dio.options.headers['Authorization'] = 'Bearer $token';
+
+      const endpoint = "/api/Login/getGeoLocation";
+
+      final response = await dio.get(
+        '$baseUrl$endpoint',
+        queryParameters: {
+          'companyid': companyId,
+          'functioncode': 'SO',
+          'functionid': widget.salesOrder.orderId.toString(),
+        },
+      );
+
+      debugPrint("GeoLocation API response: ${response.data}");
+
+      final data = jsonDecode(response.data) as Map<String, dynamic>;
+      if (response.statusCode == 200 && data['success'] == true) {
+        final parsedData = {
+          'mLOCFUNCTIONID': data['mLOCFUNCTIONID'],
+          'longitude': double.tryParse(data['mLOCLONGITUDE'].toString()) ?? 0.0,
+          'latitude': double.tryParse(data['mLOCLATITUDE'].toString()) ?? 0.0,
+          'mLOCLONGITUDE': data['mLOCLONGITUDE'],
+          'mLOCLATITUDE': data['mLOCLATITUDE'],
+        };
+
+        if (!mounted) return;
+        setState(() {
+          locationData = parsedData;
+          _isLoadingLocation = false;
+        });
+      } else {
+        if (!mounted) return;
+        setState(() {
+          locationData = null;
+          _isLoadingLocation = false;
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        locationError = 'Failed to load location: $e';
+        _isLoadingLocation = false;
+      });
+    }
   }
 
   Future<void> _fetchDetail() async {
@@ -319,43 +392,51 @@ class _SalesOrderDetailPageState extends State<SalesOrderDetailPage> {
 
   /* ---------- Location ---------- */
 
-  Future<void> _handleLocation() async {
-    if (detail?.salesOrderDetails == null) return;
-
-    final so = detail!.salesOrderDetails;
-    final address = so['fullAddress'] ?? '';
-    final cityName = so['cityName'] ?? '';
-    final pinCode = so['pinCode'] ?? '';
-
-    if (address.isEmpty && cityName.isEmpty) {
+  Future<void> _handleLocationButton() async {
+    if (locationData == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No address information available')),
+        const SnackBar(
+          content: Text('Location data not available'),
+          backgroundColor: Colors.orange,
+        ),
       );
       return;
     }
 
-    final fullAddress = '$address, $cityName $pinCode'.trim();
-    final encodedAddress = Uri.encodeComponent(fullAddress);
-    final mapUrl =
-        'https://www.google.com/maps/search/?api=1&query=$encodedAddress';
-
     try {
-      final uri = Uri.parse(mapUrl);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Cannot open maps application')),
-          );
-        }
+      final latitude =
+          locationData!['latitude'] as double? ??
+          double.tryParse(locationData!['mLOCLATITUDE'].toString());
+      final longitude =
+          locationData!['longitude'] as double? ??
+          double.tryParse(locationData!['mLOCLONGITUDE'].toString());
+
+      if (latitude == null ||
+          latitude == 0.0 ||
+          longitude == null ||
+          longitude == 0.0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Location is not available'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
       }
+
+      await MapsUtils.showLocationDialog(
+        context: context,
+        latitude: latitude,
+        longitude: longitude,
+        label: 'Sales Order ${widget.salesOrder.ioNumber}',
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error opening maps: $e')));
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error opening location: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -522,17 +603,32 @@ class _SalesOrderDetailPageState extends State<SalesOrderDetailPage> {
             onPressed: _isSharing ? null : _handleShare,
             tooltip: 'Share PDF',
           ),
-          // IconButton(
-          //   icon: const Icon(Icons.location_on),
-          //   onPressed: _handleLocation,
-          //   tooltip: 'View Location',
-          // ),
+          IconButton(
+            onPressed: _isLoadingLocation ? null : _handleLocationButton,
+            icon:
+                _isLoadingLocation
+                    ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                    : Icon(
+                      Icons.location_on,
+                      size: 20,
+                      color:
+                          locationData != null
+                              ? null
+                              : Theme.of(context).colorScheme.outline,
+                    ),
+            tooltip: 'View Location',
+          ),
         ],
       ),
       body: RefreshIndicator(
         onRefresh: () async {
           await _fetchDetail();
-          await _fetchAttachments(); // Add this line
+          await _fetchAttachments();
+          await _fetchLocationData();
         },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),

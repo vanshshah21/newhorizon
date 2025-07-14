@@ -2,12 +2,12 @@ import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/svg.dart';
 import 'package:nhapp/pages/followup/pages/add_follow_up.dart';
 import 'package:nhapp/pages/leads/models/lead_attachment.dart';
 import 'package:nhapp/pages/leads/pages/lead_pdf_loader_page.dart';
 import 'package:nhapp/pages/leads/services/lead_attachment_service.dart';
 import 'package:nhapp/utils/format_utils.dart';
+import 'package:nhapp/utils/map_utils.dart';
 import 'package:nhapp/utils/storage_utils.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -34,6 +34,10 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
   String? error;
   String? attachmentError;
 
+  Map<String, dynamic>? locationData;
+  bool _isLoadingLocation = false;
+  String? locationError;
+
   bool _isDownloading = false;
   bool _isSharing = false;
   bool _isLoadingAttachments = false;
@@ -43,6 +47,79 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
     super.initState();
     _fetchDetail();
     _fetchAttachments();
+    _fetchLocationData();
+  }
+
+  Future<void> _fetchLocationData() async {
+    setState(() {
+      _isLoadingLocation = true;
+      locationError = null;
+    });
+
+    try {
+      final service = LeadService();
+      locationData = await service.getGeoLocation(
+        functionId: widget.lead.inquiryID.toString(),
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _isLoadingLocation = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        locationError = 'Failed to load location: $e';
+        _isLoadingLocation = false;
+      });
+    }
+  }
+
+  // Add location button handler
+  Future<void> _handleLocationButton() async {
+    if (locationData == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Location data not available'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    try {
+      // Use the parsed double values or parse the string values
+      final latitude = double.tryParse(
+        locationData!['mLOCLATITUDE'].toString(),
+      );
+      final longitude = double.tryParse(
+        locationData!['mLOCLONGITUDE'].toString(),
+      );
+
+      if (latitude == null || longitude == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid location coordinates'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      await MapsUtils.showLocationDialog(
+        context: context,
+        latitude: latitude,
+        longitude: longitude,
+        label: 'Lead ${widget.lead.inquiryNumber}',
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error opening location: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Future<void> _fetchDetail() async {
@@ -504,60 +581,10 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
     );
   }
 
-  Widget _getFileIcon(String extension) {
-    final theme = Theme.of(context);
-    IconData iconData;
-    Color color;
-
-    switch (extension.toLowerCase()) {
-      case '.pdf':
-        iconData = Icons.picture_as_pdf;
-        color = Colors.red;
-        break;
-      case '.jpg':
-      case '.jpeg':
-      case '.png':
-      case '.gif':
-        iconData = Icons.image;
-        color = Colors.blue;
-        break;
-      case '.doc':
-      case '.docx':
-        iconData = Icons.description;
-        color = Colors.blue;
-        break;
-      case '.xls':
-      case '.xlsx':
-        iconData = Icons.table_chart;
-        color = Colors.green;
-        break;
-      default:
-        iconData = Icons.insert_drive_file;
-        color = theme.colorScheme.outline;
-        break;
-    }
-
-    return Icon(iconData, color: color, size: 32);
-  }
-
   String _formatFileSize(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-  }
-
-  void _viewAttachment(LeadAttachment attachment) {
-    // Implement view functionality
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('View ${attachment.originalName}')));
-  }
-
-  void _downloadAttachment(LeadAttachment attachment) {
-    // Implement download functionality
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Download ${attachment.originalName}')),
-    );
   }
 
   @override
@@ -574,6 +601,7 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
           onRefresh: () async {
             await _fetchDetail();
             await _fetchAttachments();
+            await _fetchLocationData();
           },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -596,7 +624,11 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(title: const Text('View Lead')),
       body: RefreshIndicator(
-        onRefresh: _fetchDetail,
+        onRefresh: () async {
+          await _fetchDetail();
+          await _fetchAttachments();
+          await _fetchLocationData();
+        },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -651,7 +683,7 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
                             ),
                             const SizedBox(width: 6),
                             IconButton.filledTonal(
-                              onPressed: () {},
+                              onPressed: _handleLocationButton,
                               icon: const Icon(Icons.location_on, size: 20),
                             ),
                           ],

@@ -322,6 +322,52 @@ class EditProformaInvoiceService {
     }).toList();
   }
 
+  Future<bool> submitLocation({
+    required String functionId,
+    required double longitude,
+    required double latitude,
+  }) async {
+    const endpoint = "/api/Quotation/InsertLocation";
+    try {
+      final body = {
+        "strFunction": "PI",
+        "intFunctionID": functionId,
+        "Longitude": longitude,
+        "Latitude": latitude,
+      };
+
+      debugPrint("Submitting location with body: ${body.toString()}");
+
+      final response = await _dio.post('$_baseUrl$endpoint', data: body);
+
+      debugPrint("Location submission response: ${response.data}");
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        if (data is Map<String, dynamic>) {
+          final success = data['success'];
+          if (success == true || success == 'true') {
+            debugPrint("Location submission successful");
+            return true;
+          } else {
+            debugPrint(
+              "Location submission failed: ${data['message'] ?? 'Unknown error'}",
+            );
+            return false;
+          }
+        }
+      }
+
+      debugPrint(
+        "Location submission failed with status: ${response.statusCode}",
+      );
+      return false;
+    } catch (e) {
+      debugPrint("Error in submitLocation: $e");
+      return false;
+    }
+  }
+
   /// Calculate rate structure for item
   Future<Map<String, dynamic>> calculateRateStructure(
     double itemAmount,

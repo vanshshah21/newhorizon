@@ -3,6 +3,7 @@ import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:nhapp/utils/format_utils.dart';
+import 'package:nhapp/utils/location_utils.dart';
 import 'package:nhapp/utils/storage_utils.dart';
 import '../models/lead_form.dart';
 import '../services/lead_form_service.dart';
@@ -243,9 +244,153 @@ class _AddLeadPageState extends State<AddLeadPage> {
     }
   }
 
+  // Future<void> _submit() async {
+  //   if (!_validateAll()) return;
+  //   setState(() => _submitting = true);
+
+  //   // Check lead number existence if not auto-generated
+  //   if (_isAutoNumberGenerated == false) {
+  //     if (_leadNumber == null || _leadNumber!.length != 6) {
+  //       setState(() => _leadNumberError = 'Enter a 6-character Lead Number');
+  //       setState(() => _submitting = false);
+  //       return;
+  //     }
+  //     final exists = await _checkLeadNumberExists(_leadNumber!);
+  //     if (exists) {
+  //       setState(() => _leadNumberError = 'Lead Number already exists');
+  //       setState(() => _submitting = false);
+  //       return;
+  //     }
+  //   }
+
+  //   // 1. Fetch docDetail for required fields
+  //   final docDetail = await _service.fetchDefaultDocDetail(
+  //     year: _year!,
+  //     locationId: _siteId!,
+  //   );
+  //   final isLocationRequired = docDetail['isLocationRequired'] ?? false;
+  //   final isAutorisationRequired = docDetail['isAutorisationRequired'];
+  //   final isAutoNumberGenerated = docDetail['isAutoNumberGenerated'];
+  //   final locationCode = docDetail['locationCode'];
+  //   final groupCode = docDetail['groupCode'];
+  //   final groupFullName = docDetail['groupFullName'];
+  //   final locationFullName = docDetail['locationFullName'];
+  //   final companyCode = docDetail['companyCode'] ?? '';
+  //   final formId = docDetail['formId'] ?? '06100';
+
+  //   // 2. First stage: Create lead entry and get document number/id
+  //   final docResult = await _service.createLeadEntryAndGetDoc(
+  //     customer: _selectedCustomer!,
+  //     source: _selectedSource!,
+  //     salesman: _selectedSalesman!,
+  //     region: _selectedRegion!,
+  //     leadDate: _leadDate!,
+  //     items: _items,
+  //     siteId: _siteId!,
+  //     year: _year!,
+  //     userId: _userId!,
+  //     locationCode: locationCode,
+  //     isAutorisationRequired: isAutorisationRequired,
+  //     isAutoNumberGenerated: isAutoNumberGenerated,
+  //     isLocationRequired: isLocationRequired,
+  //     groupCode: groupCode,
+  //     groupFullName: groupFullName,
+  //     locationFullName: locationFullName,
+  //     leadNumber: _isAutoNumberGenerated == false ? _leadNumber : null,
+  //   );
+
+  //   if (!mounted) return;
+  //   if (docResult.isEmpty ||
+  //       docResult['documentNo'] == null ||
+  //       docResult['documentId'] == null) {
+  //     setState(() => _submitting = false);
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       const SnackBar(content: Text('Failed to create lead entry')),
+  //     );
+  //     return;
+  //   }
+
+  //   _documentNo = docResult['documentNo'];
+  //   _documentId = docResult['documentId'];
+
+  //   // 3. Second stage: Upload attachments (if any)
+  //   bool attachSuccess = true;
+  //   if (_attachments.isNotEmpty) {
+  //     attachSuccess = await _service.uploadAttachments(
+  //       filePaths: _attachments.map((f) => f.path!).toList(),
+  //       documentNo: _documentNo!,
+  //       documentId: _documentId!,
+  //       docYear: _year!,
+  //       formId: formId,
+  //       locationCode: locationCode,
+  //       companyCode: companyCode,
+  //       locationId: _siteId!,
+  //       companyId: _companyDetails['id'],
+  //       userId: _userId!,
+  //     );
+  //   }
+  //   if (!mounted) return;
+  //   setState(() => _submitting = false);
+
+  //   if (attachSuccess) {
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       const SnackBar(content: Text('Lead created successfully!')),
+  //     );
+  //     // Navigator.of(context).pop(true); // refresh list
+  //     // return;
+  //   } else {
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       const SnackBar(
+  //         content: Text('Lead created, but attachment upload failed'),
+  //       ),
+  //     );
+  //   }
+  //   Navigator.of(context).pop(true);
+  // }
+
   Future<void> _submit() async {
     if (!_validateAll()) return;
+
+    // Step 1: Check location status before starting submission
+    final locationStatus = await LocationUtils.instance.checkLocationStatus();
+
+    if (locationStatus != LocationStatus.granted) {
+      final shouldContinue = await LocationUtils.instance.showLocationDialog(
+        context,
+        locationStatus,
+      );
+
+      if (!shouldContinue) {
+        return;
+      }
+
+      // Re-check location status after user interaction
+      final newStatus = await LocationUtils.instance.checkLocationStatus();
+      if (newStatus != LocationStatus.granted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Location access is required to submit the lead'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+    }
+
+    // Step 2: Get current location
     setState(() => _submitting = true);
+
+    final position = await LocationUtils.instance.getCurrentLocation();
+    if (position == null) {
+      setState(() => _submitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to get current location. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     // Check lead number existence if not auto-generated
     if (_isAutoNumberGenerated == false) {
@@ -262,7 +407,7 @@ class _AddLeadPageState extends State<AddLeadPage> {
       }
     }
 
-    // 1. Fetch docDetail for required fields
+    // Step 3: Fetch docDetail for required fields
     final docDetail = await _service.fetchDefaultDocDetail(
       year: _year!,
       locationId: _siteId!,
@@ -277,7 +422,7 @@ class _AddLeadPageState extends State<AddLeadPage> {
     final companyCode = docDetail['companyCode'] ?? '';
     final formId = docDetail['formId'] ?? '06100';
 
-    // 2. First stage: Create lead entry and get document number/id
+    // Step 4: Create lead entry and get document number/id
     final docResult = await _service.createLeadEntryAndGetDoc(
       customer: _selectedCustomer!,
       source: _selectedSource!,
@@ -312,38 +457,162 @@ class _AddLeadPageState extends State<AddLeadPage> {
     _documentNo = docResult['documentNo'];
     _documentId = docResult['documentId'];
 
-    // 3. Second stage: Upload attachments (if any)
-    bool attachSuccess = true;
-    if (_attachments.isNotEmpty) {
-      attachSuccess = await _service.uploadAttachments(
-        filePaths: _attachments.map((f) => f.path!).toList(),
-        documentNo: _documentNo!,
-        documentId: _documentId!,
-        docYear: _year!,
-        formId: formId,
-        locationCode: locationCode,
-        companyCode: companyCode,
-        locationId: _siteId!,
-        companyId: _companyDetails['id'],
-        userId: _userId!,
-      );
+    // Extract function ID from the response data
+    String? functionId;
+    try {
+      if (_documentId != null) {
+        functionId = _documentId;
+      }
+    } catch (e) {
+      debugPrint('Error parsing function ID: $e');
     }
+
+    // Step 5: Submit location and attachments with proper error handling
+    bool locationSuccess = true;
+    bool attachmentSuccess = true;
+
+    List<String> errorMessages = [];
+
+    // Submit location if we have the function ID
+    if (functionId != null) {
+      try {
+        locationSuccess = await _service.submitLocation(
+          functionId: functionId,
+          longitude: position.longitude,
+          latitude: position.latitude,
+        );
+
+        if (!locationSuccess) {
+          errorMessages.add('Location upload failed');
+        }
+      } catch (e) {
+        debugPrint('Location submission error: $e');
+        locationSuccess = false;
+        errorMessages.add('Location upload failed: $e');
+      }
+    } else {
+      locationSuccess = false;
+      errorMessages.add('Unable to get function ID for location submission');
+    }
+
+    // Upload attachments if there are any
+    if (_attachments.isNotEmpty) {
+      try {
+        attachmentSuccess = await _service.uploadAttachments(
+          filePaths: _attachments.map((f) => f.path!).toList(),
+          documentNo: _documentNo!,
+          documentId: _documentId!,
+          docYear: _year!,
+          formId: formId,
+          locationCode: locationCode,
+          companyCode: companyCode,
+          locationId: _siteId!,
+          companyId: _companyDetails['id'],
+          userId: _userId!,
+        );
+
+        if (!attachmentSuccess) {
+          errorMessages.add('Attachment upload failed');
+        }
+      } catch (e) {
+        debugPrint('Attachment upload error: $e');
+        attachmentSuccess = false;
+        errorMessages.add('Attachment upload failed: $e');
+      }
+    }
+
     if (!mounted) return;
     setState(() => _submitting = false);
 
-    if (attachSuccess) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Lead created successfully!')),
-      );
-      // Navigator.of(context).pop(true); // refresh list
-      // return;
-    } else {
+    // Show appropriate success/error messages
+    if (locationSuccess && attachmentSuccess) {
+      // Everything succeeded
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Lead created, but attachment upload failed'),
+          content: Text(
+            'Lead created successfully with location and attachments!',
+          ),
+          backgroundColor: Colors.green,
         ),
       );
+    } else if (locationSuccess && _attachments.isEmpty) {
+      // Location succeeded, no attachments
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Lead created successfully with location!'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } else if (attachmentSuccess && !locationSuccess) {
+      // Attachments succeeded, location failed
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Lead created with attachments, but location upload failed',
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    } else if (locationSuccess && !attachmentSuccess) {
+      // Location succeeded, attachments failed
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Lead created with location, but attachment upload failed',
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    } else {
+      // Both failed or mixed results
+      String errorMessage = 'Lead created, but ';
+      if (errorMessages.isNotEmpty) {
+        errorMessage += errorMessages.join(', ');
+      } else {
+        errorMessage += 'location and attachment upload failed';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
+      );
     }
+
+    // Show detailed error dialog if there are specific errors
+    if (errorMessages.isNotEmpty) {
+      showDialog(
+        context: context,
+        builder:
+            (context) => AlertDialog(
+              title: const Text('Upload Status'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Lead created successfully, but some uploads failed:',
+                  ),
+                  const SizedBox(height: 8),
+                  ...errorMessages.map(
+                    (error) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Text(
+                        '• $error',
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+      );
+    }
+
     Navigator.of(context).pop(true);
   }
 

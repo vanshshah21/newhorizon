@@ -3,6 +3,7 @@ import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:dio/dio.dart';
 import 'package:nhapp/utils/format_utils.dart';
+import 'package:nhapp/utils/location_utils.dart';
 
 import '../models/lead_data.dart';
 import '../models/lead_form.dart';
@@ -427,7 +428,46 @@ class _EditLeadPageState extends State<EditLeadPage> {
 
   Future<void> _submit() async {
     if (!_validateAll()) return;
+    // Step 1: Check location status before starting submission
+    final locationStatus = await LocationUtils.instance.checkLocationStatus();
+
+    if (locationStatus != LocationStatus.granted) {
+      final shouldContinue = await LocationUtils.instance.showLocationDialog(
+        context,
+        locationStatus,
+      );
+
+      if (!shouldContinue) {
+        return;
+      }
+
+      // Re-check location status after user interaction
+      final newStatus = await LocationUtils.instance.checkLocationStatus();
+      if (newStatus != LocationStatus.granted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Location access is required to update the lead'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+    }
+
+    // Step 2: Get current location
     setState(() => _submitting = true);
+
+    final position = await LocationUtils.instance.getCurrentLocation();
+    if (position == null) {
+      setState(() => _submitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to get current location. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     try {
       // 1. Update lead entry
@@ -538,6 +578,38 @@ class _EditLeadPageState extends State<EditLeadPage> {
       );
 
       if (response.statusCode == 200 && response.data['success'] == true) {
+        // Step 4: Submit location and handle attachments with proper error handling
+        bool locationSuccess = true;
+        bool attachmentSuccess = true;
+
+        List<String> errorMessages = [];
+
+        // Extract function ID for location submission
+        String? functionId = widget.lead.inquiryID.toString();
+
+        // Submit location if we have the function ID
+        if (functionId != null) {
+          try {
+            locationSuccess = await _formService.submitLocation(
+              functionId: functionId,
+              longitude: position.longitude,
+              latitude: position.latitude,
+            );
+
+            if (!locationSuccess) {
+              errorMessages.add('Location update failed');
+            }
+          } catch (e) {
+            debugPrint('Location submission error: $e');
+            locationSuccess = false;
+            errorMessages.add('Location update failed: $e');
+          }
+        } else {
+          locationSuccess = false;
+          errorMessages.add(
+            'Unable to get function ID for location submission',
+          );
+        }
         // 2. Handle attachments in background
         final List<Future> attachmentOps = [];
 

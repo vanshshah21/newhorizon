@@ -4,6 +4,7 @@ import 'package:nhapp/pages/proforma_invoice/models/add_proforma_invoice.dart';
 import 'package:nhapp/pages/proforma_invoice/pages/add_item_page.dart';
 import 'package:nhapp/pages/proforma_invoice/service/add_proforma_invoice.dart';
 import 'package:nhapp/utils/format_utils.dart';
+import 'package:nhapp/utils/location_utils.dart';
 import '../../../utils/storage_utils.dart';
 
 class AddProformaInvoiceForm extends StatefulWidget {
@@ -1357,26 +1358,134 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
     };
   }
 
+  // Future<void> _submitProformaInvoice() async {
+  //   if (!_formKey.currentState!.validate()) return;
+
+  //   if (!_validateForm()) return;
+
+  //   final confirmed = await _showConfirmationDialog();
+  //   if (!confirmed) return;
+
+  //   try {
+  //     setState(() => _isLoading = true);
+
+  //     final payload = _buildSubmissionPayload();
+  //     final success = await _service.submitProformaInvoice(payload);
+
+  //     setState(() => _isLoading = false);
+
+  //     if (success) {
+  //       _showSuccess("Proforma Invoice submitted successfully");
+  //       Navigator.pop(context, true);
+  //     } else {
+  //       _showError("Failed to submit Proforma Invoice");
+  //     }
+  //   } catch (e, st) {
+  //     setState(() => _isLoading = false);
+  //     debugPrint("Error stacktrace during submission: $st");
+  //     _showError("Error during submission: ${e.toString()}");
+  //   }
+  // }
   Future<void> _submitProformaInvoice() async {
     if (!_formKey.currentState!.validate()) return;
 
     if (!_validateForm()) return;
 
+    // Step 1: Check location status before starting submission
+    final locationStatus = await LocationUtils.instance.checkLocationStatus();
+
+    if (locationStatus != LocationStatus.granted) {
+      final shouldContinue = await LocationUtils.instance.showLocationDialog(
+        context,
+        locationStatus,
+      );
+
+      if (!shouldContinue) {
+        return;
+      }
+
+      // Re-check location status after user interaction
+      final newStatus = await LocationUtils.instance.checkLocationStatus();
+      if (newStatus != LocationStatus.granted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Location access is required to submit the proforma invoice',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+    }
+
+    // Step 2: Get current location
     final confirmed = await _showConfirmationDialog();
     if (!confirmed) return;
 
-    try {
-      setState(() => _isLoading = true);
+    setState(() => _isLoading = true);
 
-      final payload = _buildSubmissionPayload();
-      final success = await _service.submitProformaInvoice(payload);
-
+    final position = await LocationUtils.instance.getCurrentLocation();
+    if (position == null) {
       setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to get current location. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
-      if (success) {
-        _showSuccess("Proforma Invoice submitted successfully");
+    try {
+      final payload = _buildSubmissionPayload();
+      final proformaInvoiceNumber = await _service.submitProformaInvoice(
+        payload,
+      );
+
+      if (proformaInvoiceNumber != "0") {
+        // Step 3: Submit location with proper error handling
+        bool locationSuccess = true;
+        List<String> errorMessages = [];
+
+        // Submit location using the proforma invoice number
+        try {
+          locationSuccess = await _service.submitLocation(
+            functionId: proformaInvoiceNumber,
+            longitude: position.longitude,
+            latitude: position.latitude,
+          );
+
+          if (!locationSuccess) {
+            errorMessages.add('Location submission failed');
+          }
+        } catch (e) {
+          debugPrint('Location submission error: $e');
+          locationSuccess = false;
+          errorMessages.add('Location submission failed: $e');
+        }
+
+        if (!mounted) return;
+        setState(() => _isLoading = false);
+
+        // Show appropriate success/error messages
+        if (locationSuccess) {
+          _showSuccess(
+            "Proforma Invoice submitted successfully with location!",
+          );
+        } else {
+          String errorMessage = 'Proforma Invoice submitted, but ';
+          if (errorMessages.isNotEmpty) {
+            errorMessage += errorMessages.join(', ');
+          } else {
+            errorMessage += 'location submission failed';
+          }
+          _showError(errorMessage);
+        }
+
         Navigator.pop(context, true);
       } else {
+        setState(() => _isLoading = false);
         _showError("Failed to submit Proforma Invoice");
       }
     } catch (e, st) {

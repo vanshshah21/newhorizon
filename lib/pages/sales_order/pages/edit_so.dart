@@ -6,6 +6,7 @@ import 'package:nhapp/pages/sales_order/pages/add_item.dart';
 import 'package:nhapp/pages/sales_order/service/add_service.dart';
 import 'package:nhapp/pages/sales_order/service/so_attachment.dart';
 import 'package:nhapp/utils/format_utils.dart';
+import 'package:nhapp/utils/location_utils.dart';
 import 'package:nhapp/utils/storage_utils.dart';
 import 'package:file_picker/file_picker.dart';
 
@@ -973,15 +974,60 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
       return;
     }
 
+    // Step 1: Check location status before starting submission
+    final locationStatus = await LocationUtils.instance.checkLocationStatus();
+
+    if (locationStatus != LocationStatus.granted) {
+      final shouldContinue = await LocationUtils.instance.showLocationDialog(
+        context,
+        locationStatus,
+      );
+
+      if (!shouldContinue) {
+        return;
+      }
+
+      // Re-check location status after user interaction
+      final newStatus = await LocationUtils.instance.checkLocationStatus();
+      if (newStatus != LocationStatus.granted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Location access is required to update the sales order',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+    }
+
+    // Step 2: Get current location
     setState(() => _submitting = true);
+
+    final position = await LocationUtils.instance.getCurrentLocation();
+    if (position == null) {
+      setState(() => _submitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to get current location. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     try {
       final payload = _buildUpdatePayload();
       final response = await _service.updateSalesOrder(payload);
 
       if (response['success'] == true) {
+        bool locationSuccess = true;
         // Handle attachment operations
         bool attachmentSuccess = true;
+
+        // Extract function ID for location submission
+        String? functionId = originalOrderId;
 
         // Process existing attachments
         for (int i = 0; i < _editableAttachments.length; i++) {

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/widgets.dart';
 import 'package:nhapp/pages/leads/models/lead_detail_data.dart';
@@ -192,6 +194,57 @@ class LeadService {
     } else {
       debugPrint("fetchLeadDetails Error for InquiryID: $inquiryID");
       throw Exception('Failed to fetch lead details');
+    }
+  }
+
+  Future<Map<String, dynamic>?> getGeoLocation({
+    required String functionId,
+  }) async {
+    try {
+      final url = await StorageUtils.readValue('url');
+      final companyDetails = await StorageUtils.readJson('selected_company');
+      if (companyDetails == null) throw Exception("Company not set");
+
+      final tokenDetails = await StorageUtils.readJson('session_token');
+      if (tokenDetails == null) throw Exception("Session token not found");
+
+      final companyId = companyDetails['id'];
+      final token = tokenDetails['token']['value'];
+
+      _dio.options.headers['Content-Type'] = 'application/json';
+      _dio.options.headers['Accept'] = 'application/json';
+      _dio.options.headers['Authorization'] = 'Bearer $token';
+      const endpoint = "/api/Login/getGeoLocation";
+
+      final response = await _dio.get(
+        'http://$url$endpoint',
+        queryParameters: {
+          'companyid': companyId,
+          'functioncode': 'LD',
+          'functionid': functionId,
+        },
+      );
+      final data = jsonDecode(response.data) as Map<String, dynamic>;
+
+      if (response.statusCode == 200 && data.isNotEmpty) {
+        // Parse the location data and convert strings to doubles
+
+        // Convert string coordinates to double for easier use
+        final parsedData = {
+          'mLOCFUNCTIONID': data['mLOCFUNCTIONID'],
+          'longitude': double.tryParse(data['mLOCLONGITUDE'].toString()) ?? 0.0,
+          'latitude': double.tryParse(data['mLOCLATITUDE'].toString()) ?? 0.0,
+          'mLOCLONGITUDE': data['data']['mLOCLONGITUDE'],
+          'mLOCLATITUDE': data['data']['mLOCLATITUDE'],
+        };
+
+        return parsedData;
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint("Error in getGeoLocation: $e");
+      return null;
     }
   }
 }

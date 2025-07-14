@@ -50,5 +50,9 @@
 			<string>sms</string>
 			<string>tel</string>
 		</array>
+		<key>NSLocationWhenInUseUsageDescription</key>
+		<string>This app needs location access to submit leads with precise location data.</string>
+		<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+		<string>This app needs location access to submit leads with precise location data.</string>
 	</dict>
 </plist>

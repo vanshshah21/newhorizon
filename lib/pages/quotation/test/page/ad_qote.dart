@@ -5,6 +5,7 @@ import 'package:nhapp/pages/quotation/test/page/ad_itm.dart';
 import 'package:nhapp/pages/quotation/test/page/edit_item.dart';
 import 'package:nhapp/pages/quotation/test/service/qote_service.dart';
 import 'package:nhapp/utils/format_utils.dart';
+import 'package:nhapp/utils/location_utils.dart';
 import 'package:nhapp/utils/storage_utils.dart';
 import 'package:file_picker/file_picker.dart';
 
@@ -721,13 +722,87 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
       return;
     }
 
+    // Step 1: Check location status before starting submission
+    final locationStatus = await LocationUtils.instance.checkLocationStatus();
+
+    if (locationStatus != LocationStatus.granted) {
+      final shouldContinue = await LocationUtils.instance.showLocationDialog(
+        context,
+        locationStatus,
+      );
+
+      if (!shouldContinue) {
+        return;
+      }
+
+      // Re-check location status after user interaction
+      final newStatus = await LocationUtils.instance.checkLocationStatus();
+      if (newStatus != LocationStatus.granted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Location access is required to update the quotation',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+    }
+
+    // Step 2: Get current location
     setState(() => _submitting = true);
+
+    final position = await LocationUtils.instance.getCurrentLocation();
+    if (position == null) {
+      setState(() => _submitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to get current location. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     try {
       final payload = _buildSubmissionPayload();
       final response = await _service.submitQuotation(payload);
 
       if (response['success'] == true) {
+        // Step 3: Submit location and handle attachments with proper error handling
+        bool locationSuccess = true;
+        bool attachmentSuccess = true;
+
+        List<String> errorMessages = [];
+
+        // Extract function ID for location submission
+        String? functionId =
+            response['data']?['quotationDetails']?['quotationId']?.toString();
+
+        // Submit location if we have the function ID
+        if (functionId != null) {
+          try {
+            locationSuccess = await _service.submitLocation(
+              functionId: functionId,
+              longitude: position.longitude,
+              latitude: position.latitude,
+            );
+
+            if (!locationSuccess) {
+              errorMessages.add('Location submission failed');
+            }
+          } catch (e) {
+            debugPrint('Location submission error: $e');
+            locationSuccess = false;
+            errorMessages.add('Location submission failed: $e');
+          }
+        } else {
+          locationSuccess = false;
+          errorMessages.add(
+            'Unable to get function ID for location submission',
+          );
+        }
         // Upload attachments if any
         if (attachments.isNotEmpty) {
           final quotationNumber =

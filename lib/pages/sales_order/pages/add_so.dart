@@ -6,6 +6,7 @@ import 'package:nhapp/pages/sales_order/pages/add_item.dart';
 import 'package:nhapp/pages/sales_order/service/add_service.dart';
 import 'package:nhapp/pages/sales_order/service/so_attachment.dart';
 import 'package:nhapp/utils/format_utils.dart';
+import 'package:nhapp/utils/location_utils.dart';
 import 'package:nhapp/utils/storage_utils.dart';
 import 'package:file_picker/file_picker.dart';
 
@@ -574,7 +575,7 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
     final finalAmount = totalAfterDiscount + totalTax;
 
     return {
-      "authorizationRequired": documentDetail?['authorizationRequired'] ?? "Y",
+      "authorizationRequired": documentDetail['authorizationRequired'] ?? "Y",
       "autoNumberRequired": "Y",
       "siteRequired": "Y",
       "authorizationDate": FormatUtils.formatDateForApi(
@@ -649,7 +650,7 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
         "xobCredit": "",
         "xobcrauth": "",
         "amendSrNo": 0,
-        "authBy": userId,
+        "authBy": "",
         "authDate": null,
         "ioYear": docYear,
         "ioGroup": documentDetail['groupCode'] ?? "SO",
@@ -818,13 +819,89 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
       return;
     }
 
+    // Step 1: Check location status before starting submission
+    final locationStatus = await LocationUtils.instance.checkLocationStatus();
+
+    if (locationStatus != LocationStatus.granted) {
+      final shouldContinue = await LocationUtils.instance.showLocationDialog(
+        context,
+        locationStatus,
+      );
+
+      if (!shouldContinue) {
+        return;
+      }
+
+      // Re-check location status after user interaction
+      final newStatus = await LocationUtils.instance.checkLocationStatus();
+      if (newStatus != LocationStatus.granted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Location access is required to submit the sales order',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+    }
+
+    // Step 2: Get current location
     setState(() => _submitting = true);
+
+    final position = await LocationUtils.instance.getCurrentLocation();
+    if (position == null) {
+      setState(() => _submitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to get current location. Please try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     try {
       final payload = _buildSubmissionPayload();
       final response = await _service.submitSalesOrder(payload);
 
       if (response['success'] == true) {
+        // Step 3: Submit location and handle attachments with proper error handling
+        bool locationSuccess = true;
+        bool attachmentSuccess = true;
+
+        List<String> errorMessages = [];
+
+        // Extract function ID and sales order number for location submission
+        final String responseData = response['data'];
+        final String salesOrderNumber = "${responseData.split('#')[0]}";
+        final String documentId = responseData.split('#')[1];
+        String? functionId = documentId;
+
+        // Submit location if we have the function ID
+        if (functionId.isNotEmpty) {
+          try {
+            locationSuccess = await _service.submitLocation(
+              functionId: functionId,
+              longitude: position.longitude,
+              latitude: position.latitude,
+            );
+
+            if (!locationSuccess) {
+              errorMessages.add('Location submission failed');
+            }
+          } catch (e) {
+            debugPrint('Location submission error: $e');
+            locationSuccess = false;
+            errorMessages.add('Location submission failed: $e');
+          }
+        } else {
+          locationSuccess = false;
+          errorMessages.add(
+            'Unable to get function ID for location submission',
+          );
+        }
         // Upload attachments if any
         if (attachments.isNotEmpty) {
           final String responseData = response['data'];

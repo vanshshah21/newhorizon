@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:nhapp/pages/quotation/test/model/model_ad_qote.dart';
@@ -708,6 +710,91 @@ class QuotationService {
       return {};
     } catch (e) {
       rethrow;
+    }
+  }
+
+  Future<bool> submitLocation({
+    required String functionId,
+    required double longitude,
+    required double latitude,
+  }) async {
+    const endpoint = "/api/Quotation/InsertLocation";
+    try {
+      final body = {
+        "strFunction": "QT",
+        "intFunctionID": functionId,
+        "Longitude": longitude,
+        "Latitude": latitude,
+      };
+
+      debugPrint("Submitting location with body: ${body.toString()}");
+
+      final response = await _dio.post('$_baseUrl$endpoint', data: body);
+
+      debugPrint("Location submission response: ${response.data}");
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        if (data is Map<String, dynamic>) {
+          final success = data['success'];
+          if (success == true || success == 'true') {
+            debugPrint("Location submission successful");
+            return true;
+          } else {
+            debugPrint(
+              "Location submission failed: ${data['message'] ?? 'Unknown error'}",
+            );
+            return false;
+          }
+        }
+      }
+
+      debugPrint(
+        "Location submission failed with status: ${response.statusCode}",
+      );
+      return false;
+    } catch (e) {
+      debugPrint("Error in submitLocation: $e");
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>?> getGeoLocation({
+    required String functionId,
+  }) async {
+    try {
+      const endpoint = "/api/Login/getGeoLocation";
+
+      final response = await _dio.get(
+        '$_baseUrl$endpoint',
+        queryParameters: {
+          'companyid': companyId,
+          'functioncode': 'QT',
+          'functionid': functionId,
+        },
+      );
+
+      debugPrint("GeoLocation API response: ${response.data}");
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final data = jsonDecode(response.data) as Map<String, dynamic>;
+
+        // Convert string coordinates to double for easier use
+        final parsedData = {
+          'mLOCFUNCTIONID': data['mLOCFUNCTIONID'],
+          'longitude': double.tryParse(data['mLOCLONGITUDE'].toString()) ?? 0.0,
+          'latitude': double.tryParse(data['mLOCLATITUDE'].toString()) ?? 0.0,
+          'mLOCLONGITUDE': data['mLOCLONGITUDE'],
+          'mLOCLATITUDE': data['mLOCLATITUDE'],
+        };
+
+        return parsedData;
+      }
+
+      return null;
+    } catch (e) {
+      debugPrint("Error in getGeoLocation: $e");
+      return null;
     }
   }
 }

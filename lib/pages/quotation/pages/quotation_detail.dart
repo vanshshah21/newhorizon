@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -5,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:nhapp/pages/proforma_invoice/pages/add_proforma_invoice.dart';
 import 'package:nhapp/pages/quotation/service/quotation_service.dart';
+import 'package:nhapp/utils/map_utils.dart';
 import 'package:nhapp/utils/storage_utils.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -41,11 +43,82 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
   bool _isDownloading = false;
   bool _isSharing = false;
 
+  Map<String, dynamic>? locationData;
+  bool _isLoadingLocation = false;
+  String? locationError;
+
   @override
   void initState() {
     super.initState();
     _fetchDetail();
     _fetchAttachments();
+    _fetchLocationData();
+  }
+
+  Future<void> _fetchLocationData() async {
+    setState(() {
+      _isLoadingLocation = true;
+      locationError = null;
+    });
+
+    try {
+      final companyDetails = await StorageUtils.readJson('selected_company');
+      if (companyDetails == null) throw Exception("Company not set");
+
+      final tokenDetails = await StorageUtils.readJson('session_token');
+      if (tokenDetails == null) throw Exception("Session token not found");
+
+      final companyId = companyDetails['id'];
+      final token = tokenDetails['token']['value'];
+      final baseUrl = 'http://${await StorageUtils.readValue('url')}';
+
+      final dio = Dio();
+      dio.options.headers['Content-Type'] = 'application/json';
+      dio.options.headers['Accept'] = 'application/json';
+      dio.options.headers['Authorization'] = 'Bearer $token';
+
+      const endpoint = "/api/Login/getGeoLocation";
+
+      final response = await dio.get(
+        '$baseUrl$endpoint',
+        queryParameters: {
+          'companyid': companyId,
+          'functioncode': 'QT',
+          'functionid': widget.quotation.qtnID.toString(),
+        },
+      );
+
+      debugPrint("GeoLocation API response: ${response.data}");
+
+      final data = jsonDecode(response.data) as Map<String, dynamic>;
+      if (response.statusCode == 200 && data['success'] == true) {
+        final parsedData = {
+          'mLOCFUNCTIONID': data['mLOCFUNCTIONID'],
+          'longitude': double.tryParse(data['mLOCLONGITUDE'].toString()) ?? 0.0,
+          'latitude': double.tryParse(data['mLOCLATITUDE'].toString()) ?? 0.0,
+          'mLOCLONGITUDE': data['mLOCLONGITUDE'],
+          'mLOCLATITUDE': data['mLOCLATITUDE'],
+        };
+
+        if (!mounted) return;
+        setState(() {
+          locationData = parsedData;
+          _isLoadingLocation = false;
+        });
+      } else {
+        if (!mounted) return;
+        setState(() {
+          locationData = null;
+          _isLoadingLocation = false;
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        locationError = 'Failed to load location: $e';
+        _isLoadingLocation = false;
+      });
+    }
   }
 
   Future<void> _fetchDetail() async {
@@ -343,6 +416,54 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
       }
     } finally {
       if (mounted) setState(() => _isSharing = false);
+    }
+  }
+
+  Future<void> _handleLocationButton() async {
+    if (locationData == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Location data not available'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final latitude =
+          locationData!['latitude'] as double? ??
+          double.tryParse(locationData!['mLOCLATITUDE'].toString());
+      final longitude =
+          locationData!['longitude'] as double? ??
+          double.tryParse(locationData!['mLOCLONGITUDE'].toString());
+
+      if (latitude == null ||
+          latitude == 0.0 ||
+          longitude == null ||
+          longitude == 0.0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Location data is not available'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      await MapsUtils.showLocationDialog(
+        context: context,
+        latitude: latitude,
+        longitude: longitude,
+        label: 'Quotation ${widget.quotation.qtnNumber}',
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error opening location: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -768,7 +889,7 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Quotation Details'),
+        title: const Text('Details'),
         actions: [
           IconButton(
             icon:
@@ -798,6 +919,25 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
                     : const Icon(Icons.share),
             onPressed: _isSharing ? null : _handleShare,
             tooltip: 'Share PDF',
+          ),
+          IconButton(
+            onPressed: _isLoadingLocation ? null : _handleLocationButton,
+            icon:
+                _isLoadingLocation
+                    ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                    : Icon(
+                      Icons.location_on,
+                      size: 20,
+                      color:
+                          locationData != null
+                              ? null
+                              : Theme.of(context).colorScheme.outline,
+                    ),
+            tooltip: 'View Location',
           ),
         ],
       ),
