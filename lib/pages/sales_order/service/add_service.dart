@@ -196,13 +196,16 @@ class SalesOrderService {
   }
 
   Future<List<RateStructure>> fetchRateStructures() async {
+    final domCurrency = await StorageUtils.readJson('domestic_currency');
+    final currencyCode = domCurrency?['domCurCode'] ?? 'INR';
+
     const endpoint = "/api/Quotation/QuotationGetRateStructureForSales";
     try {
       final response = await _dio.get(
         "$_baseUrl$endpoint",
         queryParameters: {
           'companyID': companyId.toString(),
-          'currencyCode': 'INR',
+          'currencyCode': currencyCode,
         },
       );
       final data = response.data['data'] as List;
@@ -287,12 +290,14 @@ class SalesOrderService {
     List<Map<String, dynamic>> rateStructureDetails,
     String itemCode,
   ) async {
+    final domCurrency = await StorageUtils.readJson('domestic_currency');
+    final currencyCode = domCurrency?['domCurCode'] ?? 'INR';
     const endpoint = "/api/Quotation/CalcRateStructure";
     final body = {
       "ItemAmount": itemAmount,
       "ExchangeRt": "1",
-      "DomCurrency": "INR",
-      "CurrencyCode": "INR",
+      "DomCurrency": currencyCode,
+      "CurrencyCode": currencyCode,
       "DiscType": "",
       "BasicRate": 0,
       "DiscValue": 0,
@@ -338,6 +343,8 @@ class SalesOrderService {
     int locationId,
     int companyId,
   ) async {
+    final domCurrency = await StorageUtils.readJson('domestic_currency');
+    final currencyCode = domCurrency?['domCurCode'] ?? 'INR';
     const endpoint = "/api/SalesOrder/salesOrderGetDetails";
     final body = {
       "IOYear": ioYear,
@@ -350,7 +357,7 @@ class SalesOrderService {
       "IsInterBranchTransfer": false,
       "locationId": locationId,
       "compantid": companyId,
-      "DomCurrency": "INR",
+      "DomCurrency": currencyCode,
     };
 
     try {

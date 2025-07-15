@@ -151,6 +151,7 @@ class _LeadCardState extends State<LeadCard>
       ),
       child: Card(
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+
         child: Column(
           children: [
             // Main content with onTap

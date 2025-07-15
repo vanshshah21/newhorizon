@@ -1,3 +1,12 @@
+import 'package:nhapp/utils/storage_utils.dart';
+
+Future<String> getDomesticCurrency() async {
+  final domCurrency = await StorageUtils.readJson('domestic_currency');
+  if (domCurrency == null) throw Exception("Domestic currency not set");
+
+  return domCurrency['domCurCode'] ?? 'INR';
+}
+
 class Customer {
   final int totalRows;
   final String custCode;

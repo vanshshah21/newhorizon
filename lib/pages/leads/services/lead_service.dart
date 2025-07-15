@@ -31,7 +31,7 @@ class LeadService {
       final userId = tokenDetails['user']['id'];
       final locationId = locationDetails['id'];
 
-      final endpoint = "/api/Lead/LeadEntryList";
+      final endpoint = "/api/Lead/inquiryEntryList";
 
       final body = {
         "PageNumber": page,

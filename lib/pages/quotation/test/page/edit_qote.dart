@@ -63,6 +63,7 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
   final List<PlatformFile> _newAttachments = [];
   final List<Map<String, dynamic>> _editableAttachments = [];
   String? _documentNo;
+  late final String currency;
 
   @override
   void initState() {
@@ -87,6 +88,10 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
 
   Future<void> _getExchangeRate() async {
     try {
+      final domCurrency = await StorageUtils.readJson('domestic_currency');
+      if (domCurrency == null) throw Exception("Domestic currency not set");
+
+      currency = domCurrency['domCurCode'] ?? 'INR';
       _exchangeRate = await _service.getExchangeRate() ?? 1.0;
     } catch (e) {
       debugPrint("Error loading exchange rate: $e");
@@ -778,7 +783,7 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
       "fromLocationName": _service.locationDetails['name'] ?? "",
       "ip": "",
       "mac": "",
-      "domesticCurrencyCode": "INR",
+      "domesticCurrencyCode": currency,
       "quotationDetails": {
         "customerCode": selectedCustomer?.customerCode ?? "",
         "quotationYear":
@@ -829,7 +834,7 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
         "isBudgetaryQuotation": false,
         "quotationStatus": "NS",
         "quotationAmendDate": null,
-        "currencyCode": "INR",
+        "currencyCode": currency,
         "agentCode": "",
         "quotationTypeConfig": "N",
         "reasonCode": "",

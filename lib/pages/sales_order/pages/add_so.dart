@@ -2,7 +2,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:nhapp/pages/sales_order/models/add_sales_order.dart';
+import 'package:nhapp/pages/sales_order/models/sales_order.dart';
 import 'package:nhapp/pages/sales_order/pages/add_item.dart';
+import 'package:nhapp/pages/sales_order/pages/sales_order_details.dart';
 import 'package:nhapp/pages/sales_order/service/add_service.dart';
 import 'package:nhapp/pages/sales_order/service/so_attachment.dart';
 import 'package:nhapp/utils/format_utils.dart';
@@ -62,6 +64,7 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
   bool _loadingQuotationDetails = false;
   bool _isDuplicateAllowed = false;
   List<DiscountCode> discountCodes = [];
+  late final String currency;
 
   @override
   void initState() {
@@ -277,6 +280,9 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
 
   Future<void> _loadDocumentDetail() async {
     documentDetail = await _service.fetchDefaultDocumentDetail("OB");
+
+    final domCurrency = await StorageUtils.readJson('domestic_currency');
+    currency = domCurrency?['domCurCode'] ?? 'INR';
   }
 
   Future<void> _onOrderFromSelected(Customer customer) async {
@@ -589,7 +595,7 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
       "mac": "",
       "docType": "OB",
       "docSubType": "OB",
-      "domesticCurrencyCode": "INR",
+      "domesticCurrencyCode": currency,
       "salesOrderDetails": {
         "orderId": 0,
         "customerPONumber": customerPONumberController.text,
@@ -677,7 +683,7 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
             salesOrderReference == "With Quotation Reference" &&
                     selectedQuotationNumber != null
                 ? selectedQuotationNumber!.quotationCurrency
-                : "INR",
+                : currency,
         "bookCode": "",
         "agentCode":
             salesOrderReference == "With Quotation Reference" &&
@@ -785,6 +791,70 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
     setState(() {
       attachments.removeAt(index);
     });
+  }
+
+  Future<SalesOrder?> fetchSalesOrderList({String? searchValue}) async {
+    final Dio _dio = Dio();
+    final url = await StorageUtils.readValue("url");
+    final companyDetails = await StorageUtils.readJson('selected_company');
+    if (companyDetails == null) throw Exception("Company not set");
+
+    final tokenDetails = await StorageUtils.readJson('session_token');
+    if (tokenDetails == null) throw Exception("Session token not found");
+
+    final locationDetails = await StorageUtils.readJson('selected_location');
+    if (locationDetails == null) throw Exception("Location details not found");
+
+    final financeDetails = await StorageUtils.readJson('finance_period');
+    if (financeDetails == null) throw Exception("Finance details not found");
+
+    final companyId = companyDetails['id'];
+    final locationId = locationDetails['id'];
+    final token = tokenDetails['token']['value'];
+    final year = financeDetails['financialYear'];
+    final companycd = companyDetails['code'];
+    final userId = tokenDetails['user']['userName'];
+
+    _dio.options.headers['Content-Type'] = 'application/json';
+    _dio.options.headers['Accept'] = 'application/json';
+    _dio.options.headers['companyid'] = companyId;
+    _dio.options.headers['Authorization'] = 'Bearer $token';
+
+    final body = {
+      "year": year,
+      "type": "OB",
+      "subType": "OB",
+      "locId": locationId,
+      "userId": userId,
+      "comCode": companycd,
+      "flag": "SITEID",
+      "pageSize": 1,
+      "pageNumber": 1,
+      "sortField": "",
+      "sortDirection": "",
+      "searchValue": searchValue ?? "",
+      "restcoresalestrans": "false",
+      "companyId": companyId,
+      "usrLvl": 0,
+      "usrSubLvl": 0,
+      "valLimit": 0,
+    };
+
+    final endpoint = "/api/SalesOrder/SalesOrderGetList";
+    debugPrint('Fetching Sales Orders with body: $body');
+    final response = await _dio.post('http://$url$endpoint', data: body);
+    debugPrint('Sales Order Response: ${response}');
+    if (response.statusCode == 200 && response.data['success'] == true) {
+      final List<dynamic> data = response.data['data']?['solist'] ?? [];
+      if (data.isNotEmpty) {
+        return SalesOrder.fromJson(data.first);
+      } else {
+        return null;
+      }
+    } else {
+      debugPrint('Failed to fetch Sales Orders: ${response.data}');
+      throw Exception('Failed to load Sales Orders');
+    }
   }
 
   Future<void> _submitSalesOrder() async {
@@ -912,12 +982,39 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
         _showSuccess(
           response['message'] ?? "Sales Order submitted successfully",
         );
-        Navigator.pop(context, true);
+        try {
+          final salesOrderDetails = await fetchSalesOrderList(
+            searchValue: response['data'].split('#')[0],
+          );
+
+          if (salesOrderDetails != null) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Sales Order created successfully!'),
+                ),
+              );
+
+              // Navigate to SalesOrderDetailPage
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder:
+                      (context) =>
+                          SalesOrderDetailPage(salesOrder: salesOrderDetails),
+                ),
+              );
+            }
+          } else {
+            _showError("Failed to fetch the created sales order details.");
+          }
+        } catch (e) {
+          Navigator.pop(context, true);
+        }
       } else {
-        _showError(response['errorMessage'] ?? "Failed to submit sales order");
+        _showError("Failed to submit sales order");
       }
     } catch (e) {
-      _showError("Error during submission: ${e.toString()}");
+      _showError("Error during submission.");
     } finally {
       setState(() => _submitting = false);
     }

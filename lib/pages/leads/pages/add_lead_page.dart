@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:nhapp/pages/leads/pages/lead_details_page.dart';
 import 'package:nhapp/utils/format_utils.dart';
 import 'package:nhapp/utils/location_utils.dart';
 import 'package:nhapp/utils/storage_utils.dart';
@@ -522,6 +523,51 @@ class _AddLeadPageState extends State<AddLeadPage> {
     }
 
     if (!mounted) return;
+    // Step 6: Fetch the created lead details and navigate to details page
+    try {
+      final createdLeadNumber = _documentNo ?? _leadNumber;
+      if (createdLeadNumber != null) {
+        final leadDetails = await _service.fetchLeadByNumber(
+          leadNumber: createdLeadNumber,
+          userId: _userId!,
+        );
+
+        if (leadDetails != null && leadDetails.isNotEmpty) {
+          final leadData = leadDetails.first;
+
+          setState(() => _submitting = false);
+
+          // Show success message
+          String successMessage = 'Lead created successfully';
+          if (locationSuccess && attachmentSuccess) {
+            successMessage += ' with location and attachments!';
+          } else if (locationSuccess && _attachments.isEmpty) {
+            successMessage += ' with location!';
+          } else if (attachmentSuccess && !locationSuccess) {
+            successMessage += ' with attachments!';
+          } else if (locationSuccess && !attachmentSuccess) {
+            successMessage += ' with location!';
+          }
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(successMessage),
+              backgroundColor: Colors.green,
+            ),
+          );
+
+          // Navigate to lead details page and replace current page
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (context) => InquiryDetailsPage(lead: leadData),
+            ),
+          );
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching created lead details: $e');
+    }
     setState(() => _submitting = false);
 
     // Show appropriate success/error messages
@@ -574,42 +620,6 @@ class _AddLeadPageState extends State<AddLeadPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
-      );
-    }
-
-    // Show detailed error dialog if there are specific errors
-    if (errorMessages.isNotEmpty) {
-      showDialog(
-        context: context,
-        builder:
-            (context) => AlertDialog(
-              title: const Text('Upload Status'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Lead created successfully, but some uploads failed:',
-                  ),
-                  const SizedBox(height: 8),
-                  ...errorMessages.map(
-                    (error) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Text(
-                        '• $error',
-                        style: const TextStyle(color: Colors.red),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('OK'),
-                ),
-              ],
-            ),
       );
     }
 

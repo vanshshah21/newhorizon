@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:nhapp/pages/quotation/models/quotation_list_item.dart';
 import 'package:nhapp/pages/quotation/test/model/model_ad_qote.dart';
 import 'package:nhapp/utils/storage_utils.dart';
 
@@ -182,13 +183,17 @@ class QuotationService {
   }
 
   Future<List<RateStructure>> fetchRateStructures() async {
+    final domCurrency = await StorageUtils.readJson('domestic_currency');
+    if (domCurrency == null) throw Exception("Domestic currency not set");
+
+    final currency = domCurrency['domCurCode'] ?? 'INR';
     const endpoint = "/api/Quotation/QuotationGetRateStructureForSales";
     try {
       final response = await _dio.get(
         "$_baseUrl$endpoint",
         queryParameters: {
           'companyID': companyId.toString(),
-          'currencyCode': 'INR',
+          'currencyCode': currency,
         },
       );
       final data = response.data['data'] as List;
@@ -374,12 +379,16 @@ class QuotationService {
     List<Map<String, dynamic>> rateStructureDetails,
     String itemCode,
   ) async {
+    final domCurrency = await StorageUtils.readJson('domestic_currency');
+    if (domCurrency == null) throw Exception("Domestic currency not set");
+
+    final currency = domCurrency['domCurCode'] ?? 'INR';
     const endpoint = "/api/Quotation/CalcRateStructure";
     final body = {
       "ItemAmount": itemAmount,
       "ExchangeRt": "1",
-      "DomCurrency": "INR",
-      "CurrencyCode": "INR",
+      "DomCurrency": currency,
+      "CurrencyCode": currency,
       "DiscType": "",
       "BasicRate": 0,
       "DiscValue": 0,
@@ -641,7 +650,7 @@ class QuotationService {
   Future<Map<String, dynamic>> submitQuotation(
     Map<String, dynamic> payload,
   ) async {
-    const endpoint = "/API/Quotation/QuotationCreate";
+    const endpoint = "/api/Quotation/QuotationCreate";
     try {
       final response = await _dio.post("$_baseUrl$endpoint", data: payload);
       return response.data;
@@ -799,5 +808,33 @@ class QuotationService {
       debugPrint("Error in getGeoLocation: $e");
       return null;
     }
+  }
+
+  Future<List<QuotationListItem>> fetchQuotationList({
+    String? searchValue,
+  }) async {
+    final locationDetails = await StorageUtils.readJson('selected_location');
+    if (locationDetails == null) throw Exception("Location not set");
+    final locationId = locationDetails['id'];
+
+    final body = {
+      "userLocationIds": locationId,
+      "pageNumber": 1,
+      "pageSize": 1,
+      "sortField": "",
+      "sortDirection": "",
+      "searchValue": searchValue ?? "",
+      "restcoresalestrans": "false",
+    };
+
+    final endpoint = "/api/Quotation/QuotationEntryList";
+
+    return _dio.post('$_baseUrl$endpoint', data: body).then((response) {
+      if (response.statusCode == 200) {
+        final data = response.data['data'] as List;
+        return data.map((item) => QuotationListItem.fromJson(item)).toList();
+      }
+      throw Exception("Failed to fetch quotation list");
+    });
   }
 }

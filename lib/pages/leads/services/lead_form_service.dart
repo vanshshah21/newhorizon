@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/widgets.dart';
+import 'package:nhapp/pages/leads/models/lead_data.dart';
 import '../models/lead_form.dart';
 import 'package:nhapp/utils/storage_utils.dart';
 
@@ -649,6 +650,41 @@ class LeadFormService {
         debugPrint("Headers sent: ${e.requestOptions.headers}");
       }
       return false;
+    }
+  }
+
+  // Add this method to your LeadFormService class
+  Future<List<LeadData>?> fetchLeadByNumber({
+    required String leadNumber,
+    required int userId,
+  }) async {
+    try {
+      final baseUrl = await StorageUtils.readValue('url');
+      final url = 'http://$baseUrl/api/Lead/inquiryEntryList';
+
+      final response = await _dio.post(
+        url,
+        data: {
+          "restcoresalestrans": "false",
+          "userId": userId,
+          "pageSize": 100,
+          "pageNumber": 1,
+          "sortField": "",
+          "sortDirection": "",
+          "searchValue": leadNumber,
+        },
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final data = response.data['data'] as List<dynamic>;
+        if (data.isNotEmpty) {
+          return data.map((item) => LeadData.fromJson(item)).toList();
+        }
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Error fetching lead by number: $e');
+      return null;
     }
   }
 }

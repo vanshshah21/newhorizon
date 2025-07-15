@@ -127,6 +127,26 @@ class EditProformaInvoiceService {
     throw Exception('Failed to fetch proforma invoice details');
   }
 
+  Future<Map<String, dynamic>> getSalesPolicy() async {
+    try {
+      final companyDetails = await StorageUtils.readJson('selected_company');
+      if (companyDetails == null) throw Exception("Company not set");
+      final companyCode = companyDetails['code'];
+      const endpoint = "/api/Login/GetSalesPolicyDetails";
+      final response = await _dio.get(
+        '$_baseUrl$endpoint',
+        queryParameters: {"companyCode": companyCode},
+      );
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return response.data['data']['salesPolicyResultModel'][0]
+            as Map<String, dynamic>;
+      }
+      return {};
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   /// Fetch default document detail for quotation/sales order
   Future<DefaultDocumentDetail> fetchDefaultDocumentDetail(String type) async {
     String endpoint = "/api/Lead/GetDefaultDocumentDetail";
@@ -258,12 +278,16 @@ class EditProformaInvoiceService {
   /// Fetch rate structures for company
   Future<List<RateStructure>> fetchRateStructures(int companyId) async {
     const endpoint = "/api/Quotation/QuotationGetRateStructureForSales";
+    final domCurrency = await StorageUtils.readJson('domestic_currency');
+    if (domCurrency == null) throw Exception("Domestic currency not set");
+
+    final currency = domCurrency['domCurCode'] ?? 'INR';
 
     final response = await _dio.get(
       "$_baseUrl$endpoint",
       queryParameters: {
         'companyID': companyId.toString(),
-        'currencyCode': 'INR',
+        'currencyCode': currency,
       },
     );
     final data = response.data['data'] as List;
@@ -378,12 +402,16 @@ class EditProformaInvoiceService {
     List<Map<String, dynamic>> rateStructureDetails,
     String itemCode,
   ) async {
+    final domCurrency = await StorageUtils.readJson('domestic_currency');
+    if (domCurrency == null) throw Exception("Domestic currency not set");
+
+    final currency = domCurrency['domCurCode'] ?? 'INR';
     const endpoint = "/api/Quotation/CalcRateStructure";
     final body = {
       "ItemAmount": itemAmount,
       "ExchangeRt": "1",
-      "DomCurrency": "INR",
-      "CurrencyCode": "INR",
+      "DomCurrency": currency,
+      "CurrencyCode": currency,
       "DiscType": "",
       "BasicRate": 0,
       "DiscValue": 0,

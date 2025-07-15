@@ -173,6 +173,9 @@ class ServicePOService {
     final tokenDetails = await StorageUtils.readJson('session_token');
     if (tokenDetails == null) throw Exception("Session token not found");
 
+    final domCurrency = await StorageUtils.readJson('domestic_currency');
+    final currencyCode = domCurrency?['domCurCode'] ?? 'INR';
+
     final companyId = companyDetails['id'];
     final token = tokenDetails['token']['value'];
     final endpoint = '/api/Podata/poGetPrint_Service';
@@ -184,7 +187,7 @@ class ServicePOService {
       "strPoNumber": po.id.toString(),
       "companyData": companyDetails,
       "locationData": locationDetails,
-      "strDomCurrency": "INR",
+      "strDomCurrency": currencyCode,
       "SiteCode": po.sitecode,
       "GSTDateTimeTemp": "01/07/2017",
     };

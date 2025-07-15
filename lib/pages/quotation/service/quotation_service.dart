@@ -50,6 +50,11 @@ class QuotationService extends BaseService {
     final companyDetails = await StorageUtils.readJson('selected_company');
     if (companyDetails == null) throw Exception("Company not set");
 
+    final domCurrency = await StorageUtils.readJson('domestic_currency');
+    if (domCurrency == null) throw Exception("Domestic currency not set");
+
+    final currency = domCurrency['domCurCode'] ?? 'INR';
+
     final companyId = companyDetails['id'];
     final endpoint = "/api/Quotation/QuotationGetPrint";
 
@@ -64,7 +69,7 @@ class QuotationService extends BaseService {
       "QtnYear": q.qtnYear,
       "intCompId": companyId,
       "intSiteId": q.siteId,
-      "strDomCurrency": "INR",
+      "strDomCurrency": currency,
       "companyData": companyDetails,
       "documentprint": "regular",
       "printtype": "pdf",

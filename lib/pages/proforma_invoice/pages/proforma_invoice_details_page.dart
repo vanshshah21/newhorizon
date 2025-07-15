@@ -1,6 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:nhapp/utils/map_utils.dart';
+import 'package:nhapp/utils/storage_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -33,11 +36,15 @@ class _ProformaInvoiceDetailsPageState
 
   bool _isDownloading = false;
   bool _isSharing = false;
+  bool _isLoadingLocation = false;
+  Map<String, dynamic>? locationData;
+  String? locationError;
 
   @override
   void initState() {
     super.initState();
     _fetchDetails();
+    _fetchLocationData();
   }
 
   Future<void> _fetchDetails() async {
@@ -66,6 +73,122 @@ class _ProformaInvoiceDetailsPageState
         error = e.toString();
         isLoading = false;
       });
+    }
+  }
+
+  Future<void> _fetchLocationData() async {
+    setState(() {
+      _isLoadingLocation = true;
+      locationError = null;
+    });
+
+    try {
+      final companyDetails = await StorageUtils.readJson('selected_company');
+      if (companyDetails == null) throw Exception("Company not set");
+
+      final tokenDetails = await StorageUtils.readJson('session_token');
+      if (tokenDetails == null) throw Exception("Session token not found");
+
+      final companyId = companyDetails['id'];
+      final token = tokenDetails['token']['value'];
+      final baseUrl = 'http://${await StorageUtils.readValue('url')}';
+
+      final dio = Dio();
+      dio.options.headers['Content-Type'] = 'application/json';
+      dio.options.headers['Accept'] = 'application/json';
+      dio.options.headers['Authorization'] = 'Bearer $token';
+
+      const endpoint = "/api/Login/getGeoLocation";
+
+      final response = await dio.get(
+        '$baseUrl$endpoint',
+        queryParameters: {
+          'companyid': companyId,
+          'functioncode': 'PI',
+          'functionid': widget.invoice.id.toString(),
+        },
+      );
+
+      debugPrint("GeoLocation API response: ${response.data}");
+
+      final data = jsonDecode(response.data) as Map<String, dynamic>;
+      if (response.statusCode == 200 && data['success'] == true) {
+        final parsedData = {
+          'mLOCFUNCTIONID': data['data']['mLOCFUNCTIONID'],
+          'longitude':
+              double.tryParse(data['data']['mLOCLONGITUDE'].toString()) ?? 0.0,
+          'latitude':
+              double.tryParse(data['data']['mLOCLATITUDE'].toString()) ?? 0.0,
+          'mLOCLONGITUDE': data['data']['mLOCLONGITUDE'],
+          'mLOCLATITUDE': data['data']['mLOCLATITUDE'],
+        };
+
+        if (!mounted) return;
+        setState(() {
+          locationData = parsedData;
+          _isLoadingLocation = false;
+        });
+      } else {
+        if (!mounted) return;
+        setState(() {
+          locationData = null;
+          _isLoadingLocation = false;
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        locationError = 'Failed to load location: $e';
+        _isLoadingLocation = false;
+      });
+    }
+  }
+
+  Future<void> _handleLocationButton() async {
+    if (locationData == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Location data not available'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    try {
+      final latitude =
+          locationData!['latitude'] as double? ??
+          double.tryParse(locationData!['mLOCLATITUDE'].toString());
+      final longitude =
+          locationData!['longitude'] as double? ??
+          double.tryParse(locationData!['mLOCLONGITUDE'].toString());
+
+      if (latitude == null ||
+          latitude == 0.0 ||
+          longitude == null ||
+          longitude == 0.0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Location data is not available'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+
+      await MapsUtils.showLocationDialog(
+        context: context,
+        latitude: latitude,
+        longitude: longitude,
+        label: 'Proforma Invoice ${widget.invoice.number}',
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error opening location: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -336,14 +459,9 @@ class _ProformaInvoiceDetailsPageState
 
     double totalTax = 0;
     for (var rateDetail in rateStructDetail) {
-      // Only include tax types (M, N, I) - CGST, SGST, IGST, etc.
-      if (rateDetail['taxType'] == 'M' ||
-          rateDetail['taxType'] == 'N' ||
-          rateDetail['taxType'] == 'I') {
-        final rateAmount =
-            double.tryParse(rateDetail['rateAmount']?.toString() ?? '0') ?? 0;
-        totalTax += rateAmount;
-      }
+      final rateAmount =
+          double.tryParse(rateDetail['rateAmount']?.toString() ?? '0') ?? 0;
+      totalTax += rateAmount;
     }
 
     // If no tax from rate structure, use header tax
@@ -420,7 +538,10 @@ class _ProformaInvoiceDetailsPageState
       return Scaffold(
         appBar: AppBar(title: const Text('Proforma Details')),
         body: RefreshIndicator(
-          onRefresh: _fetchDetails,
+          onRefresh: () async {
+            await _fetchDetails;
+            await _fetchLocationData();
+          },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             child: Container(
@@ -436,7 +557,10 @@ class _ProformaInvoiceDetailsPageState
       return Scaffold(
         appBar: AppBar(title: const Text('Proforma Details')),
         body: RefreshIndicator(
-          onRefresh: _fetchDetails,
+          onRefresh: () async {
+            await _fetchDetails;
+            await _fetchLocationData();
+          },
           child: const SingleChildScrollView(
             physics: AlwaysScrollableScrollPhysics(),
             child: Center(child: Text('No data found.')),
@@ -484,13 +608,16 @@ class _ProformaInvoiceDetailsPageState
           ),
           IconButton(
             icon: const Icon(Icons.location_on),
-            onPressed: _handleLocation,
+            onPressed: _isLoadingLocation ? null : _handleLocationButton,
             tooltip: 'View Location',
           ),
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: _fetchDetails,
+        onRefresh: () async {
+          await _fetchDetails;
+          await _fetchLocationData();
+        },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),

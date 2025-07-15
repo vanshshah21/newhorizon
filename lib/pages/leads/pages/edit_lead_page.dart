@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:dio/dio.dart';
+import 'package:nhapp/pages/leads/pages/lead_details_page.dart';
 import 'package:nhapp/utils/format_utils.dart';
 import 'package:nhapp/utils/location_utils.dart';
 
@@ -51,6 +52,8 @@ class _EditLeadPageState extends State<EditLeadPage> {
   bool? _isAutoNumberGenerated;
   String? _leadNumber;
   final DateTime _today = DateTime.now();
+
+  late bool _isDuplicateItem;
 
   // Models
   CustomerModel? _selectedCustomer;
@@ -271,6 +274,11 @@ class _EditLeadPageState extends State<EditLeadPage> {
         _documentNo = documentNo;
         _loading = false;
       });
+      final salesPolicy = await _formService.getSalesPolicy();
+      _isDuplicateItem =
+          salesPolicy['allowduplictae'] ??
+          salesPolicy['allowduplicate'] ??
+          false;
     } catch (e, stackTrace) {
       if (!mounted) return;
       setState(() {
@@ -306,10 +314,23 @@ class _EditLeadPageState extends State<EditLeadPage> {
 
   // --- Form Item Management ---
 
+  // void _addItem(SalesItemModel item) {
+  //   setState(() {
+  //     _items.add(LeadItemEntry(item: item, qty: 1, rate: 0));
+  //     _itemError = null;
+  //   });
+  // }
   void _addItem(SalesItemModel item) {
     setState(() {
-      _items.add(LeadItemEntry(item: item, qty: 1, rate: 0));
-      _itemError = null;
+      if (_isDuplicateItem ||
+          !_items.any((entry) => entry.item.itemCode == item.itemCode)) {
+        _items.add(LeadItemEntry(item: item, qty: 1, rate: 0));
+        _itemError = null;
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('This item is already added.')),
+        );
+      }
     });
   }
 
@@ -635,6 +656,29 @@ class _EditLeadPageState extends State<EditLeadPage> {
 
         if (!mounted) return;
         setState(() => _submitting = false);
+        try {
+          final updatedLeadNumber = _leadNumber ?? widget.lead.inquiryNumber;
+          if (updatedLeadNumber != null) {
+            final leadDetails = await _formService.fetchLeadByNumber(
+              leadNumber: updatedLeadNumber,
+              userId: _userId ?? 2,
+            );
+            if (leadDetails != null && leadDetails.isNotEmpty) {
+              final leadData = leadDetails.first;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Lead updated successfully!')),
+              );
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (context) => InquiryDetailsPage(lead: leadData),
+                ),
+              );
+              return;
+            }
+          }
+        } catch (e) {
+          debugPrint('Error fetching updated lead details: $e');
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Lead updated successfully!')),
         );
@@ -830,6 +874,58 @@ class _EditLeadPageState extends State<EditLeadPage> {
               const SizedBox(height: 16),
 
               // --- Sales Item (Typeahead) ---
+              // TypeAheadField<SalesItemModel>(
+              //   controller: _salesItemController,
+              //   focusNode: _salesItemFocusNode,
+              //   suggestionsController: _salesItemSuggestionsController,
+              //   builder:
+              //       (context, controller, focusNode) => TextFormField(
+              //         controller: controller,
+              //         focusNode: focusNode,
+              //         decoration: const InputDecoration(
+              //           labelText: 'Sales Item',
+              //           isDense: true,
+              //           contentPadding: EdgeInsets.symmetric(
+              //             vertical: 12,
+              //             horizontal: 12,
+              //           ),
+              //         ),
+              //         onTapOutside: (event) => FocusScope.of(context).unfocus(),
+              //         enabled: !_submitting,
+              //         maxLines: 1,
+              //       ),
+              //   suggestionsCallback: (pattern) async {
+              //     if (pattern.length < 3) return [];
+              //     return await _formService.searchSalesItems(pattern);
+              //   },
+              //   itemBuilder:
+              //       (context, suggestion) => ListTile(
+              //         title: Text(
+              //           suggestion.salesItemFullName.trim(),
+              //           maxLines: 1,
+              //           overflow: TextOverflow.ellipsis,
+              //         ),
+              //       ),
+              //   onSelected: (suggestion) {
+              //     final alreadyExists = _items.any(
+              //       (item) => item.item.itemCode == suggestion.itemCode,
+              //     );
+              //     if (alreadyExists) {
+              //       _showSnackBar('This sales item is already added.');
+              //       return;
+              //     }
+              //     _addItem(suggestion);
+              //     _salesItemController.clear();
+              //   },
+              //   emptyBuilder: (context) => const SizedBox(),
+              //   decorationBuilder:
+              //       (context, child) => Material(
+              //         elevation: 4.0,
+              //         borderRadius: BorderRadius.circular(8),
+              //         child: child,
+              //       ),
+              //   direction: VerticalDirection.up,
+              // ),
               TypeAheadField<SalesItemModel>(
                 controller: _salesItemController,
                 focusNode: _salesItemFocusNode,
@@ -852,7 +948,20 @@ class _EditLeadPageState extends State<EditLeadPage> {
                     ),
                 suggestionsCallback: (pattern) async {
                   if (pattern.length < 3) return [];
-                  return await _formService.searchSalesItems(pattern);
+                  final allItems = await _formService.searchSalesItems(pattern);
+
+                  if (!_isDuplicateItem) {
+                    // Filter out items that are already added
+                    final addedItemCodes =
+                        _items.map((entry) => entry.item.itemCode).toSet();
+                    return allItems
+                        .where(
+                          (item) => !addedItemCodes.contains(item.itemCode),
+                        )
+                        .toList();
+                  }
+
+                  return allItems;
                 },
                 itemBuilder:
                     (context, suggestion) => ListTile(
@@ -863,13 +972,6 @@ class _EditLeadPageState extends State<EditLeadPage> {
                       ),
                     ),
                 onSelected: (suggestion) {
-                  final alreadyExists = _items.any(
-                    (item) => item.item.itemCode == suggestion.itemCode,
-                  );
-                  if (alreadyExists) {
-                    _showSnackBar('This sales item is already added.');
-                    return;
-                  }
                   _addItem(suggestion);
                   _salesItemController.clear();
                 },

@@ -49,9 +49,11 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
   List<Map<String, dynamic>> _discountDetails = [];
   late DateTime startDate;
   late DateTime endDate;
+  late String currency;
 
   // Store original invoice details
   ProformaInvoiceDetails? _originalInvoiceDetails;
+  bool _isDuplicateAllowed = false;
 
   final List<String> preferenceOptions = [
     "On Quotation",
@@ -73,8 +75,23 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
       await _loadFinancePeriod();
       await _loadRateStructures();
       await _loadInvoiceDetails();
+      await _loadSalesPolicy();
+      final domCurrency = await StorageUtils.readJson('domestic_currency');
+      if (domCurrency == null) throw Exception("Domestic currency not set");
+
+      currency = domCurrency['domCurCode'] ?? 'INR';
     } catch (e) {
       _showError("Failed to initialize form: ${e.toString()}");
+    }
+  }
+
+  Future<void> _loadSalesPolicy() async {
+    try {
+      final salesPolicy = await _service.getSalesPolicy();
+      _isDuplicateAllowed = salesPolicy['allowDuplicate'] ?? false;
+    } catch (e) {
+      debugPrint("Error loading sales policy: $e");
+      _isDuplicateAllowed = false; // Default to not allowing duplicates
     }
   }
 
@@ -520,6 +537,8 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
             (context) => AddItemPage(
               service: addProformaService, // Use the correct service type
               rateStructures: rateStructures,
+              existingItems: items, // Pass existing items
+              isDuplicateAllowed: _isDuplicateAllowed, // Pass duplicate flag
             ),
       ),
     );
@@ -569,7 +588,7 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
         if (result.discountAmount != null && result.discountAmount! > 0) {
           _discountDetails.add({
             "itemCode": result.itemCode,
-            "currCode": "INR",
+            "currCode": currency,
             // "discCode": result.discountCode,
             "discType": result.discountType,
             "discVal":
@@ -722,7 +741,7 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
         if (item.discountAmount != null && item.discountAmount! > 0) {
           discountDetails.add({
             "itemCode": item.itemCode,
-            "currCode": "INR",
+            "currCode": currency,
             "discCode": "DISC",
             "discType": item.discountType,
             "discVal":
@@ -815,7 +834,7 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
       "invDiscountValue": totalDiscount.toStringAsFixed(2),
       "invFromLocationId": locationId,
       "invCreatedUserId": userId,
-      "invCurrCode": "INR",
+      "invCurrCode": currency,
       "invRate": 0,
       "invNumber": widget.invoice.number, // Use original invoice number
       "invBacAmount": basicAmount.toStringAsFixed(2),

@@ -56,6 +56,11 @@ class ProformaInvoiceService {
     final tokenDetails = await StorageUtils.readJson('session_token');
     if (tokenDetails == null) throw Exception("Session token not found");
 
+    final domCurrency = await StorageUtils.readJson('domestic_currency');
+    if (domCurrency == null) throw Exception("Domestic currency not set");
+
+    final currency = domCurrency['domCurCode'] ?? 'INR';
+
     final token = tokenDetails['token']['value'];
 
     _dio.options.headers['Content-Type'] = 'application/json';
@@ -73,12 +78,12 @@ class ProformaInvoiceService {
       "printtype": "word",
       "showitemcd": "yes",
       "companyData": companyDetails,
-      "strDomCurrency": "INR",
+      "strDomCurrency": currency,
       "strDomCurrencyDesc": "Indian Rupee",
       "chkOriginalCopy": true,
       "chkDuplicateCopy": false,
       "strNumber": invoice.id.toString(),
-      "strDomCurrencyDNOMITN": "INR",
+      "strDomCurrencyDNOMITN": currency,
       "Detailselection": "withdetail",
       "Valuetype": "both",
     };

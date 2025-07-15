@@ -275,6 +275,10 @@ class ProformaInvoiceService {
       throw Exception("Session token not found");
     }
     final token = tokenDetails['token']['value'];
+    final domCurrency = await StorageUtils.readJson('domestic_currency');
+    if (domCurrency == null) throw Exception("Domestic currency not set");
+
+    final currency = domCurrency['domCurCode'] ?? 'INR';
 
     _dio.options.headers['companyid'] = companyId.toString();
     _dio.options.headers['Authorization'] = 'Bearer $token';
@@ -285,7 +289,7 @@ class ProformaInvoiceService {
       "$_baseUrl$endpoint",
       queryParameters: {
         'companyID': companyId.toString(),
-        'currencyCode': 'INR',
+        'currencyCode': currency,
       },
     );
     debugPrint("Response: ${response.data}");
@@ -371,12 +375,16 @@ class ProformaInvoiceService {
     List<Map<String, dynamic>> rateStructureDetails,
     String itemCode,
   ) async {
+    final domCurrency = await StorageUtils.readJson('domestic_currency');
+    if (domCurrency == null) throw Exception("Domestic currency not set");
+
+    final currency = domCurrency['domCurCode'] ?? 'INR';
     const endpoint = "/api/Quotation/CalcRateStructure";
     final body = {
       "ItemAmount": itemAmount,
       "ExchangeRt": "1",
-      "DomCurrency": "INR",
-      "CurrencyCode": "INR",
+      "DomCurrency": currency,
+      "CurrencyCode": currency,
       "DiscType": "",
       "BasicRate": 0,
       "DiscValue": 0,
@@ -467,6 +475,26 @@ class ProformaInvoiceService {
     }
   }
 
+  Future<Map<String, dynamic>> getSalesPolicy() async {
+    try {
+      final companyDetails = await StorageUtils.readJson('selected_company');
+      if (companyDetails == null) throw Exception("Company not set");
+      final companyCode = companyDetails['code'];
+      const endpoint = "/api/Login/GetSalesPolicyDetails";
+      final response = await _dio.get(
+        '$_baseUrl$endpoint',
+        queryParameters: {"companyCode": companyCode},
+      );
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return response.data['data']['salesPolicyResultModel'][0]
+            as Map<String, dynamic>;
+      }
+      return {};
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<String> updateProformaInvoice(Map<String, dynamic> payload) async {
     const endpoint = "/api/Proforma/proformaInvoiceEntryUpdate";
     try {
@@ -505,18 +533,16 @@ class ProformaInvoiceService {
       debugPrint("Location submission response: ${response.data}");
 
       if (response.statusCode == 200) {
-        final data = response.data;
-        if (data is Map<String, dynamic>) {
-          final success = data['success'];
-          if (success == true || success == 'true') {
-            debugPrint("Location submission successful");
-            return true;
-          } else {
-            debugPrint(
-              "Location submission failed: ${data['message'] ?? 'Unknown error'}",
-            );
-            return false;
-          }
+        final data = jsonDecode(response.data);
+        final success = data['success'];
+        if (success == true || success == 'true') {
+          debugPrint("Location submission successful");
+          return true;
+        } else {
+          debugPrint(
+            "Location submission failed: ${data['message'] ?? 'Unknown error'}",
+          );
+          return false;
         }
       }
 
@@ -566,5 +592,30 @@ class ProformaInvoiceService {
       debugPrint("Error in getGeoLocation: $e");
       return null;
     }
+  }
+
+  Future<Map<String, dynamic>> fetchProformaInvoiceList({
+    required int pageNumber,
+    required int pageSize,
+    String? searchValue,
+  }) async {
+    final locationId = _locationDetails['id'] ?? 0;
+    final body = {
+      "locationId": locationId,
+      "pageNumber": pageNumber,
+      "pageSize": pageSize,
+      "sortField": "",
+      "sortDirection": "",
+      "searchValue": searchValue,
+    };
+
+    final endpoint = "/api/Proforma/proformaInvoiceEntryList";
+
+    final response = await _dio.post('$_baseUrl$endpoint', data: body);
+    if (response.statusCode == 200 && response.data['success'] == true) {
+      final List data = response.data['data'] ?? [];
+      return data[0];
+    }
+    throw Exception('Failed to fetch proforma invoices');
   }
 }

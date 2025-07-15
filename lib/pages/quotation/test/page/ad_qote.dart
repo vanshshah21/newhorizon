@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
+import 'package:nhapp/pages/quotation/pages/quotation_detail.dart';
 import 'package:nhapp/pages/quotation/test/model/model_ad_qote.dart';
 import 'package:nhapp/pages/quotation/test/page/ad_itm.dart';
 import 'package:nhapp/pages/quotation/test/page/edit_item.dart';
@@ -46,6 +47,8 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
   late Map<String, dynamic>? _financeDetails;
   bool _isDuplicateAllowed = false;
   late double _exchangeRate;
+  late String currency;
+  List<Map<String, dynamic>> rateStructureDetails = [];
 
   @override
   void initState() {
@@ -181,6 +184,10 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
 
   Future<void> _getExchangeRate() async {
     try {
+      final domCurrency = await StorageUtils.readJson('domestic_currency');
+      if (domCurrency == null) throw Exception("Domestic currency not set");
+
+      currency = domCurrency['domCurCode'] ?? 'INR';
       _exchangeRate = await _service.getExchangeRate() ?? 1.0;
     } catch (e) {
       debugPrint("Error loading exchange rate: $e");
@@ -313,14 +320,14 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
           final discType = item['discountDetails'][0]['discountType'] ?? '';
 
           if (discType == 'P') {
-            discountType = 'Percentage';
+            discountType = 'P';
             discountPercentage = discValue;
             discountAmount =
                 ((item['basicPriceSUOM'] ?? 0).toDouble() *
                     (item['qtySUOM'] ?? 0).toDouble()) *
                 (discValue / 100);
           } else {
-            discountType = 'Value';
+            discountType = 'V';
             discountAmount = discValue;
             final basicAmount =
                 (item['basicPriceSUOM'] ?? 0).toDouble() *
@@ -331,12 +338,12 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
         }
 
         // Calculate tax amount
-        double taxAmount = 0.0;
-        if (item['rateStructureDetails'] != null) {
-          for (final rsDetail in item['rateStructureDetails']) {
-            taxAmount += (rsDetail['rateAmount'] ?? 0).toDouble();
-          }
-        }
+        // double taxAmount = 0.0;
+        // if (item['rateStructureDetails'] != null) {
+        //   for (final rsDetail in item['rateStructureDetails']) {
+        //     taxAmount += (rsDetail['rateAmount'] ?? 0).toDouble();
+        //   }
+        // }
 
         items.add(
           QuotationItem(
@@ -348,8 +355,8 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
             discountType: discountType,
             discountPercentage: discountPercentage,
             discountAmount: discountAmount,
-            rateStructure: item['rateStructureCode'] ?? '',
-            taxAmount: taxAmount,
+            rateStructure: '',
+            taxAmount: 0.00,
             totalAmount: (item['basicAmount'] ?? 0).toDouble(),
             rateStructureRows:
                 item['rateStructureDetails'] != null
@@ -509,7 +516,6 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
     // Build model details
     List<Map<String, dynamic>> modelDetails = [];
     List<Map<String, dynamic>> discountDetails = [];
-    List<Map<String, dynamic>> rateStructureDetails = [];
 
     for (int i = 0; i < items.length; i++) {
       final item = items[i];
@@ -538,12 +544,11 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
     final finalAmount = totalAfterDiscount + totalTax;
 
     return {
-      "authorizationRequired": "Y",
-      "autoNumberRequired": "Y",
-      "siteRequired": "Y",
-      "authorizationDate": FormatUtils.formatDateForApi(
-        selectedDate ?? DateTime.now(),
-      ),
+      "authorizationRequired":
+          documentDetail!.isAutorisationRequired ? "Y" : "N",
+      "autoNumberRequired": documentDetail!.isAutoNumberGenerated ? "Y" : "N",
+      "siteRequired": documentDetail!.isLocationRequired ? "Y" : "N",
+      "authorizationDate": DateTime.now().toIso8601String(),
       "fromLocationId": locationId,
       "userId": userId,
       "companyId": companyId,
@@ -551,7 +556,7 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
       "fromLocationName": _service.locationDetails['name'] ?? "",
       "ip": "",
       "mac": "",
-      "domesticCurrencyCode": "INR",
+      "domesticCurrencyCode": currency,
       "quotationDetails": {
         "customerCode": selectedCustomer?.customerCode ?? "",
         "quotationYear": docYear,
@@ -596,7 +601,7 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
         "isBudgetaryQuotation": false,
         "quotationStatus": "NS",
         "quotationAmendDate": null,
-        "currencyCode": "INR",
+        "currencyCode": currency,
         "agentCode": "",
         "quotationTypeConfig": "N",
         "reasonCode": "",
@@ -616,7 +621,7 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
       "standardTerms": [],
       "quotationRemarks": [],
       "msctechspecifications": true,
-      "mscSameItemAllowMultitimeFlag": true,
+      "mscSameItemAllowMultitimeFlag": _isDuplicateAllowed,
     };
   }
 
@@ -719,6 +724,12 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
     }
     if (items.isEmpty) {
       _showError("Please add at least one item");
+      return;
+    }
+
+    // Check if rate structures are empty
+    if (items.isNotEmpty && items.any((item) => item.rateStructure.isEmpty)) {
+      _showError("Rate structure cannot be empty. Please add rate structure.");
       return;
     }
 
@@ -835,7 +846,35 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
         }
 
         _showSuccess(response['message'] ?? "Quotation submitted successfully");
-        Navigator.pop(context, true);
+
+        try {
+          final quotationList = await _service.fetchQuotationList(
+            searchValue:
+                response['data']?['quotationDetails']?['quotationNumber'],
+          );
+
+          if (quotationList.isNotEmpty) {
+            final quotation = quotationList.first;
+
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Quotation created successfully!'),
+                ),
+              );
+
+              // Navigate to QuotationDetailPage
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder:
+                      (context) => QuotationDetailPage(quotation: quotation),
+                ),
+              );
+            }
+          }
+        } catch (e) {
+          Navigator.pop(context, true);
+        }
       } else {
         _showError(response['errorMessage'] ?? "Failed to submit quotation");
       }

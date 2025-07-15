@@ -376,6 +376,31 @@ class _AddItemPageState extends State<AddItemPage> {
   //     },
   //   );
   // }
+  // Widget _buildDiscountTypeField() {
+  //   return DropdownButtonFormField<String>(
+  //     value: discountType,
+  //     decoration: const InputDecoration(
+  //       labelText: "Discount Type",
+  //       border: OutlineInputBorder(),
+  //     ),
+  //     items:
+  //         [
+  //           "None",
+  //           "P",
+  //           "V",
+  //         ].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+  //     onChanged: (val) {
+  //       if (val != null) {
+  //         setState(() {
+  //           discountType = val;
+  //           discountPercentageController.clear();
+  //           discountAmountController.clear();
+  //           _formDirty = true;
+  //         });
+  //       }
+  //     },
+  //   );
+  // }
   Widget _buildDiscountTypeField() {
     return DropdownButtonFormField<String>(
       value: discountType,
@@ -383,12 +408,11 @@ class _AddItemPageState extends State<AddItemPage> {
         labelText: "Discount Type",
         border: OutlineInputBorder(),
       ),
-      items:
-          [
-            "None",
-            "P",
-            "V",
-          ].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+      items: [
+        DropdownMenuItem(value: "None", child: Text("None")),
+        DropdownMenuItem(value: "P", child: Text("Percentage")),
+        DropdownMenuItem(value: "V", child: Text("Value")),
+      ],
       onChanged: (val) {
         if (val != null) {
           setState(() {

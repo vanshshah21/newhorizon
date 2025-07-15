@@ -4,6 +4,8 @@ import 'package:dio/dio.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
+import 'package:nhapp/pages/followup/models/followup_list_item.dart';
+import 'package:nhapp/pages/followup/pages/followup_detail_page.dart';
 import 'package:nhapp/utils/format_utils.dart';
 import 'package:nhapp/utils/storage_utils.dart';
 
@@ -62,6 +64,8 @@ class _AddFollowUpFormState extends State<AddFollowUpForm> {
   Map<String, dynamic>? companyData;
   Map<String, dynamic>? tokenData;
   Map<String, dynamic>? locationData;
+
+  Map<String, dynamic>? selectedFollowUp;
 
   @override
   void initState() {
@@ -232,6 +236,39 @@ class _AddFollowUpFormState extends State<AddFollowUpForm> {
       salesmanList = List<Map<String, dynamic>>.from(response.data['data']);
     } catch (e) {
       debugPrint('Error fetching salesman list: $e');
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> _fetchFollowUpList() async {
+    try {
+      final companyId = companyData?['id'];
+      final token = tokenData?['token']['value'];
+
+      _dio.options.headers['Content-Type'] = 'application/json';
+      _dio.options.headers['Accept'] = 'application/json';
+      _dio.options.headers['companyid'] = companyId;
+      _dio.options.headers['Authorization'] = 'Bearer $token';
+
+      final body = {
+        "pageNumber": 1,
+        "pageSize": 10,
+        "sortField": "",
+        "sortDirection": "",
+        "searchValue": "",
+        "restcoresalestrans": "false",
+      };
+
+      final endpoint = "/api/Followup/FollowUpEntryList";
+
+      final response = await _dio.post('http://$baseUrl$endpoint', data: body);
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final List data = response.data['data'] ?? [];
+        return data[0];
+      }
+      throw Exception('Failed to fetch proforma invoices');
+    } catch (e) {
+      debugPrint('Error fetching Data.');
       rethrow;
     }
   }
@@ -819,13 +856,13 @@ class _AddFollowUpFormState extends State<AddFollowUpForm> {
         "autoId":
             selectedLeadNumber?['autoId'] ??
             selectedQuotationNumber?['autoId'] ??
-            1,
+            0,
         "baseOn": selectedFollowUpBase == "T" ? "O" : selectedFollowUpBase,
         "custCode": selectedCustomer?['customerCode'],
         "docId":
             selectedLeadNumber?['autoId'] ??
             selectedQuotationNumber?['autoId'] ??
-            1,
+            0,
         "expeResDate":
             expectedDate != null
                 ? FormatUtils.formatDateForApi(expectedDate!)
@@ -853,12 +890,41 @@ class _AddFollowUpFormState extends State<AddFollowUpForm> {
         data: body,
       );
 
+      // if (response.data['success'] == true) {
+      //   if (mounted) {
+      //     ScaffoldMessenger.of(context).showSnackBar(
+      //       const SnackBar(content: Text('Follow up added successfully!')),
+      //     );
+      //     // Navigator.pop(context, true);
+      //     // selectedFollowUp = await _fetchFollowUpList();
+      //   }
+      // } else {
+      //   if (mounted) {
+      //     ScaffoldMessenger.of(context).showSnackBar(
+      //       SnackBar(content: Text('Failed: ${response.data['message']}')),
+      //     );
+      //   }
+      // }
       if (response.data['success'] == true) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Follow up added successfully!')),
-          );
-          Navigator.pop(context, true);
+        // Fetch the created follow-up details
+        final followupData = await _fetchFollowUpList();
+
+        if (followupData != null) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Follow-up created successfully!')),
+            );
+
+            // Navigate to FollowupDetailPage
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder:
+                    (context) => FollowupDetailPage(
+                      followup: FollowupListItem.fromJson(followupData),
+                    ),
+              ),
+            );
+          }
         }
       } else {
         if (mounted) {

@@ -80,11 +80,11 @@ class _EditItemPageState extends State<EditItemPage> {
     }
 
     // Set discount values based on type
-    if (widget.item.discountType == "Percentage" &&
+    if (widget.item.discountType == "P" &&
         widget.item.discountPercentage != null) {
       discountPercentageController.text =
           widget.item.discountPercentage!.toString();
-    } else if (widget.item.discountType == "Value" &&
+    } else if (widget.item.discountType == "V" &&
         widget.item.discountAmount != null) {
       discountAmountController.text = widget.item.discountAmount!.toString();
     }
@@ -178,10 +178,10 @@ class _EditItemPageState extends State<EditItemPage> {
         selectedRateStructure != widget.item.rateStructure ||
         (selectedDiscountCode?.code ?? '') !=
             (widget.item.discountCode ?? '') ||
-        (discountType == "Percentage" &&
+        (discountType == "P" &&
             discountPercentageController.text !=
                 (widget.item.discountPercentage?.toString() ?? '')) ||
-        (discountType == "Value" &&
+        (discountType == "V" &&
             discountAmountController.text !=
                 (widget.item.discountAmount?.toString() ?? ''));
   }
@@ -240,11 +240,11 @@ class _EditItemPageState extends State<EditItemPage> {
                         _buildDiscountCodeField(),
                         const SizedBox(height: 16),
                         _buildDiscountTypeField(),
-                        if (discountType == "Percentage") ...[
+                        if (discountType == "P") ...[
                           const SizedBox(height: 16),
                           _buildDiscountPercentageField(),
                         ],
-                        if (discountType == "Value") ...[
+                        if (discountType == "V") ...[
                           const SizedBox(height: 16),
                           _buildDiscountAmountField(),
                         ],
@@ -260,7 +260,41 @@ class _EditItemPageState extends State<EditItemPage> {
     );
   }
 
+  // Widget _buildDiscountCodeField() {
+  //   return DropdownButtonFormField<DiscountCode>(
+  //     value: selectedDiscountCode,
+  //     decoration: const InputDecoration(
+  //       labelText: "Discount Code",
+  //       border: OutlineInputBorder(),
+  //     ),
+  //     isExpanded: true,
+  //     items:
+  //         discountCodes.map((discountCode) {
+  //           return DropdownMenuItem<DiscountCode>(
+  //             value: discountCode,
+  //             child: Text(
+  //               discountCode.codeFullName,
+  //               style: const TextStyle(fontSize: 14),
+  //             ),
+  //           );
+  //         }).toList(),
+  //     onChanged: (val) {
+  //       setState(() {
+  //         selectedDiscountCode = val;
+  //         _formDirty = true;
+  //       });
+  //     },
+  //     validator: (value) => value == null ? "Discount Code is required" : null,
+  //   );
+  // }
   Widget _buildDiscountCodeField() {
+    // Ensure selectedDiscountCode exists in the list
+    if (selectedDiscountCode != null &&
+        !discountCodes.any((code) => code.code == selectedDiscountCode!.code)) {
+      selectedDiscountCode =
+          discountCodes.isNotEmpty ? discountCodes.first : null;
+    }
+
     return DropdownButtonFormField<DiscountCode>(
       value: selectedDiscountCode,
       decoration: const InputDecoration(
@@ -400,27 +434,56 @@ class _EditItemPageState extends State<EditItemPage> {
     );
   }
 
+  // Widget _buildDiscountTypeField() {
+  //   return DropdownButtonFormField<String>(
+  //     value: discountType,
+  //     decoration: const InputDecoration(
+  //       labelText: "Discount Type",
+  //       border: OutlineInputBorder(),
+  //     ),
+  //     items:
+  //         [
+  //           "None",
+  //           "Percentage",
+  //           "Value",
+  //         ].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+  //     onChanged: (val) {
+  //       if (val != null) {
+  //         setState(() {
+  //           discountType = val;
+  //           if (val == "None") {
+  //             discountPercentageController.clear();
+  //             discountAmountController.clear();
+  //           }
+  //           _formDirty = true;
+  //         });
+  //       }
+  //     },
+  //   );
+  // }
   Widget _buildDiscountTypeField() {
+    // Ensure the value is valid and matches one of the dropdown items
+    if (!["None", "P", "V"].contains(discountType)) {
+      discountType = "None"; // Default to "None" if the value is invalid
+    }
+
     return DropdownButtonFormField<String>(
       value: discountType,
       decoration: const InputDecoration(
         labelText: "Discount Type",
         border: OutlineInputBorder(),
       ),
-      items:
-          [
-            "None",
-            "Percentage",
-            "Value",
-          ].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+      items: [
+        DropdownMenuItem(value: "None", child: Text("None")),
+        DropdownMenuItem(value: "P", child: Text("Percentage")),
+        DropdownMenuItem(value: "V", child: Text("Value")),
+      ],
       onChanged: (val) {
         if (val != null) {
           setState(() {
             discountType = val;
-            if (val == "None") {
-              discountPercentageController.clear();
-              discountAmountController.clear();
-            }
+            discountPercentageController.clear();
+            discountAmountController.clear();
             _formDirty = true;
           });
         }
@@ -438,7 +501,7 @@ class _EditItemPageState extends State<EditItemPage> {
       ),
       onChanged: (_) => _setDirty(),
       validator: (value) {
-        if (discountType == "Percentage") {
+        if (discountType == "P") {
           if (value == null || value.isEmpty) {
             return "Discount Percentage is required";
           }
@@ -462,7 +525,7 @@ class _EditItemPageState extends State<EditItemPage> {
       ),
       onChanged: (_) => _setDirty(),
       validator: (value) {
-        if (discountType == "Value") {
+        if (discountType == "V") {
           if (value == null || value.isEmpty) {
             return "Discount Amount is required";
           }
@@ -477,7 +540,83 @@ class _EditItemPageState extends State<EditItemPage> {
     );
   }
 
+  // Widget _buildRateStructureField() {
+  //   return DropdownButtonFormField<String>(
+  //     value: selectedRateStructure,
+  //     decoration: const InputDecoration(
+  //       labelText: "Rate Structure",
+  //       border: OutlineInputBorder(),
+  //     ),
+  //     isExpanded: true,
+  //     selectedItemBuilder: (context) {
+  //       return widget.rateStructures.map((rs) {
+  //         return SizedBox(
+  //           width: 200,
+  //           child: Text(
+  //             rs.rateStructFullName,
+  //             overflow: TextOverflow.ellipsis,
+  //             style: const TextStyle(color: Colors.black),
+  //           ),
+  //         );
+  //       }).toList();
+  //     },
+  //     items:
+  //         widget.rateStructures.map((rs) {
+  //           return DropdownMenuItem<String>(
+  //             value: rs.rateStructCode,
+  //             child: Text(
+  //               rs.rateStructFullName,
+  //               style: const TextStyle(fontSize: 14),
+  //             ),
+  //           );
+  //         }).toList(),
+  //     onChanged: (val) async {
+  //       if (val != null) {
+  //         setState(() {
+  //           selectedRateStructure = val;
+  //           _formDirty = true;
+  //         });
+
+  //         try {
+  //           setState(() => _isLoading = true);
+  //           final newRateStructureRows = await widget.service
+  //               .fetchRateStructureDetails(val);
+  //           setState(() {
+  //             rateStructureRows = newRateStructureRows;
+  //             _isLoading = false;
+  //           });
+  //           print("Loaded new rate structure rows: $rateStructureRows");
+  //         } catch (e) {
+  //           setState(() => _isLoading = false);
+  //           print("Error loading rate structure details: $e");
+  //           ScaffoldMessenger.of(context).showSnackBar(
+  //             SnackBar(
+  //               content: Text("Error loading rate structure: ${e.toString()}"),
+  //             ),
+  //           );
+  //         }
+  //       }
+  //     },
+  //     validator: (value) => value == null ? "Rate Structure is required" : null,
+  //   );
+  // }
   Widget _buildRateStructureField() {
+    // Remove duplicates and ensure unique rate structure codes
+    final uniqueRateStructures = <String, RateStructure>{};
+    for (final rs in widget.rateStructures) {
+      if (rs.rateStructCode.isNotEmpty) {
+        uniqueRateStructures[rs.rateStructCode] = rs;
+      }
+    }
+    final uniqueRateStructureList = uniqueRateStructures.values.toList();
+
+    // Validate selectedRateStructure exists in the list
+    if (selectedRateStructure != null &&
+        !uniqueRateStructures.containsKey(selectedRateStructure)) {
+      // If selected value doesn't exist, reset it
+      selectedRateStructure = null;
+    }
+
     return DropdownButtonFormField<String>(
       value: selectedRateStructure,
       decoration: const InputDecoration(
@@ -486,7 +625,7 @@ class _EditItemPageState extends State<EditItemPage> {
       ),
       isExpanded: true,
       selectedItemBuilder: (context) {
-        return widget.rateStructures.map((rs) {
+        return uniqueRateStructureList.map((rs) {
           return SizedBox(
             width: 200,
             child: Text(
@@ -498,7 +637,7 @@ class _EditItemPageState extends State<EditItemPage> {
         }).toList();
       },
       items:
-          widget.rateStructures.map((rs) {
+          uniqueRateStructureList.map((rs) {
             return DropdownMenuItem<String>(
               value: rs.rateStructCode,
               child: Text(
@@ -564,10 +703,10 @@ class _EditItemPageState extends State<EditItemPage> {
     double discountAmount = 0;
     double? discountPercentage;
 
-    if (discountType == "Percentage") {
+    if (discountType == "P") {
       discountPercentage = double.parse(discountPercentageController.text);
       discountAmount = (basicRate * qty) * (discountPercentage / 100);
-    } else if (discountType == "Value") {
+    } else if (discountType == "V") {
       discountAmount = double.parse(discountAmountController.text);
       discountPercentage = (discountAmount / (basicRate * qty)) * 100;
     }
@@ -629,8 +768,7 @@ class _EditItemPageState extends State<EditItemPage> {
           basicRate: basicRate,
           uom: selectedItem?.salesUOM ?? widget.item.uom,
           discountType: discountType,
-          discountPercentage:
-              discountType == "Percentage" ? discountPercentage : null,
+          discountPercentage: discountType == "P" ? discountPercentage : null,
           discountAmount: discountAmount > 0 ? discountAmount : null,
           discountCode: selectedDiscountCode?.code, // Include discount code
           rateStructure: selectedRateStructure!,

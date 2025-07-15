@@ -340,6 +340,10 @@ class QuotationFormService {
     if (companyDetails == null) throw Exception("Company not set");
     final tokenDetails = await StorageUtils.readJson('session_token');
     if (tokenDetails == null) throw Exception("Session token not found");
+    final domCurrency = await StorageUtils.readJson('domestic_currency');
+    if (domCurrency == null) throw Exception("Domestic currency not set");
+
+    final currency = domCurrency['domCurCode'] ?? 'INR';
 
     final companyId = companyDetails['id'];
     final token = tokenDetails['token']['value'];
@@ -353,8 +357,8 @@ class QuotationFormService {
     final body = {
       "ItemAmount": itemAmount,
       "ExchangeRt": "1",
-      "DomCurrency": "INR",
-      "CurrencyCode": "INR",
+      "DomCurrency": currency,
+      "CurrencyCode": currency,
       "DiscType": discountType,
       "BasicRate": basicRate,
       "DiscValue": discountValue,
@@ -417,6 +421,10 @@ class QuotationFormService {
     List<Map<String, dynamic>> discountDetails = [];
     List<Map<String, dynamic>> modelDetails = [];
     double totalBasic = 0, totalDiscount = 0, totalTax = 0, totalAmount = 0;
+    final domCurrency = await StorageUtils.readJson('domestic_currency');
+    if (domCurrency == null) throw Exception("Domestic currency not set");
+
+    final currency = domCurrency['domCurCode'] ?? 'INR';
 
     for (int i = 0; i < data.items.length; i++) {
       final item = data.items[i];
@@ -453,7 +461,7 @@ class QuotationFormService {
       if (calc.discountValueApplied > 0) {
         discountDetails.add({
           "AmendSrNo": 0,
-          "CurrencyCode": "INR",
+          "CurrencyCode": currency,
           "DiscountCode": item['discountCode'] ?? "01",
           "DiscountType": item['discountType'] ?? "None",
           "DiscountValue": calc.discountValueApplied,
@@ -481,7 +489,7 @@ class QuotationFormService {
         "BasicPriceSUOM": item['rate'],
         "CancelQty": 0,
         "ConversionFactor": 1,
-        "CurrencyCode": "INR",
+        "CurrencyCode": currency,
         "CustomerPOItemSrNo": "1",
         "DeliveryDay": 0,
         "DiscountAmt": calc.discountValueApplied,
@@ -563,7 +571,7 @@ class QuotationFormService {
       "DiscountDetails": discountDetails,
       "DocSubType": "SQ",
       "DocType": "SQ",
-      "DomesticCurrencyCode": "INR",
+      "DomesticCurrencyCode": currency,
       "EquipmentAttributeDetails": null,
       "FromLocationCode": data.docDetail["locationCode"],
       "FromLocationId": data.docDetail["locationId"],

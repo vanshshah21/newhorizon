@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:nhapp/pages/proforma_invoice/models/add_proforma_invoice.dart';
+import 'package:nhapp/pages/proforma_invoice/models/proforma_invoice_item.dart';
 import 'package:nhapp/pages/proforma_invoice/pages/add_item_page.dart';
+import 'package:nhapp/pages/proforma_invoice/pages/proforma_invoice_details_page.dart';
 import 'package:nhapp/pages/proforma_invoice/service/add_proforma_invoice.dart';
 import 'package:nhapp/utils/format_utils.dart';
 import 'package:nhapp/utils/location_utils.dart';
@@ -56,6 +58,9 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   late DateTime startDate;
   late DateTime endDate;
   late final String currency;
+  bool _isDuplicateAllowed = false;
+  bool _submitting = false;
+  late final Map<String, dynamic> _selectedProformaInvoice;
 
   final List<String> preferenceOptions = [
     "On Quotation",
@@ -75,6 +80,8 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
     _service = await ProformaInvoiceService.create();
     await _loadFinancePeriod();
     await _loadRateStructures();
+    // Fetch the `addDuplicate` flag from the service or configuration
+    await _loadSalesPolicy();
     loadProformaInvoiceDefaults();
     final curObj = await StorageUtils.readJson('domestic_currency');
     currency = curObj?['domCurCode'] ?? 'INR';
@@ -120,6 +127,16 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
       }
     } catch (e) {
       _setDefaultDate();
+    }
+  }
+
+  Future<void> _loadSalesPolicy() async {
+    try {
+      final salesPolicy = await _service.getSalesPolicy();
+      _isDuplicateAllowed = salesPolicy['allowDuplicate'] ?? false;
+    } catch (e) {
+      debugPrint("Error loading sales policy: $e");
+      _isDuplicateAllowed = false; // Default to not allowing duplicates
     }
   }
 
@@ -751,8 +768,12 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
       context,
       MaterialPageRoute(
         builder:
-            (context) =>
-                AddItemPage(service: _service, rateStructures: rateStructures),
+            (context) => AddItemPage(
+              service: _service,
+              rateStructures: rateStructures,
+              existingItems: items,
+              isDuplicateAllowed: _isDuplicateAllowed,
+            ),
       ),
     );
 
@@ -1455,15 +1476,16 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
       }
     }
 
-    // Step 2: Get current location
+    // Step 2: Show confirmation dialog
     final confirmed = await _showConfirmationDialog();
     if (!confirmed) return;
 
-    setState(() => _isLoading = true);
+    // Step 3: Start submission process
+    setState(() => _submitting = true);
 
     final position = await LocationUtils.instance.getCurrentLocation();
     if (position == null) {
-      setState(() => _isLoading = false);
+      setState(() => _submitting = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Unable to get current location. Please try again.'),
@@ -1480,14 +1502,19 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
       );
 
       if (proformaInvoiceNumber != "0") {
-        // Step 3: Submit location with proper error handling
+        _selectedProformaInvoice = await _service.fetchProformaInvoiceList(
+          pageNumber: 1,
+          pageSize: 100,
+          searchValue: proformaInvoiceNumber,
+        );
+        // Step 4: Submit location with proper error handling
         bool locationSuccess = true;
         List<String> errorMessages = [];
 
-        // Submit location using the proforma invoice number
+        // Submit location using the proforma invoice number as functionId
         try {
           locationSuccess = await _service.submitLocation(
-            functionId: proformaInvoiceNumber,
+            functionId: _selectedProformaInvoice['id'].toString(),
             longitude: position.longitude,
             latitude: position.latitude,
           );
@@ -1498,28 +1525,36 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
         } catch (e) {
           debugPrint('Location submission error: $e');
           locationSuccess = false;
-          errorMessages.add('Location submission failed: $e');
+          // errorMessages.add('Location submission failed: $e');
         }
 
         if (!mounted) return;
         setState(() => _isLoading = false);
 
-        // Show appropriate success/error messages
-        if (locationSuccess) {
-          _showSuccess(
-            "Proforma Invoice submitted successfully with location!",
-          );
-        } else {
-          String errorMessage = 'Proforma Invoice submitted, but ';
-          if (errorMessages.isNotEmpty) {
-            errorMessage += errorMessages.join(', ');
-          } else {
-            errorMessage += 'location submission failed';
-          }
-          _showError(errorMessage);
-        }
+        // Step 5: Show appropriate success/error messages
+        // if (locationSuccess) {
+        _showSuccess("Proforma Invoice submitted successfully!");
+        // } else {
+        //   String errorMessage = 'Proforma Invoice submitted, but ';
+        //   if (errorMessages.isNotEmpty) {
+        //     errorMessage += errorMessages.join(', ');
+        //   } else {
+        //     errorMessage += 'location submission failed';
+        //   }
+        //   _showError(errorMessage);
+        // }
 
-        Navigator.pop(context, true);
+        // Navigator.pop(context, true);
+        // Step 5: Navigate to the details page
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder:
+                (context) => ProformaInvoiceDetailsPage(
+                  invoice: ProformaInvoice.fromJson(_selectedProformaInvoice),
+                ),
+          ),
+        );
       } else {
         setState(() => _isLoading = false);
         _showError("Failed to submit Proforma Invoice");

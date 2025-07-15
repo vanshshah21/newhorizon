@@ -86,6 +86,11 @@ class POService {
     final tokenDetails = await StorageUtils.readJson('session_token');
     if (tokenDetails == null) throw Exception("Session token not found");
 
+    final domCurrency = await StorageUtils.readJson('domestic_currency');
+    if (domCurrency == null) throw Exception("Domestic currency not set");
+
+    final currency = domCurrency['domCurCode'] ?? 'INR';
+
     final companyId = companyDetails['id'];
     final token = tokenDetails['token']['value'];
     final endpoint =
@@ -98,7 +103,7 @@ class POService {
       "companyData": companyDetails,
       "locationData": locationDetails,
       "typeCopyControl": "1",
-      "strDomCurrency": "INR",
+      "strDomCurrency": currency,
       "FormID": "01109",
       "typeSelection": "P",
       "GSTDateTimeTemp": "01/07/2017",

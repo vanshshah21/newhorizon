@@ -1,4 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:nhapp/utils/storage_utils.dart';
+
+late String currencyCode;
+
+// Function to initialize the global currency code
+Future<void> initializeCurrencyCode() async {
+  try {
+    final domCurrency = await StorageUtils.readJson('domestic_currency');
+    currencyCode = domCurrency?['domCurCode'] ?? 'INR';
+  } catch (e) {
+    currencyCode = 'INR'; // Fallback to default if an error occurs
+  }
+}
 
 class Customer {
   final String customerCode;
@@ -193,6 +206,12 @@ class RateStructure {
   }
 }
 
+Future<String> getCurrencyCode() async {
+  final domCurrency = await StorageUtils.readJson('domestic_currency');
+  if (domCurrency == null) throw Exception("Domestic currency not set");
+  return domCurrency['domCurCode'] ?? 'INR';
+}
+
 class QuotationItem {
   final String itemName;
   final String itemCode;
@@ -250,7 +269,7 @@ class QuotationItem {
       "amendmentSrNo": "0",
       "cancelQty": 0,
       "salesItemType": "M",
-      "currencyCode": "INR",
+      "currencyCode": currencyCode,
       "rateProcess": "N",
       "rateStructureCode": rateStructure,
       "tolerance": 0,
@@ -298,7 +317,7 @@ class QuotationItem {
 
     return {
       "salesItemCode": itemCode,
-      "currencyCode": "INR",
+      "currencyCode": currencyCode,
       "discountCode":
           discountCode ??
           (discountType == "Percentage"
@@ -359,7 +378,7 @@ class QuotationItem {
             "PerOrVal": row['pv'] ?? 'V', // XDTDPERVAL
             "TaxValue": (row['taxValue'] ?? 0.0).toDouble(), // XDTDPERCVAL
             "ApplicationOn": row['applicableOn'] ?? '', // XDTDAPPON
-            "CurrencyCode": "INR", // XDTDCURCODE, MPRCURCODE
+            "CurrencyCode": currencyCode, // XDTDCURCODE, MPRCURCODE
             "SequenceNo": row['sequenceNo'] ?? 0, // XDTDSEQNO
             "PostNonPost": row['postnonpost'] ?? true, // XDTDPNYN
             "TaxType": row['mprtaxtyp'] ?? '', // XDTDTAXTYP, MPRTAXTYP

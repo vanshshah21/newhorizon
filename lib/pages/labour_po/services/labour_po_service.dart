@@ -122,6 +122,11 @@ class LabourPOService {
     final tokenDetails = await StorageUtils.readJson('session_token');
     if (tokenDetails == null) throw Exception("Session token not found");
 
+    final domCurrency = await StorageUtils.readJson('domestic_currency');
+    if (domCurrency == null) throw Exception("Domestic currency not set");
+
+    final currency = domCurrency['domCurCode'] ?? 'INR';
+
     final companyId = companyDetails['id'];
     final token = tokenDetails['token']['value'];
     final body = {
@@ -129,7 +134,7 @@ class LabourPOService {
       "companyData": companyDetails,
       "locationData": locationDetails,
       "typeCopyControl": "1",
-      "strDomCurrency": "INR",
+      "strDomCurrency": currency ?? "INR",
       "FormID": "01109",
       "typeSelection": "R",
       "GSTDateTimeTemp": "01/07/2017",

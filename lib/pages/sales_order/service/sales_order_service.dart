@@ -86,6 +86,9 @@ class SalesOrderService {
     final tokenDetails = await StorageUtils.readJson('session_token');
     if (tokenDetails == null) throw Exception("Session token not found");
 
+    final domCurrency = await StorageUtils.readJson('domestic_currency');
+    final currencyCode = domCurrency?['domCurCode'] ?? 'INR';
+
     final companyId = companyDetails['id'];
     final companycd = companyDetails['code'];
     final token = tokenDetails['token']['value'];
@@ -111,10 +114,10 @@ class SalesOrderService {
       "intCompId": companyId,
       "companyData": companyDetails,
       "userid": userId,
-      "strDomCurrency": "INR",
+      "strDomCurrency": currencyCode,
       "fromDate": so.date.substring(0, 10),
       "toDate": so.date.substring(0, 10),
-      "strDomCurrencyDNOMITN": "INR",
+      "strDomCurrencyDNOMITN": currencyCode,
       "strDomCurrencyDesc": "Indian Rupee",
       "FormID": "06106",
       "reportselection": "withvalue",
@@ -227,6 +230,9 @@ class SalesOrderService {
       final tokenDetails = await StorageUtils.readJson('session_token');
       if (tokenDetails == null) throw Exception("Session token not found");
 
+      final domCurrency = await StorageUtils.readJson('domestic_currency');
+      final currencyCode = domCurrency?['domCurCode'] ?? 'INR';
+
       final companyId = companyDetails['id'];
       final token = tokenDetails['token']['value'];
       final locationId = locationDetails['id'];
@@ -247,7 +253,7 @@ class SalesOrderService {
         "IsInterBranchTransfer": false,
         "locationId": locationId,
         "compantid": companyId,
-        "DomCurrency": "INR",
+        "DomCurrency": currencyCode,
       };
 
       final response = await _dio.post(

@@ -1,3 +1,17 @@
+import 'package:nhapp/utils/storage_utils.dart';
+
+late String currencyCode;
+
+// Function to initialize the global currency code
+Future<void> initializeCurrencyCode() async {
+  try {
+    final domCurrency = await StorageUtils.readJson('domestic_currency');
+    currencyCode = domCurrency?['domCurCode'] ?? 'INR';
+  } catch (e) {
+    currencyCode = 'INR'; // Fallback to default if an error occurs
+  }
+}
+
 class Customer {
   final String customerCode;
   final String customerName;
@@ -394,7 +408,7 @@ class SalesOrderItem {
       "amendmentSrNo": 0,
       "cancelQty": 0,
       "salesItemType": "M",
-      "currencyCode": "INR",
+      "currencyCode": currencyCode,
       "rateProcess": "N",
       "rateStructureCode": rateStructure,
       "tolerance": 0,
@@ -452,7 +466,7 @@ class SalesOrderItem {
 
     return {
       "salesItemCode": itemCode,
-      "currencyCode": "INR",
+      "currencyCode": currencyCode,
       "discountCode":
           discountCode ??
           (discountType == "Percentage"

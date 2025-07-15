@@ -14,7 +14,7 @@ class AddItemPage extends StatefulWidget {
     required this.service,
     required this.rateStructures,
     this.existingItems = const [], // Default to empty list
-    this.isDuplicateAllowed = true, // Default to true
+    this.isDuplicateAllowed = false, // Default to false
   });
 
   @override
