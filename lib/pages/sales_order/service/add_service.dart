@@ -12,6 +12,7 @@ class SalesOrderService {
   late final Map<String, dynamic> financeDetails;
   late final Map<String, dynamic> QuotationDocumentDetails;
   late int companyId;
+  late final double _exchangeRate;
 
   SalesOrderService._();
 
@@ -93,6 +94,30 @@ class SalesOrderService {
       return response.data['data'][0];
     } catch (e) {
       throw Exception("Failed to fetch document detail: $e");
+    }
+  }
+
+  Future getExchangeRate() async {
+    final currencyDetails = await StorageUtils.readJson('domestic_currency');
+    if (currencyDetails.isEmpty) throw Exception("Currency details not found");
+    const endpoint = "/api/Login/GetExchangeRate";
+    try {
+      final response = await _dio.get(
+        "$_baseUrl$endpoint",
+        queryParameters: {"currencyCode": currencyDetails['domCurCode']},
+      );
+      if (response.data['success'] == true &&
+          response.data['data'] != null &&
+          response.data['data'].isNotEmpty) {
+        _exchangeRate = response.data['data'][0]['exchangeRate'] ?? 1.0;
+        return response.data['data'][0]['exchangeRate'];
+      } else {
+        _exchangeRate = 1.0;
+        return 1.0;
+      }
+    } catch (e) {
+      _exchangeRate = 1.0;
+      return 1.0;
     }
   }
 
@@ -295,7 +320,7 @@ class SalesOrderService {
     const endpoint = "/api/Quotation/CalcRateStructure";
     final body = {
       "ItemAmount": itemAmount,
-      "ExchangeRt": "1",
+      "ExchangeRt": _exchangeRate.toString(),
       "DomCurrency": currencyCode,
       "CurrencyCode": currencyCode,
       "DiscType": "",

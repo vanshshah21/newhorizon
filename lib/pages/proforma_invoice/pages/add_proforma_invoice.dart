@@ -61,6 +61,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   bool _isDuplicateAllowed = false;
   bool _submitting = false;
   late final Map<String, dynamic> _selectedProformaInvoice;
+  late final double _exchangeRate;
 
   final List<String> preferenceOptions = [
     "On Quotation",
@@ -83,6 +84,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
     // Fetch the `addDuplicate` flag from the service or configuration
     await _loadSalesPolicy();
     loadProformaInvoiceDefaults();
+    // await _getExchangeRate();
     final curObj = await StorageUtils.readJson('domestic_currency');
     currency = curObj?['domCurCode'] ?? 'INR';
     companyDetails = await StorageUtils.readJson('selected_company');
@@ -113,6 +115,15 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
     }
     setState(() => _isLoading = false);
   }
+
+  // Future<void> _getExchangeRate() async {
+  //   try {
+  //     _exchangeRate = await _service.getExchangeRate() ?? 1.0;
+  //   } catch (e) {
+  //     debugPrint("Error loading exchange rate: $e");
+  //     _exchangeRate = 1.0; // Default to 1.0 if there's an error
+  //   }
+  // }
 
   Future<void> _loadFinancePeriod() async {
     try {
@@ -1240,7 +1251,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
     return {
       "action": "add",
       "autoNoRequired": "Y",
-      "exchangeRate": 1.0,
+      "exchangeRate": _exchangeRate ?? 1.0,
       "customerPoNumber": null,
       "customerPoDate": null,
       "itemHeaderDetial": itemHeaderDetial,
@@ -1366,7 +1377,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
       "invFromLocationId": locationId,
       "invCreatedUserId": userId,
       "invCurrCode": currency,
-      "exchangeRate": 1.0,
+      "exchangeRate": _exchangeRate ?? 1.0,
       "customerPoNumber": null,
       "customerPoDate": null,
       "invNumber": "",

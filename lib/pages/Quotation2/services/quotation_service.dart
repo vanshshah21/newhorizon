@@ -15,11 +15,62 @@ class QuotationFormService {
   List<RateStructure>? rateStructures;
   List<Salesman>? salesmen;
   List<QuotationCustomer>? customers;
+  late final double _exchangeRate;
+  late final String _currency;
 
   QuotationFormService() {
     _dio.interceptors.add(
       LogInterceptor(requestBody: true, responseBody: true, error: true),
     );
+  }
+
+  Future getExchangeRate() async {
+    final domCurrency = await StorageUtils.readJson('domestic_currency');
+    if (domCurrency == null) throw Exception("Domestic currency not set");
+
+    _currency = domCurrency['domCurCode'] ?? 'INR';
+    const endpoint = "/api/Login/GetExchangeRate";
+    try {
+      final baseUrl = await StorageUtils.readValue('url');
+      final companyDetails = await StorageUtils.readJson('selected_company');
+      if (companyDetails == null) throw Exception("Company not set");
+
+      final locationDetails = await StorageUtils.readJson('selected_location');
+      if (locationDetails == null) throw Exception("Location not set");
+
+      final tokenDetails = await StorageUtils.readJson('session_token');
+      if (tokenDetails == null) throw Exception("Session token not found");
+
+      final companyId = companyDetails['id'];
+      final siteId = locationDetails['id'];
+      final token = tokenDetails['token']['value'];
+
+      _dio.options.headers = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'companyid': companyId.toString(),
+        'Authorization': 'Bearer $token',
+      };
+
+      _dio.options.baseUrl = 'http://$baseUrl';
+
+      final response = await _dio.get(
+        "$endpoint",
+        queryParameters: {"currencyCode": _currency},
+      );
+      if (response.data['success'] == true &&
+          response.data['data'] != null &&
+          response.data['data'].isNotEmpty) {
+        _exchangeRate = response.data['data'][0]['exchangeRate'];
+        return response.data['data'][0]['exchangeRate'];
+      } else {
+        _exchangeRate = 1.0;
+        return 1.0;
+      }
+    } catch (e) {
+      _exchangeRate = 1.0;
+      return 1.0;
+    }
   }
 
   Future<void> _setupHeaders() async {
@@ -356,7 +407,7 @@ class QuotationFormService {
     final endpoint = "/api/Quotation/CalcRateStructure";
     final body = {
       "ItemAmount": itemAmount,
-      "ExchangeRt": "1",
+      "ExchangeRt": _exchangeRate.toString(),
       "DomCurrency": currency,
       "CurrencyCode": currency,
       "DiscType": discountType,
@@ -536,7 +587,7 @@ class QuotationFormService {
       "DiscountAmount": totalDiscount,
       "DiscountType": "None",
       "DiscountTypeText": "",
-      "ExchangeRate": 1,
+      "ExchangeRate": _exchangeRate,
       "IsAgentAssociated": false,
       "IsBudgetaryQuotation": false,
       "ModValue": 0,

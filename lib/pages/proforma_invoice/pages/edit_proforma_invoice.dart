@@ -55,6 +55,8 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
   ProformaInvoiceDetails? _originalInvoiceDetails;
   bool _isDuplicateAllowed = false;
 
+  late final double _exchangeRate;
+
   final List<String> preferenceOptions = [
     "On Quotation",
     "On Sales Order",
@@ -82,6 +84,15 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
       currency = domCurrency['domCurCode'] ?? 'INR';
     } catch (e) {
       _showError("Failed to initialize form: ${e.toString()}");
+    }
+  }
+
+  Future<void> _getExchangeRate() async {
+    try {
+      _exchangeRate = await _service.getExchangeRate() ?? 1.0;
+    } catch (e) {
+      debugPrint("Error loading exchange rate: $e");
+      _exchangeRate = 1.0; // Default to 1.0 if there's an error
     }
   }
 
@@ -768,7 +779,7 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
 
     return {
       "action": "update", // Changed from "add" to "update"
-      "ExchangeRate": 1.0,
+      "ExchangeRate": _exchangeRate,
       "autoNoRequired": "N", // Changed from "Y" to "N" for edit
       "customerPoNumber": null,
       "customerPoDate": null,

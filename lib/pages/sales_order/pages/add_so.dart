@@ -64,7 +64,8 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
   bool _loadingQuotationDetails = false;
   bool _isDuplicateAllowed = false;
   List<DiscountCode> discountCodes = [];
-  late final String currency;
+  late String currency;
+  late double _exchangeRate;
 
   @override
   void initState() {
@@ -74,12 +75,14 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
   }
 
   Future<void> _initializeForm() async {
+    await initializeCurrencyCode();
     _service = await SalesOrderService.create();
     await _loadFinancePeriod();
     await _loadRateStructures();
     await _loadDiscountCodes();
     await _loadDocumentDetail();
     await _loadSalesPolicy();
+    await _getExchangeRate();
     if (_autogenerateoafonsalesorder) {
       final oafGroupCodes = await _service.fetchOAFGroupCodes();
       if (oafGroupCodes.isNotEmpty) {
@@ -95,7 +98,9 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
     if (widget.quotationData != null && widget.quotationListItem != null) {
       await _prefillFromQuotation();
     }
-    setState(() => _isLoading = false);
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _prefillFromQuotation() async {
@@ -178,6 +183,19 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
       }
     } catch (e) {
       debugPrint('Error prefilling quotation data: $e');
+    }
+  }
+
+  Future<void> _getExchangeRate() async {
+    try {
+      final domCurrency = await StorageUtils.readJson('domestic_currency');
+      if (domCurrency == null) throw Exception("Domestic currency not set");
+
+      currency = domCurrency['domCurCode'] ?? 'INR';
+      _exchangeRate = await _service.getExchangeRate() ?? 1.0;
+    } catch (e) {
+      debugPrint("Error loading exchange rate: $e");
+      _exchangeRate = 1.0; // Default to 1.0 if there's an error
     }
   }
 
@@ -286,16 +304,18 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
   }
 
   Future<void> _onOrderFromSelected(Customer customer) async {
-    setState(() {
-      selectedOrderFrom = customer;
-      orderFromController.text = customer.customerName;
-      billToController.text = customer.customerName;
-      selectedBillTo = customer;
-      quotationNumbers.clear();
-      selectedQuotationNumber = null;
-      quotationNumberController.clear();
-      items.clear();
-    });
+    if (mounted) {
+      setState(() {
+        selectedOrderFrom = customer;
+        orderFromController.text = customer.customerName;
+        billToController.text = customer.customerName;
+        selectedBillTo = customer;
+        quotationNumbers.clear();
+        selectedQuotationNumber = null;
+        quotationNumberController.clear();
+        items.clear();
+      });
+    }
 
     // Load quotation numbers if quotation reference is selected
     if (salesOrderReference == "With Quotation Reference") {
@@ -304,10 +324,12 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
   }
 
   Future<void> _onBillToSelected(Customer customer) async {
-    setState(() {
-      selectedBillTo = customer;
-      billToController.text = customer.customerName;
-    });
+    if (mounted) {
+      setState(() {
+        selectedBillTo = customer;
+        billToController.text = customer.customerName;
+      });
+    }
   }
 
   Future<void> _loadQuotationNumbers(String customerCode) async {
@@ -318,8 +340,9 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
 
       quotationNumbers = quotationListResponse.quotationDetails;
       quotationItemDetails = quotationListResponse.quotationItemDetails;
-
-      setState(() {});
+      if (mounted) {
+        setState(() {});
+      }
     } catch (e) {
       _showError("Error loading quotation numbers: ${e.toString()}");
     }
@@ -328,12 +351,14 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
   Future<void> _onQuotationNumberSelected(
     QuotationNumber quotationNumber,
   ) async {
-    setState(() {
-      selectedQuotationNumber = quotationNumber;
-      quotationNumberController.text = quotationNumber.qtnNumber;
-      _loadingQuotationDetails = true;
-      items.clear();
-    });
+    if (mounted) {
+      setState(() {
+        selectedQuotationNumber = quotationNumber;
+        quotationNumberController.text = quotationNumber.qtnNumber;
+        _loadingQuotationDetails = true;
+        items.clear();
+      });
+    }
 
     try {
       // Filter items for the selected quotation
@@ -471,12 +496,15 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
         );
         lineNo++;
       }
-
-      setState(() {});
+      if (mounted) {
+        setState(() {});
+      }
     } catch (e) {
       _showError("Error loading quotation details: ${e.toString()}");
     } finally {
-      setState(() => _loadingQuotationDetails = false);
+      if (mounted) {
+        setState(() => _loadingQuotationDetails = false);
+      }
     }
   }
 
@@ -649,7 +677,7 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
         "totalAmountAfterTaxCustomerCurrency": finalAmount.toStringAsFixed(2),
         "discountType": "N",
         "discountAmount": 0,
-        "exchangeRate": "1.0000",
+        "exchangeRate": _exchangeRate.toString(),
         "OrderStatus": "O",
         "xobCredit": "",
         "xobcrauth": "",
@@ -745,21 +773,25 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
       ),
     );
     if (result != null) {
-      setState(() {
-        result.lineNo = items.length + 1;
-        items.add(result);
-      });
+      if (mounted) {
+        setState(() {
+          result.lineNo = items.length + 1;
+          items.add(result);
+        });
+      }
     }
   }
 
   void _removeItem(int index) {
-    setState(() {
-      items.removeAt(index);
-      // Re-assign line numbers
-      for (int i = 0; i < items.length; i++) {
-        items[i].lineNo = i + 1;
-      }
-    });
+    if (mounted) {
+      setState(() {
+        items.removeAt(index);
+        // Re-assign line numbers
+        for (int i = 0; i < items.length; i++) {
+          items[i].lineNo = i + 1;
+        }
+      });
+    }
   }
 
   double _calculateTotalBasic() {
@@ -1110,10 +1142,13 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
   }
 
   Widget _buildSalesOrderReferenceDropdown() {
+    bool prefilled = widget.quotationData != null;
     return DropdownButtonFormField<String>(
-      decoration: const InputDecoration(
+      decoration: InputDecoration(
         labelText: "Sales Order Reference",
-        border: OutlineInputBorder(),
+        border: const OutlineInputBorder(),
+        enabled:
+            !prefilled && !_submitting, // Disable if prefilled OR submitting
       ),
       value: salesOrderReference,
       items:
@@ -1126,18 +1161,21 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
               )
               .toList(),
       onChanged:
-          _submitting
+          (prefilled ||
+                  _submitting) // Disable onChanged if prefilled OR submitting
               ? null
               : (val) {
                 if (val != null) {
-                  setState(() {
-                    salesOrderReference = val;
-                    // Clear all related fields
-                    items.clear();
-                    quotationNumbers.clear();
-                    selectedQuotationNumber = null;
-                    quotationNumberController.clear();
-                  });
+                  if (mounted) {
+                    setState(() {
+                      salesOrderReference = val;
+                      // Clear all related fields
+                      items.clear();
+                      quotationNumbers.clear();
+                      selectedQuotationNumber = null;
+                      quotationNumberController.clear();
+                    });
+                  }
 
                   // Load quotation numbers if customer is already selected and "With Quotation Reference" is chosen
                   if (val == "With Quotation Reference" &&
@@ -1152,10 +1190,15 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
   }
 
   Widget _buildQuotationNumberField() {
+    bool prefilled = widget.quotationData != null;
     return DropdownButtonFormField<QuotationNumber>(
-      decoration: const InputDecoration(
+      decoration: InputDecoration(
         labelText: "Quotation Number",
-        border: OutlineInputBorder(),
+        border: const OutlineInputBorder(),
+        enabled:
+            !prefilled &&
+            !_submitting &&
+            !_loadingQuotationDetails, // Disable if prefilled, submitting, or loading
       ),
       value: selectedQuotationNumber,
       isExpanded: true,
@@ -1167,7 +1210,7 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
             );
           }).toList(),
       onChanged:
-          _submitting || _loadingQuotationDetails
+          (prefilled || _submitting || _loadingQuotationDetails)
               ? null
               : (val) {
                 if (val != null) {
@@ -1181,7 +1224,46 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
     );
   }
 
+  // Widget _buildOrderFromField() {
+  //   return TypeAheadField<Customer>(
+  //     debounceDuration: const Duration(milliseconds: 400),
+  //     controller: orderFromController,
+  //     builder: (context, controller, focusNode) {
+  //       return TextFormField(
+  //         controller: controller,
+  //         focusNode: focusNode,
+  //         enabled: !_submitting,
+  //         decoration: const InputDecoration(
+  //           labelText: "Order From",
+  //           border: OutlineInputBorder(),
+  //         ),
+  //         validator:
+  //             (val) =>
+  //                 val == null || val.isEmpty ? "Order From is required" : null,
+  //       );
+  //     },
+  //     suggestionsCallback:
+  //         _submitting
+  //             ? (pattern) async => []
+  //             : (pattern) async {
+  //               if (pattern.length < 4) return [];
+  //               try {
+  //                 return await _service.fetchCustomerSuggestions(pattern);
+  //               } catch (e) {
+  //                 return [];
+  //               }
+  //             },
+  //     itemBuilder: (context, suggestion) {
+  //       return ListTile(
+  //         title: Text(suggestion.customerName),
+  //         subtitle: Text(suggestion.customerCode),
+  //       );
+  //     },
+  //     onSelected: _submitting ? null : _onOrderFromSelected,
+  //   );
+  // }
   Widget _buildOrderFromField() {
+    bool prefilled = widget.quotationData != null;
     return TypeAheadField<Customer>(
       debounceDuration: const Duration(milliseconds: 400),
       controller: orderFromController,
@@ -1189,10 +1271,12 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
         return TextFormField(
           controller: controller,
           focusNode: focusNode,
-          enabled: !_submitting,
+          enabled:
+              !prefilled && !_submitting, // Disable if prefilled or submitting
           decoration: const InputDecoration(
             labelText: "Order From",
             border: OutlineInputBorder(),
+            hintStyle: TextStyle(color: Colors.red),
           ),
           validator:
               (val) =>
@@ -1200,7 +1284,7 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
         );
       },
       suggestionsCallback:
-          _submitting
+          (prefilled || _submitting)
               ? (pattern) async => []
               : (pattern) async {
                 if (pattern.length < 4) return [];
@@ -1216,7 +1300,7 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
           subtitle: Text(suggestion.customerCode),
         );
       },
-      onSelected: _submitting ? null : _onOrderFromSelected,
+      onSelected: (prefilled || _submitting) ? null : _onOrderFromSelected,
     );
   }
 

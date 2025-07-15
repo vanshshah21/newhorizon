@@ -14,6 +14,7 @@ class EditProformaInvoiceService {
   late final Map<String, dynamic> _quotationDocumentDetails;
   late final Map<String, dynamic> _salesOrderDocumentDetails;
   late int _companyId;
+  late final String _currency;
 
   EditProformaInvoiceService._();
 
@@ -70,6 +71,29 @@ class EditProformaInvoiceService {
     } catch (e) {
       debugPrint("Error fetching quotation document detail: $e");
       throw Exception("Failed to fetch quotation document detail");
+    }
+  }
+
+  Future getExchangeRate() async {
+    final domCurrency = await StorageUtils.readJson('domestic_currency');
+    if (domCurrency == null) throw Exception("Domestic currency not set");
+
+    _currency = domCurrency['domCurCode'] ?? 'INR';
+    const endpoint = "/api/Login/GetExchangeRate";
+    try {
+      final response = await _dio.get(
+        "$_baseUrl$endpoint",
+        queryParameters: {"currencyCode": _currency},
+      );
+      if (response.data['success'] == true &&
+          response.data['data'] != null &&
+          response.data['data'].isNotEmpty) {
+        return response.data['data'][0]['exchangeRate'];
+      } else {
+        return 1.0;
+      }
+    } catch (e) {
+      return 1.0;
     }
   }
 

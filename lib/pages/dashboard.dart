@@ -1145,9 +1145,90 @@ class _DetailsPageState extends State<DetailsPage> {
   //   // Default: just show as string
   //   return value?.toString() ?? "";
   // }
+  // String formatValue(String key, dynamic value) {
+  //   // Handle null values first
+  //   if (value == null) return "";
+
+  //   // Try to format as date using FormatUtils
+  //   if (value is DateTime) {
+  //     try {
+  //       return FormatUtils.formatDateForUser(value);
+  //     } catch (_) {
+  //       return value.toString();
+  //     }
+  //   }
+
+  //   if (value is String) {
+  //     // Only try to parse as date if the string is not empty
+  //     if (value.trim().isNotEmpty &&
+  //         (key.toLowerCase().contains('date') ||
+  //             key.toLowerCase().contains('time') ||
+  //             key.toLowerCase().endsWith('dt') ||
+  //             key.toLowerCase().endsWith('on'))) {
+  //       try {
+  //         final dt = DateTime.parse(value);
+  //         if (dt.year > 1900 && dt.year < 2100) {
+  //           return FormatUtils.formatDateForUser(dt);
+  //         }
+  //       } catch (_) {
+  //         // If date parsing fails, continue to return as string
+  //       }
+  //     }
+  //   }
+
+  //   // Format as amount using FormatUtils if key suggests so
+  //   if (key.toLowerCase().contains('amount') ||
+  //       key.toLowerCase().contains('total') ||
+  //       key.toLowerCase().contains('price') ||
+  //       key.toLowerCase().contains('cost') ||
+  //       key.toLowerCase().contains('value')) {
+  //     try {
+  //       // Handle different numeric types
+  //       if (value is num) {
+  //         return FormatUtils.formatAmount(value);
+  //       }
+  //       if (value is String && value.trim().isNotEmpty) {
+  //         // Try to parse string as number
+  //         final numValue = num.tryParse(value.replaceAll(',', '').trim());
+  //         if (numValue != null) {
+  //           return FormatUtils.formatAmount(numValue);
+  //         }
+  //       }
+  //     } catch (_) {
+  //       // If amount formatting fails, return as string
+  //     }
+  //   }
+
+  //   // Format as quantity using FormatUtils if key suggests so
+  //   if (key.toLowerCase().contains('quantity') ||
+  //       key.toLowerCase().contains('qty') ||
+  //       key.toLowerCase().contains('count')) {
+  //     try {
+  //       // Handle different numeric types
+  //       if (value is num) {
+  //         return FormatUtils.formatQuantity(value);
+  //       }
+  //       if (value is String && value.trim().isNotEmpty) {
+  //         // Try to parse string as number
+  //         final numValue = num.tryParse(value.replaceAll(',', '').trim());
+  //         if (numValue != null) {
+  //           return FormatUtils.formatQuantity(numValue);
+  //         }
+  //       }
+  //     } catch (_) {
+  //       // If quantity formatting fails, return as string
+  //     }
+  //   }
+
+  //   // Default: just show as string, ensuring it's never null
+  //   return value.toString();
+  // }
   String formatValue(String key, dynamic value) {
     // Handle null values first
-    if (value == null) return "";
+    if (value == null) return "N/A";
+
+    // Handle empty strings
+    if (value is String && value.trim().isEmpty) return "N/A";
 
     // Try to format as date using FormatUtils
     if (value is DateTime) {
@@ -1159,7 +1240,7 @@ class _DetailsPageState extends State<DetailsPage> {
     }
 
     if (value is String) {
-      // Only try to parse as date if the string is not empty
+      // Only try to parse as date if the string is not empty and contains relevant keywords
       if (value.trim().isNotEmpty &&
           (key.toLowerCase().contains('date') ||
               key.toLowerCase().contains('time') ||
@@ -1217,6 +1298,7 @@ class _DetailsPageState extends State<DetailsPage> {
         }
       } catch (_) {
         // If quantity formatting fails, return as string
+        return value.toString();
       }
     }
 
@@ -1268,9 +1350,9 @@ class _DetailsPageState extends State<DetailsPage> {
                             vertical: 6,
                           ),
                           elevation: 2,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                          // shape: RoundedRectangleBorder(
+                          //   borderRadius: BorderRadius.circular(12),
+                          // ),
                           child: Container(
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(12),

@@ -264,8 +264,8 @@ class _BarChart extends StatelessWidget {
             barRods: [
               BarChartRodData(
                 toY: amount,
-                color: isSelected ? Colors.blueAccent[700] : Colors.blue,
-                width: 18,
+                color: isSelected ? Colors.red[700] : Colors.red[300],
+                width: 12,
                 borderRadius: BorderRadius.circular(0),
               ),
             ],

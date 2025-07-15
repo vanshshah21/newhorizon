@@ -78,8 +78,8 @@ final shadcnLightTheme = ThemeData(
   highlightColor: ShadcnColors.accent.toColor,
   splashColor: ShadcnColors.accent.toColor,
   focusColor: ShadcnColors.ring.toColor,
-  hintColor: ShadcnColors.mutedForeground.toColor,
-  disabledColor: ShadcnColors.muted.toColor,
+  // hintColor: ShadcnColors.mutedForeground.toColor,
+  // disabledColor: ShadcnColors.muted.toColor,
   indicatorColor: ShadcnColors.primary.toColor,
   shadowColor: Colors.black.withValues(alpha: (0.1 * 255)),
   appBarTheme: AppBarTheme(
@@ -123,7 +123,7 @@ final shadcnLightTheme = ThemeData(
       borderSide: BorderSide(color: ShadcnColors.destructive.toColor),
       borderRadius: BorderRadius.circular(8.0),
     ),
-    hintStyle: TextStyle(color: ShadcnColors.mutedForeground.toColor),
+    // hintStyle: TextStyle(color: ShadcnColors.mutedForeground.toColor),
     labelStyle: TextStyle(color: ShadcnColors.foreground.toColor),
   ),
   elevatedButtonTheme: ElevatedButtonThemeData(
@@ -143,7 +143,7 @@ final shadcnLightTheme = ThemeData(
   ),
   tabBarTheme: TabBarTheme(
     labelColor: ShadcnColors.primary.toColor,
-    unselectedLabelColor: ShadcnColors.mutedForeground.toColor,
+    // unselectedLabelColor: ShadcnColors.mutedForeground.toColor,
     dividerHeight: 0,
   ),
   textButtonTheme: TextButtonThemeData(
@@ -197,13 +197,13 @@ final shadcnLightTheme = ThemeData(
   textTheme: TextTheme(
     bodyLarge: TextStyle(color: ShadcnColors.foreground.toColor),
     bodyMedium: TextStyle(color: ShadcnColors.foreground.toColor),
-    bodySmall: TextStyle(color: ShadcnColors.mutedForeground.toColor),
+    // bodySmall: TextStyle(color: ShadcnColors.mutedForeground.toColor),
     titleLarge: TextStyle(color: ShadcnColors.foreground.toColor),
     titleMedium: TextStyle(color: ShadcnColors.foreground.toColor),
-    titleSmall: TextStyle(color: ShadcnColors.mutedForeground.toColor),
+    // titleSmall: TextStyle(color: ShadcnColors.mutedForeground.toColor),
     labelLarge: TextStyle(color: ShadcnColors.primary.toColor),
     labelMedium: TextStyle(color: ShadcnColors.primary.toColor),
-    labelSmall: TextStyle(color: ShadcnColors.mutedForeground.toColor),
+    // labelSmall: TextStyle(color: ShadcnColors.mutedForeground.toColor),
     displayMedium: TextStyle(
       color: ShadcnColors.foreground.toColor,
       fontWeight: FontWeight.w500,

@@ -91,11 +91,13 @@ class _SalesOrderDetailPageState extends State<SalesOrderDetailPage> {
       final data = jsonDecode(response.data) as Map<String, dynamic>;
       if (response.statusCode == 200 && data['success'] == true) {
         final parsedData = {
-          'mLOCFUNCTIONID': data['mLOCFUNCTIONID'],
-          'longitude': double.tryParse(data['mLOCLONGITUDE'].toString()) ?? 0.0,
-          'latitude': double.tryParse(data['mLOCLATITUDE'].toString()) ?? 0.0,
-          'mLOCLONGITUDE': data['mLOCLONGITUDE'],
-          'mLOCLATITUDE': data['mLOCLATITUDE'],
+          'mLOCFUNCTIONID': data['data']['mLOCFUNCTIONID'],
+          'longitude':
+              double.tryParse(data['data']['mLOCLONGITUDE'].toString()) ?? 0.0,
+          'latitude':
+              double.tryParse(data['data']['mLOCLATITUDE'].toString()) ?? 0.0,
+          'mLOCLONGITUDE': data['data']['mLOCLONGITUDE'],
+          'mLOCLATITUDE': data['data']['mLOCLATITUDE'],
         };
 
         if (!mounted) return;

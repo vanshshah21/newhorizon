@@ -14,6 +14,7 @@ class ProformaInvoiceService {
   late final Map<String, dynamic> _financeDetails;
   late final Map<String, dynamic> _quotationDocumentDetails;
   late final Map<String, dynamic> _salesOrderDocumentDetails;
+  late final String _currency;
   late int _companyId;
 
   ProformaInvoiceService._();
@@ -35,6 +36,10 @@ class ProformaInvoiceService {
     if (_tokenDetails.isEmpty) throw Exception("Session token not found");
     _financeDetails = await StorageUtils.readJson('finance_period');
     if (_financeDetails.isEmpty) throw Exception("Finance details not found");
+    final domCurrency = await StorageUtils.readJson('domestic_currency');
+    if (domCurrency == null) throw Exception("Domestic currency not set");
+
+    _currency = domCurrency['domCurCode'] ?? 'INR';
 
     _companyId = _companyDetails['id'];
     final token = _tokenDetails['token']['value'];
@@ -617,5 +622,28 @@ class ProformaInvoiceService {
       return data[0];
     }
     throw Exception('Failed to fetch proforma invoices');
+  }
+
+  Future getExchangeRate() async {
+    final domCurrency = await StorageUtils.readJson('domestic_currency');
+    if (domCurrency == null) throw Exception("Domestic currency not set");
+
+    _currency = domCurrency['domCurCode'] ?? 'INR';
+    const endpoint = "/api/Login/GetExchangeRate";
+    try {
+      final response = await _dio.get(
+        "$_baseUrl$endpoint",
+        queryParameters: {"currencyCode": _currency},
+      );
+      if (response.data['success'] == true &&
+          response.data['data'] != null &&
+          response.data['data'].isNotEmpty) {
+        return response.data['data'][0]['exchangeRate'];
+      } else {
+        return 1.0;
+      }
+    } catch (e) {
+      return 1.0;
+    }
   }
 }

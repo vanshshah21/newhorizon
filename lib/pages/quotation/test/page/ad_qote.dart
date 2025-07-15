@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_typeahead/flutter_typeahead.dart';
 import 'package:nhapp/pages/quotation/pages/quotation_detail.dart';
@@ -47,7 +49,7 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
   late Map<String, dynamic>? _financeDetails;
   bool _isDuplicateAllowed = false;
   late double _exchangeRate;
-  late String currency;
+  String currency = "";
   List<Map<String, dynamic>> rateStructureDetails = [];
 
   @override
@@ -57,6 +59,7 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
   }
 
   Future<void> _initializeForm() async {
+    await initializeCurrencyCode();
     _service = await QuotationService.create();
     await _loadFinancePeriod();
     await _loadQuotationBases();
@@ -182,16 +185,34 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
     }
   }
 
+  // Future<void> _getExchangeRate() async {
+  //   try {
+  //     final domCurrency = await StorageUtils.readJson('domestic_currency');
+  //     if (domCurrency == null) throw Exception("Domestic currency not set");
+
+  //     currency = domCurrency['domCurCode'] ?? 'INR';
+  //     _exchangeRate = await _service.getExchangeRate() ?? 1.0;
+  //   } catch (e) {
+  //     debugPrint("Error loading exchange rate: $e");
+  //     _exchangeRate = 1.0; // Default to 1.0 if there's an error
+  //   }
+  // }
   Future<void> _getExchangeRate() async {
     try {
-      final domCurrency = await StorageUtils.readJson('domestic_currency');
-      if (domCurrency == null) throw Exception("Domestic currency not set");
+      final domCurrencyRaw = await StorageUtils.readJson('domestic_currency');
+      if (domCurrencyRaw == null) throw Exception("Domestic currency not set");
+
+      final domCurrency =
+          domCurrencyRaw is String
+              ? jsonDecode(domCurrencyRaw) as Map<String, dynamic>
+              : domCurrencyRaw;
 
       currency = domCurrency['domCurCode'] ?? 'INR';
       _exchangeRate = await _service.getExchangeRate() ?? 1.0;
     } catch (e) {
       debugPrint("Error loading exchange rate: $e");
-      _exchangeRate = 1.0; // Default to 1.0 if there's an error
+      currency = 'INR'; // Default to 'INR' if there's an error
+      _exchangeRate = 1.0; // Default exchange rate
     }
   }
 
@@ -556,7 +577,7 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
       "fromLocationName": _service.locationDetails['name'] ?? "",
       "ip": "",
       "mac": "",
-      "domesticCurrencyCode": currency,
+      "domesticCurrencyCode": currency ?? "INR",
       "quotationDetails": {
         "customerCode": selectedCustomer?.customerCode ?? "",
         "quotationYear": docYear,
@@ -601,7 +622,7 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
         "isBudgetaryQuotation": false,
         "quotationStatus": "NS",
         "quotationAmendDate": null,
-        "currencyCode": currency,
+        "currencyCode": currency ?? "INR",
         "agentCode": "",
         "quotationTypeConfig": "N",
         "reasonCode": "",

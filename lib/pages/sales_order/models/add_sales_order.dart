@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:nhapp/utils/storage_utils.dart';
 
 late String currencyCode;
@@ -5,8 +7,15 @@ late String currencyCode;
 // Function to initialize the global currency code
 Future<void> initializeCurrencyCode() async {
   try {
-    final domCurrency = await StorageUtils.readJson('domestic_currency');
-    currencyCode = domCurrency?['domCurCode'] ?? 'INR';
+    final domCurrencyRaw = await StorageUtils.readJson('domestic_currency');
+    if (domCurrencyRaw == null) throw Exception("Domestic currency not set");
+
+    final domCurrency =
+        domCurrencyRaw is String
+            ? jsonDecode(domCurrencyRaw) as Map<String, dynamic>
+            : domCurrencyRaw;
+
+    currencyCode = domCurrency['domCurCode'] ?? 'INR';
   } catch (e) {
     currencyCode = 'INR'; // Fallback to default if an error occurs
   }

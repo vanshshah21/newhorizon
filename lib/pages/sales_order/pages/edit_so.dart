@@ -63,6 +63,7 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
   DateTime? endDate;
   late Map<String, dynamic>? _financeDetails;
   bool _isDuplicateAllowed = false;
+  late double _exchangeRate;
 
   // Quotation related fields - Updated to match add_so.dart
   List<QuotationNumber> quotationNumbers = [];
@@ -90,6 +91,7 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
     await _loadSalesOrderDetails();
     await _loadSalesPolicy();
     await _loadAttachments();
+    await _getExchangeRate();
     setState(() => _isLoading = false);
   }
 
@@ -107,6 +109,19 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
     } catch (e) {
       debugPrint("Error loading sales policy: $e");
       _isDuplicateAllowed = false; // Default to not allowing duplicates
+    }
+  }
+
+  Future<void> _getExchangeRate() async {
+    try {
+      final domCurrency = await StorageUtils.readJson('domestic_currency');
+      if (domCurrency == null) throw Exception("Domestic currency not set");
+
+      currency = domCurrency['domCurCode'] ?? 'INR';
+      _exchangeRate = await _service.getExchangeRate() ?? 1.0;
+    } catch (e) {
+      debugPrint("Error loading exchange rate: $e");
+      _exchangeRate = 1.0; // Default to 1.0 if there's an error
     }
   }
 
@@ -1118,7 +1133,7 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
         "totalAmountAfterTaxCustomerCurrency": finalAmount.toStringAsFixed(2),
         "discountType": "N", // Change from "V" to "N"
         "discountAmount": 0, // Change to 0
-        "exchangeRate": "1.0000",
+        "exchangeRate": _exchangeRate.toString(),
         "OrderStatus": "O",
         "xobCredit": "",
         "xobcrauth": "",
