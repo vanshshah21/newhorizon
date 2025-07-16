@@ -64,6 +64,7 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
   late Map<String, dynamic>? _financeDetails;
   bool _isDuplicateAllowed = false;
   late double _exchangeRate;
+  int _amendmentSrNo = -1;
 
   // Quotation related fields - Updated to match add_so.dart
   List<QuotationNumber> quotationNumbers = [];
@@ -74,7 +75,7 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
   // Sales Order details
   Map<String, dynamic>? salesOrderDetails;
   String originalOrderId = "";
-  late final String currency;
+  String currency = "INR";
 
   @override
   void initState() {
@@ -84,6 +85,7 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
   }
 
   Future<void> _initializeForm() async {
+    await initializeCurrencyCode();
     _service = await SalesOrderService.create();
     await _loadFinancePeriod();
     await _loadRateStructures();
@@ -166,9 +168,6 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
       startDate = DateTime.parse(_financeDetails!['periodSDt']);
       endDate = DateTime.parse(_financeDetails!['periodEDt']);
     }
-
-    final domCurrency = await StorageUtils.readJson('domestic_currency');
-    currency = domCurrency?['domCurCode'] ?? 'INR';
   }
 
   Future<void> _loadRateStructures() async {
@@ -204,6 +203,7 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
 
     // Set basic sales order details
     originalOrderId = soDetails['orderId'].toString();
+    _amendmentSrNo = soDetails['amendSrNO'] ?? 0;
 
     // Set customer details
     selectedOrderFrom = Customer(
@@ -1023,16 +1023,24 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
         modelDetail['quotationId'] = selectedQuotationNumber!.quotationID;
         modelDetail['quotationLineNo'] = quotationItemDetail.itemLineNo;
         modelDetail['quotationAmendNo'] = quotationItemDetail.amendSrNo;
+        modelDetail['amendmentSrNo'] = _amendmentSrNo;
       }
       modelDetails.add(modelDetail);
 
       final discountDetail = item.toDiscountDetail();
       if (discountDetail.isNotEmpty) {
         discountDetail['orderId'] = int.parse(originalOrderId);
+        discountDetail['amendSrNo'] = _amendmentSrNo;
         discountDetails.add(discountDetail);
       }
 
-      rateStructureDetails.addAll(item.toRateStructureDetails());
+      //rateStructureDetails.addAll(item.toRateStructureDetails());
+      final rateStructureDetailsList = item.toRateStructureDetails();
+      for (final rsDetail in rateStructureDetailsList) {
+        // Add amendment serial number to rate structure details
+        rsDetail['amendSrNo'] = _amendmentSrNo;
+        rateStructureDetails.add(rsDetail);
+      }
 
       // Create delivery detail for each item
       final deliveryDetail = {
@@ -1045,14 +1053,17 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
         "expectedInstallationDate": FormatUtils.formatDateForApi(
           selectedDate!.add(const Duration(days: 1)),
         ),
-        "amendSrNo": 0,
+        "amendSrNo": _amendmentSrNo,
         "commitedDelDate": null,
         "shipmentCode": "CADD",
         "amendYear": "",
         "amendGroup": "",
         "amendSiteId": 0,
         "amendNumber": "",
-        "amendDate": null,
+        "amendDate":
+            _amendmentSrNo == -1
+                ? null
+                : FormatUtils.formatDateForApi(DateTime.now()),
         "amendAuthDate": null,
         "oafQty": 0.0,
         "sjoQty": 0.0,
@@ -1070,11 +1081,21 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
 
     return {
       "authorizationRequired":
-          documentDetail['isAutorisationRequired'] ?? "Y", // Fix this
+          documentDetail['isAutorisationRequired'] == true ||
+                  documentDetail['isAutorisationRequired'] == 'true'
+              ? 'Y'
+              : "Y",
       "autoNumberRequired":
-          documentDetail['isAutoNumberGenerated'] ?? "N", // Fix this for update
-      "siteRequired": documentDetail['isLocationRequired'] ?? "Y", // Fix this
-      "authorizationDate": null, // Change this to null for update
+          documentDetail['isAutoNumberGenerated'] == true ||
+                  documentDetail['isAutorisationRequired'] == 'true'
+              ? 'Y'
+              : "N",
+      "siteRequired":
+          documentDetail['isLocationRequired'] == true ||
+                  documentDetail['isAutorisationRequired'] == 'true'
+              ? 'Y'
+              : "N",
+      "authorizationDate": null,
       "fromLocationId": locationId,
       "userId": userId,
       "companyId": companyId,
@@ -1131,13 +1152,13 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
             .toStringAsFixed(2),
         "totalAmounttAfterTaxDomesticCurrency": finalAmount.toStringAsFixed(2),
         "totalAmountAfterTaxCustomerCurrency": finalAmount.toStringAsFixed(2),
-        "discountType": "N", // Change from "V" to "N"
-        "discountAmount": 0, // Change to 0
+        "discountType": "N",
+        "discountAmount": 0,
         "exchangeRate": _exchangeRate.toString(),
         "OrderStatus": "O",
         "xobCredit": "",
         "xobcrauth": "",
-        "amendSrNo": 0,
+        "amendSrNo": _amendmentSrNo,
         "ioYear": widget.ioYear,
         "ioGroup": widget.ioGroup,
         "ioSiteId": locationId.toString(),
@@ -1149,7 +1170,7 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
         "amendSiteId": 0,
         "amendSiteCode": "",
         "amendNumber": "",
-        "amendDate": null,
+        "amendDate": FormatUtils.formatDateForApi(DateTime.now()),
         "amendAuthBy": 0,
         "amendAuthByDate": null,
         "custType": "CU",

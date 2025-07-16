@@ -64,6 +64,7 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
   final List<Map<String, dynamic>> _editableAttachments = [];
   String? _documentNo;
   late final String currency;
+  int _amendmentSrNo = -1;
 
   @override
   void initState() {
@@ -73,6 +74,7 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
   }
 
   Future<void> _initializeForm() async {
+    await initializeCurrencyCode();
     _service = await QuotationService.create();
     await _loadFinancePeriod();
     await _loadQuotationBases();
@@ -283,6 +285,8 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
         // Process model details (items) - use the EXACT same logic as ad_qote.dart
         items.clear();
         if (originalData!.modelDetails?.isNotEmpty == true) {
+          _amendmentSrNo =
+              originalData!.modelDetails!.first['amendmentSrNo'] ?? -1;
           for (int i = 0; i < originalData!.modelDetails!.length; i++) {
             final modelDetail = originalData!.modelDetails![i];
 
@@ -732,6 +736,8 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
     final companyId = _service.companyId;
     final docYear = _financeDetails?['financialYear'] ?? "";
 
+    _amendmentSrNo = _amendmentSrNo + 1;
+
     // Build model details
     List<Map<String, dynamic>> modelDetails = [];
     List<Map<String, dynamic>> discountDetails = [];
@@ -744,14 +750,22 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
       final modelDetail = item.toModelDetail();
       modelDetail['customerCode'] = selectedCustomer?.customerCode ?? "";
       modelDetail['quotationOrderNumber'] = widget.quotationNumber;
+      modelDetail['amendmentSrNo'] = _amendmentSrNo;
       modelDetails.add(modelDetail);
 
       final discountDetail = item.toDiscountDetail();
       if (discountDetail.isNotEmpty) {
+        discountDetail['amendSrNo'] = _amendmentSrNo;
         discountDetails.add(discountDetail);
       }
 
-      rateStructureDetails.addAll(item.toRateStructureDetails());
+      //rateStructureDetails.addAll(item.toRateStructureDetails());
+      final rateStructureDetailsList = item.toRateStructureDetails();
+      for (final rsDetail in rateStructureDetailsList) {
+        // Add amendment serial number to rate structure details
+        rsDetail['amendSrNo'] = _amendmentSrNo;
+        rateStructureDetails.add(rsDetail);
+      }
     }
 
     final totalBasic = _calculateTotalBasic();
@@ -833,14 +847,17 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
         "submittedDate": null,
         "isBudgetaryQuotation": false,
         "quotationStatus": "NS",
-        "quotationAmendDate": null,
+        "QuotationAmendDate":
+            _amendmentSrNo == -1
+                ? null
+                : FormatUtils.formatDateForApi(DateTime.now()),
         "currencyCode": currency,
         "agentCode": "",
         "quotationTypeConfig": "N",
         "reasonCode": "",
         "consultantCode": "",
         "billToCustomerCode": selectedBillToCustomer?.customerCode ?? "",
-        "amendmentSrNo": "0",
+        "amendmentSrNo": _amendmentSrNo.toString(),
         "xqdbookcd": "",
       },
       "modelDetails": modelDetails,
