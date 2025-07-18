@@ -522,6 +522,9 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
             ),
       ),
     );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FocusScope.of(context).unfocus();
+    });
     if (result != null) {
       setState(() {
         result.lineNo = items.length + 1;
@@ -548,7 +551,9 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
             ),
       ),
     );
-
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FocusScope.of(context).unfocus();
+    });
     if (result != null) {
       setState(() {
         // Update the item at the specific index
@@ -939,7 +944,7 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Unable to get current location. Please try again.'),
-          backgroundColor: Colors.red,
+          // backgroundColor: Colors.red,
         ),
       );
       return;
@@ -971,19 +976,19 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
               latitude: position.latitude,
             );
 
-            if (!locationSuccess) {
-              errorMessages.add('Location update failed');
-            }
+            // if (!locationSuccess) {
+            //   errorMessages.add('Location update failed');
+            // }
           } catch (e) {
             debugPrint('Location submission error: $e');
             locationSuccess = false;
-            errorMessages.add('Location update failed: $e');
+            // errorMessages.add('Location update failed: $e');
           }
         } else {
           locationSuccess = false;
-          errorMessages.add(
-            'Unable to get function ID for location submission',
-          );
+          // errorMessages.add(
+          //   'Unable to get function ID for location submission',
+          // );
         }
 
         // Handle existing attachment deletions
@@ -1033,16 +1038,19 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
         final newAttachmentSuccess = await _uploadNewAttachments();
         if (!newAttachmentSuccess) {
           attachmentSuccess = false;
-          attachmentErrors += 'Failed to upload some new attachments\n';
+          // attachmentErrors += 'Failed to upload some new attachments\n';
         }
 
         if (!mounted) return;
         setState(() => _submitting = false);
 
         if (attachmentSuccess) {
-          _showSuccess(response['message'] ?? "Quotation updated successfully");
+          _showSuccess("Quotation updated successfully");
         } else {
-          _showError(
+          // _showError(
+          //   "Quotation updated but some attachment operations failed:\n$attachmentErrors",
+          // );
+          debugPrint(
             "Quotation updated but some attachment operations failed:\n$attachmentErrors",
           );
         }
@@ -1050,10 +1058,11 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
         Navigator.pop(context, true);
       } else {
         setState(() => _submitting = false);
-        _showError(response['errorMessage'] ?? "Failed to update quotation");
+        _showError("Failed to update quotation");
       }
     } catch (e) {
-      _showError("Error during update: ${e.toString()}");
+      // _showError("Error during update: ${e.toString()}");
+      _showError("Failed to update quotation");
     } finally {
       setState(() => _submitting = false);
     }
@@ -1307,7 +1316,14 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
           subtitle: Text(suggestion.customerCode),
         );
       },
-      onSelected: _submitting ? null : _onCustomerSelected,
+      onSelected:
+          _submitting
+              ? null
+              : (customer) {
+                _onCustomerSelected(customer);
+                // Remove focus after selection
+                FocusScope.of(context).unfocus();
+              },
     );
   }
 
@@ -1346,7 +1362,14 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
           subtitle: Text(suggestion.customerCode),
         );
       },
-      onSelected: _submitting ? null : _onBillToSelected,
+      onSelected:
+          _submitting
+              ? null
+              : (customer) {
+                _onBillToSelected(customer);
+                // Remove focus after selection
+                FocusScope.of(context).unfocus();
+              },
     );
   }
 
@@ -1357,12 +1380,16 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
         border: OutlineInputBorder(),
       ),
       value: selectedSalesman,
+      isExpanded: true,
       items:
           salesmanList
               .map(
                 (s) => DropdownMenuItem<Salesman>(
                   value: s,
-                  child: Text(s.salesManFullName),
+                  child: Text(
+                    s.salesManFullName,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               )
               .toList(),

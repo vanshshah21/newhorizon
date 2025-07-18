@@ -368,7 +368,8 @@ class _LabourPOPdfLoaderPageState extends State<LabourPOPdfLoaderPage> {
               : pdfUrl == null
               ? const Center(child: CircularProgressIndicator())
               : PDF().fromUrl(
-                pdfUrl!,
+                // pdfUrl!,
+                '${pdfUrl!}?t=${DateTime.now().millisecondsSinceEpoch}',
                 placeholder: (progress) => Center(child: Text('$progress %')),
                 errorWidget: (error) => Center(child: Text(error.toString())),
               ),

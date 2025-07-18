@@ -1301,7 +1301,7 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Unable to get current location. Please try again.'),
-          backgroundColor: Colors.red,
+          // backgroundColor: Colors.red,
         ),
       );
       return;
@@ -1326,10 +1326,10 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
             latitude: position.latitude,
           );
 
-          if (!locationSuccess) {
-            // Don't show error immediately, just log it
-            debugPrint('Location submission failed');
-          }
+          // if (!locationSuccess) {
+          //   // Don't show error immediately, just log it
+          //   debugPrint('Location submission failed');
+          // }
         } catch (e) {
           debugPrint('Location submission error: $e');
           locationSuccess = false;
@@ -1360,18 +1360,22 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
         final newAttachmentSuccess = await _uploadNewAttachments();
         if (!newAttachmentSuccess) attachmentSuccess = false;
 
-        if (!attachmentSuccess) {
-          _showError(
-            "Sales Order updated, but some attachment operations failed!",
-          );
-        }
+        // if (!attachmentSuccess) {
+        //   _showError(
+        //     "Sales Order updated, but some attachment operations failed!",
+        //   );
+        // }
 
         Navigator.pop(context, true);
       } else {
-        _showError(response['errorMessage'] ?? "Failed to update sales order");
+        _showError("Error cannot update Sales Order");
+        debugPrint(response['errorMessage'] ?? "Failed to update sales order");
+        // _showError(response['errorMessage'] ?? "Failed to update sales order");
       }
     } catch (e) {
-      _showError("Error during update: ${e.toString()}");
+      debugPrint('Error updating sales order: $e');
+      _showError("Error cannot update Sales Order");
+      // _showError("Error during update: ${e.toString()}");
     } finally {
       setState(() => _submitting = false);
     }
@@ -1465,10 +1469,12 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
   Widget _buildSalesOrderReferenceDropdown() {
     return DropdownButtonFormField<String>(
       decoration: const InputDecoration(
+        enabled: false,
         labelText: "Sales Order Reference",
         border: OutlineInputBorder(),
       ),
       value: salesOrderReference,
+
       items:
           ["Without Quotation Reference", "With Quotation Reference"]
               .map(

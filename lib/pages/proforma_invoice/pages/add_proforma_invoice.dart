@@ -37,9 +37,9 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   DateTime? selectedDate;
   Customer? selectedCustomer;
   String? selectedQuotationNumber;
-  String? selectedQuotationSrNo;
+  late int selectedQuotationSrNo;
   String? selectedSalesOrderNumber;
-  String? selectedSalesOrderSrNo;
+  late int selectedSalesOrderSrNo;
   late Map<String, dynamic> DefaultQuotation;
   late Map<String, dynamic> DefaultSalesOrder;
   late Map<String, dynamic> DefaultProformaInvoice;
@@ -57,7 +57,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   List<Map<String, dynamic>> _discountDetails = [];
   late DateTime startDate;
   late DateTime endDate;
-  late final String currency;
+  late String currency;
   bool _isDuplicateAllowed = false;
   bool _submitting = false;
   late final Map<String, dynamic> _selectedProformaInvoice;
@@ -78,13 +78,14 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   }
 
   Future<void> _initializeForm() async {
+    await getDomesticCurrency();
     _service = await ProformaInvoiceService.create();
     await _loadFinancePeriod();
     await _loadRateStructures();
     // Fetch the `addDuplicate` flag from the service or configuration
     await _loadSalesPolicy();
     loadProformaInvoiceDefaults();
-    // await _getExchangeRate();
+    await _getExchangeRate();
     final curObj = await StorageUtils.readJson('domestic_currency');
     currency = curObj?['domCurCode'] ?? 'INR';
     companyDetails = await StorageUtils.readJson('selected_company');
@@ -116,14 +117,14 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
     setState(() => _isLoading = false);
   }
 
-  // Future<void> _getExchangeRate() async {
-  //   try {
-  //     _exchangeRate = await _service.getExchangeRate() ?? 1.0;
-  //   } catch (e) {
-  //     debugPrint("Error loading exchange rate: $e");
-  //     _exchangeRate = 1.0; // Default to 1.0 if there's an error
-  //   }
-  // }
+  Future<void> _getExchangeRate() async {
+    try {
+      _exchangeRate = await _service.getExchangeRate() ?? 1.0;
+    } catch (e) {
+      debugPrint("Error loading exchange rate: $e");
+      _exchangeRate = 1.0; // Default to 1.0 if there's an error
+    }
+  }
 
   Future<void> _loadFinancePeriod() async {
     try {
@@ -144,7 +145,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   Future<void> _loadSalesPolicy() async {
     try {
       final salesPolicy = await _service.getSalesPolicy();
-      _isDuplicateAllowed = salesPolicy['allowDuplicate'] ?? false;
+      _isDuplicateAllowed = salesPolicy['allowduplictae'] ?? false;
     } catch (e) {
       debugPrint("Error loading sales policy: $e");
       _isDuplicateAllowed = false; // Default to not allowing duplicates
@@ -160,6 +161,59 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
     DefaultProformaInvoice = await _service.fetchDefaultDocumentDetail("PI");
   }
 
+  // Future<void> _prefillFromQuotation() async {
+  //   final quotationData = widget.quotationData!;
+  //   final quotationItem = widget.quotationListItem!;
+
+  //   try {
+  //     // Set preference to "On Quotation"
+  //     setState(() {
+  //       selectPreference = "On Quotation";
+  //     });
+
+  //     // Load quotation defaults
+  //     DefaultQuotation = await _service.fetchDefaultDocumentDetail("SQ");
+
+  //     // Extract quotation details
+  //     final quotationDetails =
+  //         quotationData['quotationDetails'] as Map<String, dynamic>;
+
+  //     // Create customer data from quotation
+  //     final customerCode = quotationDetails['customerCode']?.toString() ?? '';
+  //     final customerName = quotationDetails['customerName']?.toString() ?? '';
+  //     final customerFullName =
+  //         quotationDetails['customerFullName']?.toString() ?? '';
+  //     final currencyCode =
+  //         quotationDetails['currencyCode']?.toString() ?? 'INR';
+
+  //     if (customerCode.isNotEmpty && customerName.isNotEmpty) {
+  //       // Create customer object
+  //       final customer = Customer(
+  //         custCode: customerCode,
+  //         custName: customerName,
+  //         currencyCode: currencyCode,
+  //         custFullName: customerFullName,
+  //         totalRows: 0,
+  //       );
+
+  //       // Set customer and trigger related loading
+  //       await _onCustomerSelected(customer);
+
+  //       // Find and select the quotation from the loaded list
+  //       final qtnNumber = quotationItem['qtnNumber']?.toString() ?? '';
+  //       if (qtnNumber.isNotEmpty) {
+  //         final matchingQuotation =
+  //             quotationNumbers.where((q) => q.number == qtnNumber).firstOrNull;
+  //         if (matchingQuotation != null) {
+  //           // This will trigger the API call to fetch quotation details
+  //           await _onQuotationSelected(matchingQuotation.number);
+  //         }
+  //       }
+  //     }
+  //   } catch (e) {
+  //     debugPrint('Error prefilling quotation data: $e');
+  //   }
+  // }
   Future<void> _prefillFromQuotation() async {
     final quotationData = widget.quotationData!;
     final quotationItem = widget.quotationListItem!;
@@ -182,12 +236,12 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
       final customerName = quotationDetails['customerName']?.toString() ?? '';
 
       if (customerCode.isNotEmpty && customerName.isNotEmpty) {
-        // Create customer object
+        // Create customer object with updated structure
         final customer = Customer(
           custCode: customerCode,
           custName: customerName,
-          cityCode: "",
-          cityName: "",
+          custFullName: "$customerCode-$customerName",
+          currencyCode: "INR",
           totalRows: 0,
         );
 
@@ -210,6 +264,61 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
     }
   }
 
+  // Future<void> _prefillFromSalesOrder() async {
+  //   final salesOrderData = widget.salesOrderData!;
+  //   final salesOrderItem = widget.salesOrderItem!;
+
+  //   try {
+  //     // Set preference to "On Sales Order"
+  //     setState(() {
+  //       selectPreference = "On Sales Order";
+  //     });
+
+  //     // Load sales order defaults
+  //     DefaultSalesOrder = await _service.fetchDefaultDocumentDetail("OB");
+
+  //     // Extract sales order details
+  //     final salesOrderDetails =
+  //         salesOrderData['salesOrderDetails'] as Map<String, dynamic>;
+
+  //     // Create customer data from sales order
+  //     final customerCode = salesOrderDetails['customerCode']?.toString() ?? '';
+  //     final customerName = salesOrderDetails['customerName']?.toString() ?? '';
+  //     final customerFullName =
+  //         salesOrderDetails['customerFullName']?.toString() ?? '';
+  //     final currencyCode =
+  //         salesOrderDetails['currencyCode']?.toString() ?? 'INR';
+
+  //     if (customerCode.isNotEmpty && customerName.isNotEmpty) {
+  //       // Create customer object
+  //       final customer = Customer(
+  //         custCode: customerCode,
+  //         custName: customerName,
+  //         currencyCode: currencyCode,
+  //         custFullName: customerFullName,
+  //         totalRows: 0,
+  //       );
+
+  //       // Set customer and trigger related loading
+  //       await _onCustomerSelected(customer);
+
+  //       // Find and select the sales order from the loaded list
+  //       final ioNumber = salesOrderItem['ioNumber']?.toString() ?? '';
+  //       if (ioNumber.isNotEmpty) {
+  //         final matchingSalesOrder =
+  //             salesOrderNumbers
+  //                 .where((so) => so.number == ioNumber)
+  //                 .firstOrNull;
+  //         if (matchingSalesOrder != null) {
+  //           // This will trigger the API call to fetch sales order details
+  //           await _onSalesOrderSelected(matchingSalesOrder.number);
+  //         }
+  //       }
+  //     }
+  //   } catch (e) {
+  //     debugPrint('Error prefilling sales order data: $e');
+  //   }
+  // }
   Future<void> _prefillFromSalesOrder() async {
     final salesOrderData = widget.salesOrderData!;
     final salesOrderItem = widget.salesOrderItem!;
@@ -232,12 +341,12 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
       final customerName = salesOrderDetails['customerName']?.toString() ?? '';
 
       if (customerCode.isNotEmpty && customerName.isNotEmpty) {
-        // Create customer object
+        // Create customer object with updated structure
         final customer = Customer(
           custCode: customerCode,
           custName: customerName,
-          cityCode: "",
-          cityName: "",
+          custFullName: "$customerCode-$customerName",
+          currencyCode: "INR",
           totalRows: 0,
         );
 
@@ -330,6 +439,23 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
     }
   }
 
+  // Future<void> _onCustomerSelected(Customer customer) async {
+  //   setState(() {
+  //     selectedCustomer = customer;
+  //     customerController.text = customer.custName;
+  //     quotationNumbers.clear();
+  //     salesOrderNumbers.clear();
+  //     selectedQuotationNumber = null;
+  //     selectedSalesOrderNumber = null;
+  //     items.clear();
+  //   });
+
+  //   if (selectPreference == "On Quotation") {
+  //     await _loadQuotationNumbers(customer.custCode);
+  //   } else if (selectPreference == "On Sales Order") {
+  //     await _loadSalesOrderNumbers(customer.custCode);
+  //   }
+  // }
   Future<void> _onCustomerSelected(Customer customer) async {
     setState(() {
       selectedCustomer = customer;
@@ -372,100 +498,6 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
     }
   }
 
-  // Future<void> _onQuotationSelected(String? quotationNumber) async {
-  //   if (quotationNumber == null) return;
-
-  //   setState(() {
-  //     selectedQuotationNumber = quotationNumber;
-  //     items.clear();
-  //     _rsGrid.clear();
-  //     _discountDetails.clear();
-  //     _isLoading = true;
-  //   });
-
-  //   try {
-  //     final details = await _service.fetchQuotationDetails(quotationNumber);
-  //     items = [];
-  //     _rsGrid = [];
-  //     _discountDetails = [];
-
-  //     int lineNo = 1;
-  //     for (final item in details.itemDetail) {
-  //       // Use maxInvoiceQty if qty is 0
-  //       final quantity =
-  //           (item['qty'] ?? 0).toDouble() == 0.0
-  //               ? (item['maxInvoiceQty'] ?? 0).toDouble()
-  //               : (item['qty'] ?? 0).toDouble();
-
-  //       items.add(
-  //         ProformaItem(
-  //           itemName: item['itemName'] ?? '',
-  //           itemCode: item['itemCode'] ?? '',
-  //           qty: quantity,
-  //           basicRate: (item['itemRate'] ?? 0).toDouble(),
-  //           uom: item['suom'] ?? 'NOS',
-  //           discountType: (item['discountAmount'] ?? 0) > 0 ? 'Value' : 'None',
-  //           discountAmount: (item['discountAmount'] ?? 0).toDouble(),
-  //           discountPercentage: null,
-  //           rateStructure: item['rateStructureCode'] ?? '',
-  //           taxAmount: (item['totalTax'] ?? 0).toDouble(),
-  //           totalAmount: (item['totalValue'] ?? 0).toDouble(),
-  //           rateStructureRows: null,
-  //           lineNo: lineNo,
-  //           hsnAccCode: item['hsnAccCode'] ?? '',
-  //         ),
-  //       );
-  //       lineNo++;
-  //     }
-
-  //     // Populate rsGrid from response
-  //     if (details.rateStructDetail != null) {
-  //       for (final rs in details.rateStructDetail!) {
-  //         _rsGrid.add({
-  //           "docType": "PI",
-  //           "docSubType": "PI",
-  //           "xdtdtmcd": rs['xdtdtmcd'] ?? '',
-  //           "rateCode": rs['rateCode'] ?? '',
-  //           "rateStructCode": rs['rateStructCode'] ?? '',
-  //           "rateAmount": rs['rateAmount'] ?? 0,
-  //           "amdSrNo": rs['amdSrNo'] ?? 0,
-  //           "perCValue": rs['perCValue']?.toString() ?? "0.00",
-  //           "incExc": rs['incExc'] ?? '',
-  //           "perVal": rs['perVal'] ?? 0,
-  //           "appliedOn": rs['appliedOn'] ?? "",
-  //           "pnyn": rs['pnyn'] ?? false,
-  //           "seqNo": rs['seqNo']?.toString() ?? "1",
-  //           "curCode": rs['curCode'] ?? "INR",
-  //           "fromLocationId": locationDetails?['id'] ?? 8,
-  //           "TaxTyp": rs['TaxTyp'] ?? '',
-  //           "refLine": rs['refLine'] ?? 0,
-  //         });
-  //       }
-  //     }
-
-  //     // Populate discountDetail from response
-  //     if (details.discountDetail != null) {
-  //       for (final disc in details.discountDetail!) {
-  //         _discountDetails.add({
-  //           "itemCode": disc['itemCode'] ?? '',
-  //           "currCode": disc['currCode'] ?? "INR",
-  //           "discCode": disc['discCode'] ?? "01",
-  //           "discType": disc['discType'] ?? '',
-  //           "discVal": disc['discVal'] ?? 0,
-  //           "fromLocationId": locationDetails?['id'] ?? 8,
-  //           "oditmlineno": disc['oditmlineno'] ?? 0,
-  //         });
-  //       }
-  //     }
-
-  //     // Store the full response for later use
-  //     _quotationResponse = details;
-  //     setState(() => _isLoading = false);
-  //   } catch (e) {
-  //     setState(() => _isLoading = false);
-  //     _showError("Failed to load quotation details: ${e.toString()}");
-  //   }
-  // }
   Future<void> _onQuotationSelected(String? quotationNumber) async {
     if (quotationNumber == null) return;
 
@@ -477,7 +509,8 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
 
     setState(() {
       selectedQuotationNumber = quotationNumber;
-      selectedQuotationSrNo = selectedQuotation.srNo.toString();
+      selectedQuotationSrNo = selectedQuotation.srNo;
+
       items.clear();
       _rsGrid.clear();
       _discountDetails.clear();
@@ -487,7 +520,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
     try {
       final details = await _service.fetchQuotationDetails(
         quotationNumber,
-        selectedQuotation.srNo,
+        selectedQuotationSrNo,
       );
       items = [];
       _rsGrid = [];
@@ -522,114 +555,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
         lineNo++;
       }
 
-      // Populate rsGrid from response - use rateAmount from API
-      if (details.rateStructDetail != null) {
-        for (final rs in details.rateStructDetail!) {
-          _rsGrid.add({
-            "docType": "PI",
-            "docSubType": "PI",
-            "xdtdtmcd": rs['dtmCode'] ?? '', // Use dtmCode for item mapping
-            "rateCode": rs['rateCode'] ?? '',
-            "rateStructCode": rs['rateStructureCode'] ?? '',
-            "rateAmount":
-                double.tryParse(rs['rateAmount']?.toString() ?? '0') ?? 0.0,
-            "amdSrNo": rs['srNo'] ?? 0,
-            "perCValue": rs['taxValue']?.toString() ?? "0.00",
-            "incExc": rs['incExc'] ?? '',
-            "perVal": rs['taxValue'] ?? 0,
-            "appliedOn": rs['applicableOnCode'] ?? "",
-            "pnyn": rs['pNYN'] ?? false,
-            "seqNo": rs['seqNo']?.toString() ?? "1",
-            "curCode": rs['curCode'] ?? "INR",
-            "fromLocationId": locationDetails?['id'] ?? 8,
-            "TaxTyp": rs['taxType'] ?? '',
-            "refLine": rs['itmModelRefNo'] ?? 0,
-          });
-        }
-      }
-
-      // Populate discountDetail from response
-      if (details.discountDetail != null) {
-        for (final disc in details.discountDetail!) {
-          _discountDetails.add({
-            "itemCode": disc['discitem'] ?? '',
-            "currCode": disc['disccurr'] ?? currency ?? "INR",
-            "discCode": disc['disccode'] ?? "01",
-            "discType": disc['disctype'] ?? '',
-            "discVal": disc['discvalue'] ?? 0,
-            "fromLocationId": locationDetails?['id'] ?? 8,
-            "oditmlineno": disc['itmModelRefNo'] ?? 0,
-          });
-        }
-      }
-
-      // Store the full response for later use
-      _quotationResponse = details;
-      setState(() => _isLoading = false);
-    } catch (e) {
-      setState(() => _isLoading = false);
-      _showError("Failed to load quotation details: ${e.toString()}");
-    }
-  }
-
-  // Update the onSalesOrderSelected method
-  Future<void> _onSalesOrderSelected(String? salesOrderNumber) async {
-    if (salesOrderNumber == null) return;
-
-    // Find the selected sales order to get its srNo
-    final selectedSalesOrder = salesOrderNumbers.firstWhere(
-      (so) => so.number == salesOrderNumber,
-      orElse: () => throw Exception("Selected sales order not found"),
-    );
-
-    setState(() {
-      selectedSalesOrderNumber = salesOrderNumber;
-      selectedSalesOrderSrNo = selectedSalesOrder.srNo.toString();
-      items.clear();
-      _rsGrid.clear();
-      _discountDetails.clear();
-      _isLoading = true;
-    });
-
-    try {
-      final details = await _service.fetchSalesOrderDetails(
-        salesOrderNumber,
-        selectedSalesOrder.srNo,
-      );
-      items = [];
-      _rsGrid = [];
-      _discountDetails = [];
-
-      int lineNo = 1;
-      for (final item in details.itemDetail) {
-        // Use maxInvoiceQty if qty is 0
-        final quantity =
-            (item['qty'] ?? 0).toDouble() == 0.0
-                ? (item['maxInvoiceQty'] ?? 0).toDouble()
-                : (item['qty'] ?? 0).toDouble();
-
-        items.add(
-          ProformaItem(
-            itemName: item['itemName'] ?? '',
-            itemCode: item['itemCode'] ?? '',
-            qty: quantity,
-            basicRate: (item['itemRate'] ?? 0).toDouble(),
-            uom: item['suom'] ?? 'NOS',
-            discountType: (item['discountAmount'] ?? 0) > 0 ? 'Value' : 'None',
-            discountAmount: (item['discountAmount'] ?? 0).toDouble(),
-            discountPercentage: null,
-            rateStructure: item['rateStructureCode'] ?? '',
-            taxAmount: (item['totalTax'] ?? 0).toDouble(),
-            totalAmount: (item['totalValue'] ?? 0).toDouble(),
-            rateStructureRows: null,
-            lineNo: lineNo,
-            hsnAccCode: item['hsnAccCode'] ?? '',
-          ),
-        );
-        lineNo++;
-      }
-
-      // Populate rsGrid from response - use exact same structure as quotation
+      // Populate rsGrid from response
       if (details.rateStructDetail != null) {
         for (final rs in details.rateStructDetail!) {
           _rsGrid.add({
@@ -646,7 +572,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
             "appliedOn": rs['appliedOn'] ?? "",
             "pnyn": rs['pnyn'] ?? false,
             "seqNo": rs['seqNo']?.toString() ?? "1",
-            "curCode": rs['curCode'] ?? currency,
+            "curCode": rs['curCode'] ?? "INR",
             "fromLocationId": locationDetails?['id'] ?? 8,
             "TaxTyp": rs['TaxTyp'] ?? '',
             "refLine": rs['refLine'] ?? 0,
@@ -654,12 +580,12 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
         }
       }
 
-      // Populate discountDetail from response - use exact same structure as quotation
+      // Populate discountDetail from response
       if (details.discountDetail != null) {
         for (final disc in details.discountDetail!) {
           _discountDetails.add({
             "itemCode": disc['itemCode'] ?? '',
-            "currCode": disc['currCode'] ?? currency,
+            "currCode": disc['currCode'] ?? "INR",
             "discCode": disc['discCode'] ?? "01",
             "discType": disc['discType'] ?? '',
             "discVal": disc['discVal'] ?? 0,
@@ -670,20 +596,25 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
       }
 
       // Store the full response for later use
-      _salesOrderResponse = details;
+      _quotationResponse = details;
       setState(() => _isLoading = false);
     } catch (e) {
       setState(() => _isLoading = false);
-      debugPrint("Error loading sales order details: $e");
-      _showError("Failed to load sales order details: ${e.toString()}");
+      _showError("Failed to load quotation details: ${e.toString()}");
     }
   }
+  // Future<void> _onQuotationSelected(String? quotationNumber) async {
+  //   if (quotationNumber == null) return;
 
-  // Future<void> _onSalesOrderSelected(String? salesOrderNumber) async {
-  //   if (salesOrderNumber == null) return;
+  //   // Find the selected quotation to get its srNo
+  //   final selectedQuotation = quotationNumbers.firstWhere(
+  //     (q) => q.number == quotationNumber,
+  //     orElse: () => throw Exception("Selected quotation not found"),
+  //   );
 
   //   setState(() {
-  //     selectedSalesOrderNumber = salesOrderNumber;
+  //     selectedQuotationNumber = quotationNumber;
+  //     selectedQuotationSrNo = selectedQuotation.srNo.toString();
   //     items.clear();
   //     _rsGrid.clear();
   //     _discountDetails.clear();
@@ -691,7 +622,10 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   //   });
 
   //   try {
-  //     final details = await _service.fetchSalesOrderDetails(salesOrderNumber);
+  //     final details = await _service.fetchQuotationDetails(
+  //       quotationNumber,
+  //       selectedQuotation.srNo,
+  //     );
   //     items = [];
   //     _rsGrid = [];
   //     _discountDetails = [];
@@ -725,7 +659,114 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   //       lineNo++;
   //     }
 
-  //     // Populate rsGrid from response
+  //     // Populate rsGrid from response - use rateAmount from API
+  //     if (details.rateStructDetail != null) {
+  //       for (final rs in details.rateStructDetail!) {
+  //         _rsGrid.add({
+  //           "docType": "PI",
+  //           "docSubType": "PI",
+  //           "xdtdtmcd": rs['dtmCode'] ?? '', // Use dtmCode for item mapping
+  //           "rateCode": rs['rateCode'] ?? '',
+  //           "rateStructCode": rs['rateStructureCode'] ?? '',
+  //           "rateAmount":
+  //               double.tryParse(rs['rateAmount']?.toString() ?? '0') ?? 0.0,
+  //           "amdSrNo": rs['srNo'] ?? 0,
+  //           "perCValue": rs['taxValue']?.toString() ?? "0.00",
+  //           "incExc": rs['incExc'] ?? '',
+  //           "perVal": rs['taxValue'] ?? 0,
+  //           "appliedOn": rs['applicableOnCode'] ?? "",
+  //           "pnyn": rs['pNYN'] ?? false,
+  //           "seqNo": rs['seqNo']?.toString() ?? "1",
+  //           "curCode": rs['curCode'] ?? "INR",
+  //           "fromLocationId": locationDetails?['id'] ?? 8,
+  //           "TaxTyp": rs['taxType'] ?? '',
+  //           "refLine": rs['itmModelRefNo'] ?? 0,
+  //         });
+  //       }
+  //     }
+
+  //     // Populate discountDetail from response
+  //     if (details.discountDetail != null) {
+  //       for (final disc in details.discountDetail!) {
+  //         _discountDetails.add({
+  //           "itemCode": disc['discitem'] ?? '',
+  //           "currCode": disc['disccurr'] ?? currency ?? "INR",
+  //           "discCode": disc['disccode'] ?? "01",
+  //           "discType": disc['disctype'] ?? '',
+  //           "discVal": disc['discvalue'] ?? 0,
+  //           "fromLocationId": locationDetails?['id'] ?? 8,
+  //           "oditmlineno": disc['itmModelRefNo'] ?? 0,
+  //         });
+  //       }
+  //     }
+
+  //     // Store the full response for later use
+  //     _quotationResponse = details;
+  //     setState(() => _isLoading = false);
+  //   } catch (e) {
+  //     setState(() => _isLoading = false);
+  //     _showError("Failed to load quotation details: ${e.toString()}");
+  //   }
+  // }
+
+  // Update the onSalesOrderSelected method
+  // Future<void> _onSalesOrderSelected(String? salesOrderNumber) async {
+  //   if (salesOrderNumber == null) return;
+
+  //   // Find the selected sales order to get its srNo
+  //   final selectedSalesOrder = salesOrderNumbers.firstWhere(
+  //     (so) => so.number == salesOrderNumber,
+  //     orElse: () => throw Exception("Selected sales order not found"),
+  //   );
+
+  //   setState(() {
+  //     selectedSalesOrderNumber = salesOrderNumber;
+  //     selectedSalesOrderSrNo = selectedSalesOrder.srNo;
+  //     items.clear();
+  //     _rsGrid.clear();
+  //     _discountDetails.clear();
+  //     _isLoading = true;
+  //   });
+
+  //   try {
+  //     final details = await _service.fetchSalesOrderDetails(
+  //       salesOrderNumber,
+  //       selectedSalesOrder.srNo,
+  //     );
+  //     items = [];
+  //     _rsGrid = [];
+  //     _discountDetails = [];
+
+  //     int lineNo = 1;
+  //     for (final item in details.itemDetail) {
+  //       // Use maxInvoiceQty if qty is 0
+  //       final quantity =
+  //           (item['qty'] ?? 0).toDouble() == 0.0
+  //               ? (item['maxInvoiceQty'] ?? 0).toDouble()
+  //               : (item['qty'] ?? 0).toDouble();
+
+  //       items.add(
+  //         ProformaItem(
+  //           itemName: item['itemName'] ?? '',
+  //           itemCode: item['itemCode'] ?? '',
+  //           qty: quantity,
+  //           basicRate: (item['itemRate'] ?? 0).toDouble(),
+  //           uom: item['suom'] ?? 'NOS',
+  //           discountType: (item['discountAmount'] ?? 0) > 0 ? 'Value' : 'None',
+  //           discountAmount: (item['discountAmount'] ?? 0).toDouble(),
+  //           discountPercentage: null,
+  //           rateStructure: item['rateStructureCode'] ?? '',
+  //           taxAmount: (item['totalTax'] ?? 0).toDouble(),
+  //           totalAmount: (item['totalValue'] ?? 0).toDouble(),
+  //           rateStructureRows: null,
+  //           lineNo: lineNo,
+  //           hsnAccCode: item['hsnAccCode'] ?? '',
+  //         ),
+  //       );
+  //       lineNo++;
+  //     }
+
+  //     // Populate rsGrid from response - use exact same structure as quotation
   //     if (details.rateStructDetail != null) {
   //       for (final rs in details.rateStructDetail!) {
   //         _rsGrid.add({
@@ -742,7 +783,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   //           "appliedOn": rs['appliedOn'] ?? "",
   //           "pnyn": rs['pnyn'] ?? false,
   //           "seqNo": rs['seqNo']?.toString() ?? "1",
-  //           "curCode": rs['curCode'] ?? currency ?? "INR",
+  //           "curCode": rs['curCode'] ?? currency,
   //           "fromLocationId": locationDetails?['id'] ?? 8,
   //           "TaxTyp": rs['TaxTyp'] ?? '',
   //           "refLine": rs['refLine'] ?? 0,
@@ -750,16 +791,16 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   //       }
   //     }
 
-  //     // Populate discountDetail from response
+  //     // Populate discountDetail from response - use exact same structure as quotation
   //     if (details.discountDetail != null) {
   //       for (final disc in details.discountDetail!) {
   //         _discountDetails.add({
   //           "itemCode": disc['itemCode'] ?? '',
-  //           "currCode": disc['currCode'] ?? currency ?? "INR",
+  //           "currCode": disc['currCode'] ?? currency,
   //           "discCode": disc['discCode'] ?? "01",
   //           "discType": disc['discType'] ?? '',
   //           "discVal": disc['discVal'] ?? 0,
-  //           "fromLocationId": locationDetails?['id'],
+  //           "fromLocationId": locationDetails?['id'] ?? 8,
   //           "oditmlineno": disc['oditmlineno'] ?? 0,
   //         });
   //       }
@@ -770,9 +811,115 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   //     setState(() => _isLoading = false);
   //   } catch (e) {
   //     setState(() => _isLoading = false);
+  //     debugPrint("Error loading sales order details: $e");
   //     _showError("Failed to load sales order details: ${e.toString()}");
   //   }
   // }
+
+  Future<void> _onSalesOrderSelected(String? salesOrderNumber) async {
+    if (salesOrderNumber == null) return;
+
+    // Find the selected sales order to get its srNo
+    final selectedSalesOrder = salesOrderNumbers.firstWhere(
+      (so) => so.number == salesOrderNumber,
+      orElse: () => throw Exception("Selected sales order not found"),
+    );
+
+    setState(() {
+      selectedSalesOrderNumber = salesOrderNumber;
+      selectedSalesOrderSrNo = selectedSalesOrder.srNo;
+      items.clear();
+      _rsGrid.clear();
+      _discountDetails.clear();
+      _isLoading = true;
+    });
+
+    try {
+      final details = await _service.fetchSalesOrderDetails(
+        salesOrderNumber,
+        selectedQuotationSrNo,
+      );
+      items = [];
+      _rsGrid = [];
+      _discountDetails = [];
+
+      int lineNo = 1;
+      for (final item in details.itemDetail) {
+        // Use maxInvoiceQty if qty is 0
+        final quantity =
+            (item['qty'] ?? 0).toDouble() == 0.0
+                ? (item['maxInvoiceQty'] ?? 0).toDouble()
+                : (item['qty'] ?? 0).toDouble();
+
+        items.add(
+          ProformaItem(
+            itemName: item['itemName'] ?? '',
+            itemCode: item['itemCode'] ?? '',
+            qty: quantity,
+            basicRate: (item['itemRate'] ?? 0).toDouble(),
+            uom: item['suom'] ?? 'NOS',
+            discountType: (item['discountAmount'] ?? 0) > 0 ? 'Value' : 'None',
+            discountAmount: (item['discountAmount'] ?? 0).toDouble(),
+            discountPercentage: null,
+            rateStructure: item['rateStructureCode'] ?? '',
+            taxAmount: (item['totalTax'] ?? 0).toDouble(),
+            totalAmount: (item['totalValue'] ?? 0).toDouble(),
+            rateStructureRows: null,
+            lineNo: lineNo,
+            hsnAccCode: item['hsnAccCode'] ?? '',
+          ),
+        );
+        lineNo++;
+      }
+
+      // Populate rsGrid from response
+      if (details.rateStructDetail != null) {
+        for (final rs in details.rateStructDetail!) {
+          _rsGrid.add({
+            "docType": "PI",
+            "docSubType": "PI",
+            "xdtdtmcd": rs['xdtdtmcd'] ?? '',
+            "rateCode": rs['rateCode'] ?? '',
+            "rateStructCode": rs['rateStructCode'] ?? '',
+            "rateAmount": rs['rateAmount'] ?? 0,
+            "amdSrNo": rs['amdSrNo'] ?? 0,
+            "perCValue": rs['perCValue']?.toString() ?? "0.00",
+            "incExc": rs['incExc'] ?? '',
+            "perVal": rs['perVal'] ?? 0,
+            "appliedOn": rs['appliedOn'] ?? "",
+            "pnyn": rs['pnyn'] ?? false,
+            "seqNo": rs['seqNo']?.toString() ?? "1",
+            "curCode": rs['curCode'] ?? currency ?? "INR",
+            "fromLocationId": locationDetails?['id'] ?? 8,
+            "TaxTyp": rs['TaxTyp'] ?? '',
+            "refLine": rs['refLine'] ?? 0,
+          });
+        }
+      }
+
+      // Populate discountDetail from response
+      if (details.discountDetail != null) {
+        for (final disc in details.discountDetail!) {
+          _discountDetails.add({
+            "itemCode": disc['itemCode'] ?? '',
+            "currCode": disc['currCode'] ?? currency ?? "INR",
+            "discCode": disc['discCode'] ?? "01",
+            "discType": disc['discType'] ?? '',
+            "discVal": disc['discVal'] ?? 0,
+            "fromLocationId": locationDetails?['id'],
+            "oditmlineno": disc['oditmlineno'] ?? 0,
+          });
+        }
+      }
+
+      // Store the full response for later use
+      _salesOrderResponse = details;
+      setState(() => _isLoading = false);
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showError("Failed to load sales order details: ${e.toString()}");
+    }
+  }
 
   Future<void> _showAddItemPage() async {
     final result = await Navigator.push<ProformaItem>(
@@ -1500,7 +1647,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Unable to get current location. Please try again.'),
-          backgroundColor: Colors.red,
+          // backgroundColor: Colors.red,
         ),
       );
       return;
@@ -1530,9 +1677,9 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
             latitude: position.latitude,
           );
 
-          if (!locationSuccess) {
-            errorMessages.add('Location submission failed');
-          }
+          // if (!locationSuccess) {
+          //   errorMessages.add('Location submission failed');
+          // }
         } catch (e) {
           debugPrint('Location submission error: $e');
           locationSuccess = false;
@@ -1573,7 +1720,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
     } catch (e, st) {
       setState(() => _isLoading = false);
       debugPrint("Error stacktrace during submission: $st");
-      _showError("Error during submission: ${e.toString()}");
+      _showError("Error during submission");
     }
   }
 
@@ -1745,6 +1892,45 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
     );
   }
 
+  // Widget _buildCustomerField() {
+  //   final isPrefilled =
+  //       widget.salesOrderData != null || widget.quotationData != null;
+  //   return TypeAheadField<Customer>(
+  //     debounceDuration: const Duration(milliseconds: 400),
+  //     controller: customerController,
+  //     builder: (context, controller, focusNode) {
+  //       return TextFormField(
+  //         controller: controller,
+  //         focusNode: focusNode,
+  //         decoration: const InputDecoration(
+  //           labelText: "Customer Name",
+  //           border: OutlineInputBorder(),
+  //         ),
+  //         enabled: !isPrefilled,
+  //         validator:
+  //             (val) =>
+  //                 val == null || val.isEmpty
+  //                     ? "Customer Name is required"
+  //                     : null,
+  //       );
+  //     },
+  //     suggestionsCallback: (pattern) async {
+  //       if (pattern.length < 4) return [];
+  //       try {
+  //         return await _service.fetchCustomerSuggestions(pattern);
+  //       } catch (e) {
+  //         return [];
+  //       }
+  //     },
+  //     itemBuilder: (context, suggestion) {
+  //       return ListTile(
+  //         title: Text(suggestion.custName),
+  //         subtitle: Text(suggestion.custCode),
+  //       );
+  //     },
+  //     onSelected: _onCustomerSelected,
+  //   );
+  // }
   Widget _buildCustomerField() {
     final isPrefilled =
         widget.salesOrderData != null || widget.quotationData != null;
@@ -1778,7 +1964,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
       itemBuilder: (context, suggestion) {
         return ListTile(
           title: Text(suggestion.custName),
-          subtitle: Text(suggestion.custCode),
+          subtitle: Text('${suggestion.custCode} - ${suggestion.custName}'),
         );
       },
       onSelected: _onCustomerSelected,

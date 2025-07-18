@@ -59,7 +59,8 @@ class _LaborPOPdfLoaderPageState extends State<LaborPOPdfLoaderPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Labor PO PDF')),
       body: PDF().fromUrl(
-        pdfUrl!,
+        // pdfUrl!,
+        '${pdfUrl!}?t=${DateTime.now().millisecondsSinceEpoch}',
         placeholder: (progress) => Center(child: Text('$progress %')),
         errorWidget: (error) => Center(child: Text(error.toString())),
       ),

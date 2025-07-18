@@ -71,10 +71,11 @@ class QuotationService extends BaseService {
       "intSiteId": q.siteId,
       "strDomCurrency": currency,
       "companyData": companyDetails,
-      "documentprint": "regular",
       "printtype": "pdf",
-      "discountprint": "withdisc",
+      "msctechspecifications": true,
       "reportselection": "withvalue",
+      "documentprint": "regular",
+      "discountprint": "withoutdisc",
     };
 
     return executeRequest<String>(

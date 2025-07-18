@@ -7,28 +7,53 @@ Future<String> getDomesticCurrency() async {
   return domCurrency['domCurCode'] ?? 'INR';
 }
 
+// class Customer {
+//   final int totalRows;
+//   final String custCode;
+//   final String custName;
+//   final String cityCode;
+//   final String cityName;
+
+//   Customer({
+//     required this.totalRows,
+//     required this.custCode,
+//     required this.custName,
+//     required this.cityCode,
+//     required this.cityName,
+//   });
+
+//   factory Customer.fromJson(Map<String, dynamic> json) {
+//     return Customer(
+//       totalRows: json['totalRows'] ?? 0,
+//       custCode: json['custCode'] ?? '',
+//       custName: json['custName'] ?? '',
+//       cityCode: json['cityCode'] ?? '',
+//       cityName: json['cityName'] ?? '',
+//     );
+//   }
+// }
 class Customer {
   final int totalRows;
   final String custCode;
   final String custName;
-  final String cityCode;
-  final String cityName;
+  final String custFullName;
+  final String currencyCode;
 
   Customer({
     required this.totalRows,
     required this.custCode,
     required this.custName,
-    required this.cityCode,
-    required this.cityName,
+    required this.custFullName,
+    required this.currencyCode,
   });
 
   factory Customer.fromJson(Map<String, dynamic> json) {
     return Customer(
       totalRows: json['totalRows'] ?? 0,
-      custCode: json['custCode'] ?? '',
-      custName: json['custName'] ?? '',
-      cityCode: json['cityCode'] ?? '',
-      cityName: json['cityName'] ?? '',
+      custCode: json['customerCode'] ?? '',
+      custName: json['customerName'] ?? '',
+      custFullName: json['customerFullName'] ?? '',
+      currencyCode: json['currencycode'] ?? 'INR',
     );
   }
 }

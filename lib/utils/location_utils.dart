@@ -46,11 +46,12 @@ class LocationUtils {
       }
 
       // Get current position with highest accuracy
-      final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.best,
-        timeLimit: const Duration(seconds: 15),
-      );
-
+      Position? position = await Geolocator.getCurrentPosition();
+      if (position == null) {
+        position = await Geolocator.getLastKnownPosition(
+          forceAndroidLocationManager: true,
+        );
+      }
       return position;
     } catch (e) {
       debugPrint('Error getting current location: $e');

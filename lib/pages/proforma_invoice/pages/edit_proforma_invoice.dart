@@ -73,11 +73,13 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
 
   Future<void> _initializeForm() async {
     try {
+      await getDomesticCurrency();
       _service = await EditProformaInvoiceService.create();
       await _loadFinancePeriod();
       await _loadRateStructures();
       await _loadInvoiceDetails();
       await _loadSalesPolicy();
+      await _getExchangeRate();
       final domCurrency = await StorageUtils.readJson('domestic_currency');
       if (domCurrency == null) throw Exception("Domestic currency not set");
 
@@ -144,8 +146,8 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
       totalRows: headerDetail['totalRows'] ?? 0,
       custCode: headerDetail['invCustCode'],
       custName: headerDetail['customerName'],
-      cityCode: headerDetail['cityCode'] ?? '',
-      cityName: headerDetail['cityName'] ?? '',
+      currencyCode: headerDetail['currencyCode'] ?? 'INR',
+      custFullName: headerDetail['customerFullName'] ?? '',
     );
     customerController.text = headerDetail['customerName'];
 
@@ -944,7 +946,7 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Unable to get current location. Please try again.'),
-          backgroundColor: Colors.red,
+          // backgroundColor: Colors.red,
         ),
       );
       return;
@@ -972,66 +974,66 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
             latitude: position.latitude,
           );
 
-          if (!locationSuccess) {
-            errorMessages.add('Location update failed');
-          }
+          // if (!locationSuccess) {
+          //   errorMessages.add('Location update failed');
+          // }
         } catch (e) {
           debugPrint('Location submission error: $e');
           locationSuccess = false;
-          errorMessages.add('Location update failed: $e');
+          // errorMessages.add('Location update failed: $e');
         }
 
         if (!mounted) return;
         setState(() => _isLoading = false);
 
         // Show appropriate success/error messages
-        if (locationSuccess) {
-          _showSuccess("Proforma Invoice updated successfully with location!");
-        } else {
-          String errorMessage = 'Proforma Invoice updated, but ';
-          if (errorMessages.isNotEmpty) {
-            errorMessage += errorMessages.join(', ');
-          } else {
-            errorMessage += 'location update failed';
-          }
-          _showError(errorMessage);
-        }
+        // if (locationSuccess) {
+        //   _showSuccess("Proforma Invoice updated successfully with location!");
+        // } else {
+        //   String errorMessage = 'Proforma Invoice updated, but ';
+        //   if (errorMessages.isNotEmpty) {
+        //     errorMessage += errorMessages.join(', ');
+        //   } else {
+        //     errorMessage += 'location update failed';
+        //   }
+        //   _showError(errorMessage);
+        // }
 
         // Show detailed error dialog if there are specific errors
-        if (errorMessages.isNotEmpty) {
-          showDialog(
-            context: context,
-            builder:
-                (context) => AlertDialog(
-                  title: const Text('Update Status'),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Proforma Invoice updated successfully, but some operations failed:',
-                      ),
-                      const SizedBox(height: 8),
-                      ...errorMessages.map(
-                        (error) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 2),
-                          child: Text(
-                            '• $error',
-                            style: const TextStyle(color: Colors.red),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('OK'),
-                    ),
-                  ],
-                ),
-          );
-        }
+        // if (errorMessages.isNotEmpty) {
+        //   showDialog(
+        //     context: context,
+        //     builder:
+        //         (context) => AlertDialog(
+        //           title: const Text('Update Status'),
+        //           content: Column(
+        //             mainAxisSize: MainAxisSize.min,
+        //             crossAxisAlignment: CrossAxisAlignment.start,
+        //             children: [
+        //               const Text(
+        //                 'Proforma Invoice updated successfully, but some operations failed:',
+        //               ),
+        //               const SizedBox(height: 8),
+        //               ...errorMessages.map(
+        //                 (error) => Padding(
+        //                   padding: const EdgeInsets.symmetric(vertical: 2),
+        //                   child: Text(
+        //                     '• $error',
+        //                     style: const TextStyle(color: Colors.red),
+        //                   ),
+        //                 ),
+        //               ),
+        //             ],
+        //           ),
+        //           actions: [
+        //             TextButton(
+        //               onPressed: () => Navigator.of(context).pop(),
+        //               child: const Text('OK'),
+        //             ),
+        //           ],
+        //         ),
+        //   );
+        // }
 
         Navigator.pop(context, true);
       } else {
@@ -1041,7 +1043,7 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
     } catch (e, st) {
       setState(() => _isLoading = false);
       debugPrint("Error stacktrace during update: $st");
-      _showError("Error during update: ${e.toString()}");
+      _showError("Failed to update Proforma Invoice");
     }
   }
 

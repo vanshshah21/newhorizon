@@ -59,17 +59,6 @@ class _LeadCardState extends State<LeadCard>
     super.dispose();
   }
 
-  void _toggleExpand() {
-    setState(() {
-      _expanded = !_expanded;
-      if (_expanded) {
-        _animationController.forward();
-      } else {
-        _animationController.reverse();
-      }
-    });
-  }
-
   Future<void> _calculateAmounts() async {
     final items = widget.lead.inqEntryItemModel;
     if (items.isEmpty) {
@@ -203,73 +192,73 @@ class _LeadCardState extends State<LeadCard>
                     _LeadDetailSection(lead: lead),
                     const SizedBox(height: 12),
                     // Expand/Collapse button and action hint
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        InkWell(
-                          onTap: _toggleExpand,
-                          borderRadius: BorderRadius.circular(8),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.inventory_2_outlined,
-                                  size: 16,
-                                  color: theme.colorScheme.primary,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  '${lead.inqEntryItemModel.length} item${lead.inqEntryItemModel.length == 1 ? '' : 's'}',
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: theme.colorScheme.primary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                AnimatedBuilder(
-                                  animation: _expandAnimation,
-                                  builder: (context, child) {
-                                    return Transform.rotate(
-                                      angle: _expandAnimation.value * 3.14159,
-                                      child: Icon(
-                                        Icons.keyboard_arrow_down,
-                                        size: 20,
-                                        color: theme.colorScheme.primary,
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.swipe_left,
-                              size: 16,
-                              color: theme.colorScheme.onSurface.withOpacity(
-                                0.5,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              'Swipe for actions',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurface.withOpacity(
-                                  0.5,
-                                ),
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                    // Row(
+                    //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    //   children: [
+                    //     InkWell(
+                    //       onTap: _toggleExpand,
+                    //       borderRadius: BorderRadius.circular(8),
+                    //       child: Padding(
+                    //         padding: const EdgeInsets.symmetric(
+                    //           horizontal: 12,
+                    //           vertical: 8,
+                    //         ),
+                    //         child: Row(
+                    //           children: [
+                    //             Icon(
+                    //               Icons.inventory_2_outlined,
+                    //               size: 16,
+                    //               color: theme.colorScheme.primary,
+                    //             ),
+                    //             const SizedBox(width: 8),
+                    //             Text(
+                    //               '${lead.inqEntryItemModel.length} item${lead.inqEntryItemModel.length == 1 ? '' : 's'}',
+                    //               style: theme.textTheme.bodyMedium?.copyWith(
+                    //                 color: theme.colorScheme.primary,
+                    //                 fontWeight: FontWeight.w500,
+                    //               ),
+                    //             ),
+                    //             const SizedBox(width: 8),
+                    //             AnimatedBuilder(
+                    //               animation: _expandAnimation,
+                    //               builder: (context, child) {
+                    //                 return Transform.rotate(
+                    //                   angle: _expandAnimation.value * 3.14159,
+                    //                   child: Icon(
+                    //                     Icons.keyboard_arrow_down,
+                    //                     size: 20,
+                    //                     color: theme.colorScheme.primary,
+                    //                   ),
+                    //                 );
+                    //               },
+                    //             ),
+                    //           ],
+                    //         ),
+                    //       ),
+                    //     ),
+                    //     Row(
+                    //       children: [
+                    //         Icon(
+                    //           Icons.swipe_left,
+                    //           size: 16,
+                    //           color: theme.colorScheme.onSurface.withOpacity(
+                    //             0.5,
+                    //           ),
+                    //         ),
+                    //         const SizedBox(width: 4),
+                    //         Text(
+                    //           'Swipe for actions',
+                    //           style: theme.textTheme.bodySmall?.copyWith(
+                    //             color: theme.colorScheme.onSurface.withOpacity(
+                    //               0.5,
+                    //             ),
+                    //             fontStyle: FontStyle.italic,
+                    //           ),
+                    //         ),
+                    //       ],
+                    //     ),
+                    //   ],
+                    // ),
                   ],
                 ),
               ),

@@ -387,7 +387,7 @@ class _AddLeadPageState extends State<AddLeadPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Unable to get current location. Please try again.'),
-          backgroundColor: Colors.red,
+          // backgroundColor: Colors.red,
         ),
       );
       return;
@@ -483,17 +483,17 @@ class _AddLeadPageState extends State<AddLeadPage> {
           latitude: position.latitude,
         );
 
-        if (!locationSuccess) {
-          errorMessages.add('Location upload failed');
-        }
+        // if (!locationSuccess) {
+        //   errorMessages.add('Location upload failed');
+        // }
       } catch (e) {
-        debugPrint('Location submission error: $e');
+        // debugPrint('Location submission error: $e');
         locationSuccess = false;
-        errorMessages.add('Location upload failed: $e');
+        // errorMessages.add('Location upload failed: $e');
       }
     } else {
       locationSuccess = false;
-      errorMessages.add('Unable to get function ID for location submission');
+      // errorMessages.add('Unable to get function ID for location submission');
     }
 
     // Upload attachments if there are any
@@ -512,13 +512,13 @@ class _AddLeadPageState extends State<AddLeadPage> {
           userId: _userId!,
         );
 
-        if (!attachmentSuccess) {
-          errorMessages.add('Attachment upload failed');
-        }
+        // if (!attachmentSuccess) {
+        //   errorMessages.add('Attachment upload failed');
+        // }
       } catch (e) {
         debugPrint('Attachment upload error: $e');
         attachmentSuccess = false;
-        errorMessages.add('Attachment upload failed: $e');
+        // errorMessages.add('Attachment upload failed: $e');
       }
     }
 
@@ -539,15 +539,15 @@ class _AddLeadPageState extends State<AddLeadPage> {
 
           // Show success message
           String successMessage = 'Lead created successfully';
-          if (locationSuccess && attachmentSuccess) {
-            successMessage += ' with location and attachments!';
-          } else if (locationSuccess && _attachments.isEmpty) {
-            successMessage += ' with location!';
-          } else if (attachmentSuccess && !locationSuccess) {
-            successMessage += ' with attachments!';
-          } else if (locationSuccess && !attachmentSuccess) {
-            successMessage += ' with location!';
-          }
+          // if (locationSuccess && attachmentSuccess) {
+          //   successMessage += ' with location and attachments!';
+          // } else if (locationSuccess && _attachments.isEmpty) {
+          //   successMessage += ' with location!';
+          // } else if (attachmentSuccess && !locationSuccess) {
+          //   successMessage += ' with attachments!';
+          // } else if (locationSuccess && !attachmentSuccess) {
+          //   successMessage += ' with location!';
+          // }
 
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -567,63 +567,9 @@ class _AddLeadPageState extends State<AddLeadPage> {
       }
     } catch (e) {
       debugPrint('Error fetching created lead details: $e');
+      Navigator.of(context).pop(true);
     }
     setState(() => _submitting = false);
-
-    // Show appropriate success/error messages
-    if (locationSuccess && attachmentSuccess) {
-      // Everything succeeded
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Lead created successfully with location and attachments!',
-          ),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } else if (locationSuccess && _attachments.isEmpty) {
-      // Location succeeded, no attachments
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Lead created successfully with location!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } else if (attachmentSuccess && !locationSuccess) {
-      // Attachments succeeded, location failed
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Lead created with attachments, but location upload failed',
-          ),
-          backgroundColor: Colors.orange,
-        ),
-      );
-    } else if (locationSuccess && !attachmentSuccess) {
-      // Location succeeded, attachments failed
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Lead created with location, but attachment upload failed',
-          ),
-          backgroundColor: Colors.orange,
-        ),
-      );
-    } else {
-      // Both failed or mixed results
-      String errorMessage = 'Lead created, but ';
-      if (errorMessages.isNotEmpty) {
-        errorMessage += errorMessages.join(', ');
-      } else {
-        errorMessage += 'location and attachment upload failed';
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
-      );
-    }
-
-    Navigator.of(context).pop(true);
   }
 
   @override
@@ -775,13 +721,17 @@ class _AddLeadPageState extends State<AddLeadPage> {
                   labelText: 'Source of Lead',
                   errorText: _sourceError,
                 ),
+                isExpanded: true,
                 value: _selectedSource,
                 items:
                     _sources
                         .map(
                           (e) => DropdownMenuItem(
                             value: e,
-                            child: Text(e.codeFullName),
+                            child: Text(
+                              e.codeFullName,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         )
                         .toList(),
@@ -806,12 +756,16 @@ class _AddLeadPageState extends State<AddLeadPage> {
                   errorText: _salesmanError,
                 ),
                 value: _selectedSalesman,
+                isExpanded: true,
                 items:
                     _salesmen
                         .map(
                           (e) => DropdownMenuItem(
                             value: e,
-                            child: Text(e.salesManFullName),
+                            child: Text(
+                              e.salesManFullName,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         )
                         .toList(),

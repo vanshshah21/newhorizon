@@ -425,6 +425,9 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
             ),
       ),
     );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FocusScope.of(context).unfocus();
+    });
     if (result != null) {
       setState(() {
         result.lineNo = items.length + 1;
@@ -474,6 +477,9 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
             ),
       ),
     );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FocusScope.of(context).unfocus();
+    });
     if (result != null) {
       setState(() {
         items[index] = result;
@@ -791,7 +797,7 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Unable to get current location. Please try again.'),
-          backgroundColor: Colors.red,
+          // backgroundColor: Colors.red,
         ),
       );
       return;
@@ -821,19 +827,19 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
               latitude: position.latitude,
             );
 
-            if (!locationSuccess) {
-              errorMessages.add('Location submission failed');
-            }
+            // if (!locationSuccess) {
+            //   errorMessages.add('Location submission failed');
+            // }
           } catch (e) {
             debugPrint('Location submission error: $e');
             locationSuccess = false;
-            errorMessages.add('Location submission failed: $e');
+            // errorMessages.add('Location submission failed: $e');
           }
         } else {
           locationSuccess = false;
-          errorMessages.add(
-            'Unable to get function ID for location submission',
-          );
+          // errorMessages.add(
+          //   'Unable to get function ID for location submission',
+          // );
         }
         // Upload attachments if any
         if (attachments.isNotEmpty) {
@@ -860,13 +866,13 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
               userId: _service.tokenDetails['user']['id'] ?? 0,
             );
 
-            if (!uploadSuccess) {
-              _showError("Quotation saved, but attachment upload failed!");
-            }
+            // if (!uploadSuccess) {
+            //   _showError("Quotation saved, but attachment upload failed!");
+            // }
           }
         }
 
-        _showSuccess(response['message'] ?? "Quotation submitted successfully");
+        _showSuccess("Quotation submitted successfully");
 
         try {
           final quotationList = await _service.fetchQuotationList(
@@ -878,11 +884,11 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
             final quotation = quotationList.first;
 
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Quotation created successfully!'),
-                ),
-              );
+              // ScaffoldMessenger.of(context).showSnackBar(
+              //   const SnackBar(
+              //     content: Text('Quotation created successfully!'),
+              //   ),
+              // );
 
               // Navigate to QuotationDetailPage
               Navigator.of(context).pushReplacement(
@@ -897,10 +903,11 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
           Navigator.pop(context, true);
         }
       } else {
-        _showError(response['errorMessage'] ?? "Failed to submit quotation");
+        _showError("Failed to submit quotation");
       }
     } catch (e) {
-      _showError("Error during submission: ${e.toString()}");
+      // _showError("Error during submission: ${e.toString()}");
+      _showError("Failed to submit quotation");
     } finally {
       setState(() => _submitting = false);
     }
@@ -1223,12 +1230,16 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
         border: OutlineInputBorder(),
       ),
       value: selectedSalesman,
+      isExpanded: true,
       items:
           salesmanList
               .map(
                 (s) => DropdownMenuItem<Salesman>(
                   value: s,
-                  child: Text(s.salesManFullName),
+                  child: Text(
+                    s.salesManFullName,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               )
               .toList(),

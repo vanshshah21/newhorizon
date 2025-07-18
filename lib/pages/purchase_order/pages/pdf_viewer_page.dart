@@ -311,7 +311,8 @@ class _POPdfLoaderPageState extends State<POPdfLoaderPage> {
               : _pdfUrl == null
               ? const Center(child: CircularProgressIndicator())
               : PDF().fromUrl(
-                _pdfUrl!,
+                // _pdfUrl!,
+                '${_pdfUrl!}?t=${DateTime.now().millisecondsSinceEpoch}',
                 placeholder: (p) => Center(child: Text('$p %')),
                 errorWidget: (e) => Center(child: Text(e.toString())),
               ),

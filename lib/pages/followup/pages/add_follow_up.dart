@@ -661,12 +661,16 @@ class _AddFollowUpFormState extends State<AddFollowUpForm> {
         border: OutlineInputBorder(),
       ),
       value: selectedSalesman,
+      isExpanded: true,
       items:
           salesmanList
               .map(
                 (e) => DropdownMenuItem(
                   value: e,
-                  child: Text(e['salesManFullName']),
+                  child: Text(
+                    e['salesManFullName'],
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               )
               .toList(),
@@ -692,11 +696,17 @@ class _AddFollowUpFormState extends State<AddFollowUpForm> {
         border: OutlineInputBorder(),
       ),
       value: selectedMethod,
+      isExpanded: true,
       items:
           methodList
               .map(
-                (e) =>
-                    DropdownMenuItem(value: e, child: Text(e['codeFullName'])),
+                (e) => DropdownMenuItem(
+                  value: e,
+                  child: Text(
+                    e['codeFullName'],
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               )
               .toList(),
       onChanged: (val) {
@@ -724,12 +734,16 @@ class _AddFollowUpFormState extends State<AddFollowUpForm> {
         border: OutlineInputBorder(),
       ),
       value: selectedNextSalesman,
+      isExpanded: true,
       items:
           salesmanList
               .map(
                 (e) => DropdownMenuItem(
                   value: e,
-                  child: Text(e['salesManFullName']),
+                  child: Text(
+                    e['salesManFullName'],
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               )
               .toList(),

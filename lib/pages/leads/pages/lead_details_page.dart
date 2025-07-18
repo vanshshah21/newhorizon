@@ -587,7 +587,7 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
         borderRadius: BorderRadius.circular(8),
       ),
       child: ListTile(
-        leading: _getFileIcon(attachment),
+        // leading: _getFileIcon(attachment),
         title: Text(
           attachment.originalName,
           style: theme.textTheme.bodyMedium?.copyWith(
@@ -600,21 +600,6 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
             Text(
               _formatFileSize(attachment.size),
               style: theme.textTheme.bodySmall,
-            ),
-          ],
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              onPressed: () => _viewAttachment(attachment),
-              icon: const Icon(Icons.visibility),
-              tooltip: 'View',
-            ),
-            IconButton(
-              onPressed: () => _downloadAttachment(attachment),
-              icon: const Icon(Icons.download),
-              tooltip: 'Download',
             ),
           ],
         ),

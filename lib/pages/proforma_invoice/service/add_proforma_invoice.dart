@@ -14,7 +14,7 @@ class ProformaInvoiceService {
   late final Map<String, dynamic> _financeDetails;
   late final Map<String, dynamic> _quotationDocumentDetails;
   late final Map<String, dynamic> _salesOrderDocumentDetails;
-  late final String _currency;
+  late String _currency;
   late int _companyId;
 
   ProformaInvoiceService._();
@@ -123,20 +123,49 @@ class ProformaInvoiceService {
     return response.data['data'][0];
   }
 
-  Future<List<Customer>> fetchCustomerSuggestions(String pattern) async {
-    const endpoint = "/api/Proforma/proformaInvoiceCustomerList";
-    final body = {
-      "pageNumber": 1,
-      "pageSize": 10,
-      "sortField": "",
-      "sortDirection": "",
-      "searchValue": pattern,
-      "restcoresalestrans": "false",
-    };
+  // Future<List<Customer>> fetchCustomerSuggestions(String pattern) async {
+  //   const endpoint = "/api/Proforma/proformaInvoiceCustomerList";
+  //   final body = {
+  //     "pageNumber": 1,
+  //     "pageSize": 10,
+  //     "sortField": "",
+  //     "sortDirection": "",
+  //     "searchValue": pattern,
+  //     "restcoresalestrans": "false",
+  //   };
 
-    final response = await _dio.post("$_baseUrl$endpoint", data: body);
-    final data = response.data['data'] as List;
-    return data.map((item) => Customer.fromJson(item)).toList();
+  //   final response = await _dio.post("$_baseUrl$endpoint", data: body);
+  //   final data = response.data['data'] as List;
+  //   return data.map((item) => Customer.fromJson(item)).toList();
+  // }
+  Future<List<Customer>> fetchCustomerSuggestions(String searchValue) async {
+    const endpoint = '/api/Proforma/proformaInvoiceCustomerList';
+    try {
+      final response = await _dio.post(
+        "$_baseUrl$endpoint",
+        data: {
+          "pageNumber": 1,
+          "pageSize": 100,
+          "sortField": "",
+          "sortDirection": "",
+          "searchValue": searchValue,
+          "restcoresalestrans": "false",
+          "baseFlag": "Q",
+          "customerCode": null,
+          "docType": "T",
+          "flag": "V",
+        },
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final List<dynamic> data = response.data['data'] ?? [];
+        return data.map((json) => Customer.fromJson(json)).toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Error fetching customer suggestions: $e');
+      return [];
+    }
   }
 
   Future<List<QuotationNumber>> fetchQuotationNumberList(

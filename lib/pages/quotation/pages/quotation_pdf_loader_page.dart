@@ -53,9 +53,10 @@ class _QuotationPdfLoaderPageState extends State<QuotationPdfLoaderPage> {
       );
     }
     return Scaffold(
-      appBar: AppBar(title: const Text('Quotation PDF')),
+      appBar: AppBar(title: const Text('Quotation PDF Viewer')),
       body: PDF().fromUrl(
-        pdfUrl!,
+        // pdfUrl!,
+        '${pdfUrl!}?t=${DateTime.now().millisecondsSinceEpoch}',
         placeholder: (progress) => Center(child: Text('$progress %')),
         errorWidget: (error) => Center(child: Text(error.toString())),
       ),

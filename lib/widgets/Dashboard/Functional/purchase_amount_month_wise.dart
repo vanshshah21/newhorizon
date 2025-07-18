@@ -1436,11 +1436,369 @@
 //   }
 // }
 
-import 'dart:math' as math;
+// import 'dart:math' as math;
+
+// import 'package:fl_chart/fl_chart.dart';
+// import 'package:flutter/material.dart';
+// import 'package:intl/intl.dart' as intl;
+// import 'package:nhapp/utils/format_utils.dart';
+
+// class PurchaseAmountBarChartCard extends StatelessWidget {
+//   final List<Map<String, dynamic>> purchaseAmountData;
+//   static const int maxBars = 12; // Show only 12 months
+
+//   const PurchaseAmountBarChartCard({
+//     super.key,
+//     required this.purchaseAmountData,
+//   });
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return RepaintBoundary(
+//       child: _PurchaseAmountBarChartCardContent(
+//         purchaseAmountData: purchaseAmountData,
+//       ),
+//     );
+//   }
+// }
+
+// class _PurchaseAmountBarChartCardContent extends StatefulWidget {
+//   final List<Map<String, dynamic>> purchaseAmountData;
+//   const _PurchaseAmountBarChartCardContent({required this.purchaseAmountData});
+
+//   @override
+//   State<_PurchaseAmountBarChartCardContent> createState() =>
+//       _PurchaseAmountBarChartCardContentState();
+// }
+
+// class _PurchaseAmountBarChartCardContentState
+//     extends State<_PurchaseAmountBarChartCardContent> {
+//   int? touchedIndex;
+//   late final List<Map<String, dynamic>> displayedData;
+//   late final double maxY;
+//   late final double yAxisReservedSize;
+//   late final double yAxisInterval;
+
+//   @override
+//   void initState() {
+//     super.initState();
+
+//     // Use as is, do not sort
+//     displayedData =
+//         List<Map<String, dynamic>>.from(
+//           widget.purchaseAmountData,
+//         ).take(PurchaseAmountBarChartCard.maxBars).toList();
+
+//     // Calculate max Y for chart
+//     final dataMaxY =
+//         displayedData.isNotEmpty
+//             ? displayedData
+//                 .map((e) => (e['amount'] ?? 0) as num)
+//                 .reduce((a, b) => a > b ? a : b)
+//                 .toDouble()
+//             : 0;
+
+//     maxY = dataMaxY * 1.1;
+
+//     // Calculate appropriate Y-axis interval to show 5-6 labels
+//     yAxisInterval = _calculateYAxisInterval(maxY);
+
+//     // Pre-calculate Y-axis label width
+//     yAxisReservedSize = _computeYAxisLabelWidth(maxY);
+//   }
+
+//   double _calculateYAxisInterval(double maxValue) {
+//     if (maxValue <= 0) return 100000; // Default to 1 Lakh
+
+//     const int targetLabels = 5; // Target number of labels
+//     double rawInterval = maxValue / targetLabels;
+
+//     // Round to nice numbers (in terms of Lakhs)
+//     double intervalInLakhs = rawInterval / 100000;
+
+//     // Find the nearest "nice" number
+//     List<double> niceNumbers = [
+//       0.1,
+//       0.2,
+//       0.25,
+//       0.5,
+//       1,
+//       2,
+//       2.5,
+//       5,
+//       10,
+//       20,
+//       25,
+//       50,
+//       100,
+//       200,
+//       250,
+//       500,
+//       1000,
+//     ];
+
+//     double closestNice = niceNumbers[0];
+//     for (double nice in niceNumbers) {
+//       if (nice >= intervalInLakhs) {
+//         closestNice = nice;
+//         break;
+//       }
+//       closestNice = nice;
+//     }
+
+//     return closestNice * 100000; // Convert back to actual amount
+//   }
+
+//   double _computeYAxisLabelWidth(double maxY) {
+//     final maxLabelValue = (maxY / yAxisInterval).ceil();
+//     final maxValueInLakhs = (maxLabelValue * yAxisInterval) / 100000;
+
+//     String maxLabelString;
+//     if (maxValueInLakhs >= 1) {
+//       maxLabelString =
+//           maxValueInLakhs % 1 == 0
+//               ? maxValueInLakhs.toInt().toString()
+//               : maxValueInLakhs.toStringAsFixed(1);
+//     } else {
+//       maxLabelString = maxValueInLakhs.toStringAsFixed(1);
+//     }
+
+//     final textPainter = TextPainter(
+//       text: TextSpan(
+//         text: maxLabelString,
+//         style: const TextStyle(fontSize: 12),
+//       ),
+//       textDirection: TextDirection.ltr,
+//     )..layout();
+
+//     return textPainter.width + 12; // add padding
+//   }
+
+//   void _updateTouchedIndex(int? index) {
+//     if (mounted) {
+//       setState(() {
+//         touchedIndex = index;
+//       });
+//     }
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return Card(
+//       child: Padding(
+//         padding: const EdgeInsets.all(12),
+//         child: Column(
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           children: [
+//             const Padding(
+//               padding: EdgeInsets.only(bottom: 8.0),
+//               child: Text(
+//                 'Purchase Amount (Month Wise)',
+//                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+//               ),
+//             ),
+//             AspectRatio(
+//               aspectRatio: 1.5,
+//               child: _BarChart(
+//                 displayedData: displayedData,
+//                 maxY: maxY,
+//                 yAxisReservedSize: yAxisReservedSize,
+//                 yAxisInterval: yAxisInterval,
+//                 touchedIndex: touchedIndex,
+//                 onTouched: _updateTouchedIndex,
+//               ),
+//             ),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+// }
+
+// class _BarChart extends StatelessWidget {
+//   final List<Map<String, dynamic>> displayedData;
+//   final double maxY;
+//   final double yAxisReservedSize;
+//   final double yAxisInterval;
+//   final int? touchedIndex;
+//   final Function(int?) onTouched;
+
+//   const _BarChart({
+//     required this.displayedData,
+//     required this.maxY,
+//     required this.yAxisReservedSize,
+//     required this.yAxisInterval,
+//     required this.touchedIndex,
+//     required this.onTouched,
+//   });
+
+//   Widget _leftTitlesWidget(double value, TitleMeta meta) {
+//     // Only show labels at interval boundaries
+//     if (value % yAxisInterval == 0) {
+//       if (value == 0) {
+//         return SideTitleWidget(
+//           meta: meta,
+//           space: 4,
+//           child: const Text('0', style: TextStyle(fontSize: 10)),
+//         );
+//       } else {
+//         final valueInLakhs = value / 100000;
+//         String label;
+//         if (valueInLakhs >= 1) {
+//           label =
+//               valueInLakhs % 1 == 0
+//                   ? valueInLakhs.toInt().toString()
+//                   : valueInLakhs.toStringAsFixed(1);
+//         } else {
+//           label = valueInLakhs.toStringAsFixed(1);
+//         }
+
+//         return SideTitleWidget(
+//           meta: meta,
+//           space: 0,
+//           child: Text(label, style: const TextStyle(fontSize: 10)),
+//         );
+//       }
+//     }
+
+//     return const SizedBox.shrink();
+//   }
+
+//   Widget _bottomTitlesWidget(double value, TitleMeta meta) {
+//     final idx = value.toInt();
+//     if (idx < 0 || idx >= displayedData.length) {
+//       return const SizedBox.shrink();
+//     }
+//     final label = (displayedData[idx]['monthPrefix'] ?? '').toString();
+//     final isSelected = touchedIndex == idx;
+//     return SideTitleWidget(
+//       meta: meta,
+//       space: 2,
+//       child: GestureDetector(
+//         onTap: () => onTouched(idx),
+//         child: Text(
+//           label.trim(),
+//           style: TextStyle(
+//             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+//             color: isSelected ? Colors.green[300] : Colors.black87,
+//             fontSize: 8,
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+
+//   BarTooltipItem _getTooltipItem(
+//     BarChartGroupData group,
+//     int groupIndex,
+//     BarChartRodData rod,
+//     int rodIndex,
+//   ) {
+//     final month = displayedData[groupIndex];
+//     return BarTooltipItem(
+//       'Month: ${(month['monthPrefix'] ?? '').toString().trim()}\n'
+//       'Amount: ${FormatUtils.formatAmount(month['amount'] ?? 0)}',
+//       const TextStyle(
+//         color: Colors.white,
+//         fontWeight: FontWeight.bold,
+//         fontSize: 14,
+//         shadows: [
+//           Shadow(color: Colors.black54, blurRadius: 4, offset: Offset(1, 2)),
+//         ],
+//       ),
+//     );
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     return BarChart(
+//       BarChartData(
+//         alignment: BarChartAlignment.spaceAround,
+//         maxY: maxY,
+//         barTouchData: BarTouchData(
+//           enabled: true,
+//           touchTooltipData: BarTouchTooltipData(
+//             fitInsideHorizontally: true,
+//             fitInsideVertically: true,
+//             getTooltipColor: (group) => Colors.black,
+//             tooltipPadding: const EdgeInsets.symmetric(
+//               horizontal: 12,
+//               vertical: 8,
+//             ),
+//             tooltipRoundedRadius: 8,
+//             tooltipBorder: BorderSide.none,
+//             getTooltipItem: _getTooltipItem,
+//           ),
+//           touchCallback: (event, response) {
+//             if (event is FlTapUpEvent &&
+//                 response != null &&
+//                 response.spot != null) {
+//               onTouched(response.spot!.touchedBarGroupIndex);
+//             } else if (event is FlTapUpEvent) {
+//               onTouched(null);
+//             }
+//           },
+//         ),
+//         titlesData: FlTitlesData(
+//           leftTitles: AxisTitles(
+//             axisNameWidget: const Text(
+//               "Amount (in Lakhs)",
+//               style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+//             ),
+//             sideTitles: SideTitles(
+//               showTitles: true,
+//               // reservedSize: yAxisReservedSize,
+//               interval: yAxisInterval,
+//               getTitlesWidget: _leftTitlesWidget,
+//             ),
+//           ),
+//           bottomTitles: AxisTitles(
+//             axisNameWidget: const Text(
+//               "Month",
+//               style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+//             ),
+//             sideTitles: SideTitles(
+//               showTitles: true,
+//               minIncluded: true,
+//               getTitlesWidget: _bottomTitlesWidget,
+//             ),
+//           ),
+//           rightTitles: const AxisTitles(
+//             sideTitles: SideTitles(showTitles: false),
+//           ),
+//           topTitles: const AxisTitles(
+//             sideTitles: SideTitles(showTitles: false),
+//           ),
+//         ),
+//         borderData: FlBorderData(show: false),
+//         gridData: FlGridData(
+//           show: true,
+//           drawVerticalLine: false,
+//           horizontalInterval: yAxisInterval,
+//         ),
+//         barGroups: List.generate(displayedData.length, (idx) {
+//           final amount = (displayedData[idx]['amount'] ?? 0).toDouble();
+//           final isSelected = touchedIndex == idx;
+//           return BarChartGroupData(
+//             x: idx,
+//             barRods: [
+//               BarChartRodData(
+//                 toY: amount,
+//                 color: isSelected ? Colors.green[700] : Colors.green[300],
+//                 width: 12,
+//                 borderRadius: BorderRadius.circular(0),
+//               ),
+//             ],
+//             showingTooltipIndicators: isSelected ? [0] : [],
+//           );
+//         }),
+//       ),
+//     );
+//   }
+// }
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart' as intl;
 import 'package:nhapp/utils/format_utils.dart';
 
 class PurchaseAmountBarChartCard extends StatelessWidget {
@@ -1475,9 +1833,7 @@ class _PurchaseAmountBarChartCardContentState
     extends State<_PurchaseAmountBarChartCardContent> {
   int? touchedIndex;
   late final List<Map<String, dynamic>> displayedData;
-  late final double maxY;
-  late final double yAxisReservedSize;
-  late final double yAxisInterval;
+  late final int maxY;
 
   @override
   void initState() {
@@ -1489,7 +1845,7 @@ class _PurchaseAmountBarChartCardContentState
           widget.purchaseAmountData,
         ).take(PurchaseAmountBarChartCard.maxBars).toList();
 
-    // Calculate max Y for chart
+    // Calculate max Y for chart with some padding
     final dataMaxY =
         displayedData.isNotEmpty
             ? displayedData
@@ -1498,88 +1854,7 @@ class _PurchaseAmountBarChartCardContentState
                 .toDouble()
             : 0;
 
-    maxY = dataMaxY * 1.1;
-
-    // Calculate appropriate Y-axis interval to show 5-6 labels
-    yAxisInterval = _calculateYAxisInterval(maxY);
-
-    // Pre-calculate Y-axis label width
-    yAxisReservedSize = _computeYAxisLabelWidth(maxY);
-  }
-
-  double _calculateYAxisInterval(double maxValue) {
-    if (maxValue <= 0) return 100000; // Default to 1 Lakh
-
-    const int targetLabels = 5; // Target number of labels
-    double rawInterval = maxValue / targetLabels;
-
-    // Round to nice numbers (in terms of Lakhs)
-    double intervalInLakhs = rawInterval / 100000;
-
-    // Find the nearest "nice" number
-    List<double> niceNumbers = [
-      0.1,
-      0.2,
-      0.25,
-      0.5,
-      1,
-      2,
-      2.5,
-      5,
-      10,
-      20,
-      25,
-      50,
-      100,
-      200,
-      250,
-      500,
-      1000,
-    ];
-
-    double closestNice = niceNumbers[0];
-    for (double nice in niceNumbers) {
-      if (nice >= intervalInLakhs) {
-        closestNice = nice;
-        break;
-      }
-      closestNice = nice;
-    }
-
-    return closestNice * 100000; // Convert back to actual amount
-  }
-
-  double _computeYAxisLabelWidth(double maxY) {
-    final maxLabelValue = (maxY / yAxisInterval).ceil();
-    final maxValueInLakhs = (maxLabelValue * yAxisInterval) / 100000;
-
-    String maxLabelString;
-    if (maxValueInLakhs >= 1) {
-      maxLabelString =
-          maxValueInLakhs % 1 == 0
-              ? maxValueInLakhs.toInt().toString()
-              : maxValueInLakhs.toStringAsFixed(1);
-    } else {
-      maxLabelString = maxValueInLakhs.toStringAsFixed(1);
-    }
-
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: maxLabelString,
-        style: const TextStyle(fontSize: 12),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-
-    return textPainter.width + 12; // add padding
-  }
-
-  void _updateTouchedIndex(int? index) {
-    if (mounted) {
-      setState(() {
-        touchedIndex = index;
-      });
-    }
+    maxY = dataMaxY.toInt(); // Add 20% padding
   }
 
   @override
@@ -1599,199 +1874,180 @@ class _PurchaseAmountBarChartCardContentState
             ),
             AspectRatio(
               aspectRatio: 1.5,
-              child: _BarChart(
-                displayedData: displayedData,
-                maxY: maxY,
-                yAxisReservedSize: yAxisReservedSize,
-                yAxisInterval: yAxisInterval,
-                touchedIndex: touchedIndex,
-                onTouched: _updateTouchedIndex,
+              child: BarChart(
+                BarChartData(
+                  alignment: BarChartAlignment.spaceAround,
+                  maxY: maxY.toDouble(),
+                  barTouchData: BarTouchData(
+                    enabled: true,
+                    touchTooltipData: BarTouchTooltipData(
+                      getTooltipColor: (group) => Colors.black87,
+                      tooltipPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      tooltipRoundedRadius: 8,
+                      getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                        if (groupIndex >= displayedData.length) return null;
+                        final month = displayedData[groupIndex];
+                        return BarTooltipItem(
+                          'Month: ${(month['monthPrefix'] ?? '').toString().trim()}\n'
+                          'Amount: ${FormatUtils.formatAmount(month['amount'] ?? 0)}',
+                          const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        );
+                      },
+                    ),
+                    touchCallback: (event, response) {
+                      setState(() {
+                        if (event is FlTapUpEvent &&
+                            response != null &&
+                            response.spot != null) {
+                          touchedIndex = response.spot!.touchedBarGroupIndex;
+                        } else {
+                          touchedIndex = null;
+                        }
+                      });
+                    },
+                  ),
+                  titlesData: FlTitlesData(
+                    leftTitles: AxisTitles(
+                      axisNameWidget: const Text(
+                        "Amount (in Lakhs)",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        // reservedSize: 50,
+                        getTitlesWidget: (value, meta) {
+                          if (value == 0) {
+                            return SideTitleWidget(
+                              meta: meta,
+                              space: 4,
+                              child: const Text(
+                                '0',
+                                style: TextStyle(fontSize: 10),
+                              ),
+                            );
+                          }
+
+                          final valueInLakhs = value / 100000;
+                          String label;
+                          if (valueInLakhs >= 1) {
+                            label =
+                                valueInLakhs % 1 == 0
+                                    ? valueInLakhs.toInt().toString()
+                                    : valueInLakhs.toStringAsFixed(1);
+                          } else {
+                            label = valueInLakhs.toStringAsFixed(1);
+                          }
+
+                          return SideTitleWidget(
+                            meta: meta,
+                            space: 4,
+                            child: Text(
+                              label,
+                              style: const TextStyle(fontSize: 10),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    bottomTitles: AxisTitles(
+                      axisNameWidget: const Text(
+                        "Month",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        getTitlesWidget: (value, meta) {
+                          final idx = value.toInt();
+                          if (idx < 0 || idx >= displayedData.length) {
+                            return const SizedBox.shrink();
+                          }
+                          final label =
+                              (displayedData[idx]['monthPrefix'] ?? '')
+                                  .toString();
+                          final isSelected = touchedIndex == idx;
+                          return SideTitleWidget(
+                            meta: meta,
+                            space: 4,
+                            child: Text(
+                              label.trim(),
+                              style: TextStyle(
+                                fontWeight:
+                                    isSelected
+                                        ? FontWeight.bold
+                                        : FontWeight.normal,
+                                color:
+                                    isSelected
+                                        ? Colors.green[600]
+                                        : Colors.black87,
+                                fontSize: 10,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                  ),
+                  borderData: FlBorderData(
+                    show: true,
+                    border: const Border(
+                      bottom: BorderSide(color: Colors.black12),
+                      left: BorderSide(color: Colors.black12),
+                    ),
+                  ),
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: false,
+                    getDrawingHorizontalLine: (value) {
+                      return const FlLine(
+                        color: Colors.black12,
+                        strokeWidth: 1,
+                      );
+                    },
+                  ),
+                  barGroups: List.generate(displayedData.length, (idx) {
+                    final amount =
+                        (displayedData[idx]['amount'] ?? 0).toDouble();
+                    final isSelected = touchedIndex == idx;
+                    return BarChartGroupData(
+                      x: idx,
+                      barRods: [
+                        BarChartRodData(
+                          toY: amount,
+                          color:
+                              isSelected
+                                  ? Colors.green[700]
+                                  : Colors.green[300],
+                          width: 15,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ],
+                      showingTooltipIndicators: isSelected ? [0] : [],
+                    );
+                  }),
+                ),
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _BarChart extends StatelessWidget {
-  final List<Map<String, dynamic>> displayedData;
-  final double maxY;
-  final double yAxisReservedSize;
-  final double yAxisInterval;
-  final int? touchedIndex;
-  final Function(int?) onTouched;
-
-  const _BarChart({
-    required this.displayedData,
-    required this.maxY,
-    required this.yAxisReservedSize,
-    required this.yAxisInterval,
-    required this.touchedIndex,
-    required this.onTouched,
-  });
-
-  Widget _leftTitlesWidget(double value, TitleMeta meta) {
-    // Only show labels at interval boundaries
-    if (value % yAxisInterval == 0) {
-      if (value == 0) {
-        return SideTitleWidget(
-          meta: meta,
-          space: 4,
-          child: const Text('0', style: TextStyle(fontSize: 10)),
-        );
-      } else {
-        final valueInLakhs = value / 100000;
-        String label;
-        if (valueInLakhs >= 1) {
-          label =
-              valueInLakhs % 1 == 0
-                  ? valueInLakhs.toInt().toString()
-                  : valueInLakhs.toStringAsFixed(1);
-        } else {
-          label = valueInLakhs.toStringAsFixed(1);
-        }
-
-        return SideTitleWidget(
-          meta: meta,
-          space: 0,
-          child: Text(label, style: const TextStyle(fontSize: 10)),
-        );
-      }
-    }
-
-    return const SizedBox.shrink();
-  }
-
-  Widget _bottomTitlesWidget(double value, TitleMeta meta) {
-    final idx = value.toInt();
-    if (idx < 0 || idx >= displayedData.length) {
-      return const SizedBox.shrink();
-    }
-    final label = (displayedData[idx]['monthPrefix'] ?? '').toString();
-    final isSelected = touchedIndex == idx;
-    return SideTitleWidget(
-      meta: meta,
-      space: 2,
-      child: GestureDetector(
-        onTap: () => onTouched(idx),
-        child: Text(
-          label.trim(),
-          style: TextStyle(
-            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            color: isSelected ? Colors.green[300] : Colors.black87,
-            fontSize: 8,
-          ),
-        ),
-      ),
-    );
-  }
-
-  BarTooltipItem _getTooltipItem(
-    BarChartGroupData group,
-    int groupIndex,
-    BarChartRodData rod,
-    int rodIndex,
-  ) {
-    final month = displayedData[groupIndex];
-    return BarTooltipItem(
-      'Month: ${(month['monthPrefix'] ?? '').toString().trim()}\n'
-      'Amount: ${FormatUtils.formatAmount(month['amount'] ?? 0)}',
-      const TextStyle(
-        color: Colors.white,
-        fontWeight: FontWeight.bold,
-        fontSize: 14,
-        shadows: [
-          Shadow(color: Colors.black54, blurRadius: 4, offset: Offset(1, 2)),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return BarChart(
-      BarChartData(
-        alignment: BarChartAlignment.spaceAround,
-        maxY: maxY,
-        barTouchData: BarTouchData(
-          enabled: true,
-          touchTooltipData: BarTouchTooltipData(
-            fitInsideHorizontally: true,
-            fitInsideVertically: true,
-            getTooltipColor: (group) => Colors.black,
-            tooltipPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 8,
-            ),
-            tooltipRoundedRadius: 8,
-            tooltipBorder: BorderSide.none,
-            getTooltipItem: _getTooltipItem,
-          ),
-          touchCallback: (event, response) {
-            if (event is FlTapUpEvent &&
-                response != null &&
-                response.spot != null) {
-              onTouched(response.spot!.touchedBarGroupIndex);
-            } else if (event is FlTapUpEvent) {
-              onTouched(null);
-            }
-          },
-        ),
-        titlesData: FlTitlesData(
-          leftTitles: AxisTitles(
-            axisNameWidget: const Text(
-              "Amount (in Lakhs)",
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-            ),
-            sideTitles: SideTitles(
-              showTitles: true,
-              // reservedSize: yAxisReservedSize,
-              interval: yAxisInterval,
-              getTitlesWidget: _leftTitlesWidget,
-            ),
-          ),
-          bottomTitles: AxisTitles(
-            axisNameWidget: const Text(
-              "Month",
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-            ),
-            sideTitles: SideTitles(
-              showTitles: true,
-              minIncluded: true,
-              getTitlesWidget: _bottomTitlesWidget,
-            ),
-          ),
-          rightTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-          topTitles: const AxisTitles(
-            sideTitles: SideTitles(showTitles: false),
-          ),
-        ),
-        borderData: FlBorderData(show: false),
-        gridData: FlGridData(
-          show: true,
-          drawVerticalLine: false,
-          horizontalInterval: yAxisInterval,
-        ),
-        barGroups: List.generate(displayedData.length, (idx) {
-          final amount = (displayedData[idx]['amount'] ?? 0).toDouble();
-          final isSelected = touchedIndex == idx;
-          return BarChartGroupData(
-            x: idx,
-            barRods: [
-              BarChartRodData(
-                toY: amount,
-                color: isSelected ? Colors.green[700] : Colors.green[300],
-                width: 12,
-                borderRadius: BorderRadius.circular(0),
-              ),
-            ],
-            showingTooltipIndicators: isSelected ? [0] : [],
-          );
-        }),
       ),
     );
   }

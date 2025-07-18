@@ -134,6 +134,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:external_path/external_path.dart';
 import 'package:open_file/open_file.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
 import '../models/lead_data.dart';
 import '../services/lead_service.dart';
@@ -159,6 +160,12 @@ class _LeadPdfLoaderPageState extends State<LeadPdfLoaderPage> {
   void initState() {
     super.initState();
     _fetchPdf();
+  }
+
+  @override
+  Future<void> dispose() async {
+    await DefaultCacheManager().emptyCache();
+    super.dispose();
   }
 
   Future<void> _fetchPdf() async {
@@ -421,7 +428,7 @@ class _LeadPdfLoaderPageState extends State<LeadPdfLoaderPage> {
               : pdfUrl == null
               ? const Center(child: CircularProgressIndicator())
               : PDF().fromUrl(
-                pdfUrl!,
+                '${pdfUrl!}?t=${DateTime.now().millisecondsSinceEpoch}',
                 placeholder: (progress) => Center(child: Text('$progress %')),
                 errorWidget:
                     (error) => Center(

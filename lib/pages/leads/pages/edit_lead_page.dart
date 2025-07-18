@@ -484,7 +484,7 @@ class _EditLeadPageState extends State<EditLeadPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Unable to get current location. Please try again.'),
-          backgroundColor: Colors.red,
+          // backgroundColor: Colors.red,
         ),
       );
       return;
@@ -617,19 +617,19 @@ class _EditLeadPageState extends State<EditLeadPage> {
               latitude: position.latitude,
             );
 
-            if (!locationSuccess) {
-              errorMessages.add('Location update failed');
-            }
+            // if (!locationSuccess) {
+            //   errorMessages.add('Location update failed');
+            // }
           } catch (e) {
             debugPrint('Location submission error: $e');
             locationSuccess = false;
-            errorMessages.add('Location update failed: $e');
+            // errorMessages.add('Location update failed: $e');
           }
         } else {
           locationSuccess = false;
-          errorMessages.add(
-            'Unable to get function ID for location submission',
-          );
+          // errorMessages.add(
+          //   'Unable to get function ID for location submission',
+          // );
         }
         // 2. Handle attachments in background
         final List<Future> attachmentOps = [];
@@ -679,9 +679,9 @@ class _EditLeadPageState extends State<EditLeadPage> {
         } catch (e) {
           debugPrint('Error fetching updated lead details: $e');
         }
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Lead updated successfully!')),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   const SnackBar(content: Text('Lead updated successfully!')),
+        // );
         Navigator.of(context).pop(true);
       } else {
         setState(() => _submitting = false);
@@ -693,7 +693,10 @@ class _EditLeadPageState extends State<EditLeadPage> {
       setState(() => _submitting = false);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+      ).showSnackBar(const SnackBar(content: Text('Failed to update lead')));
+      // ScaffoldMessenger.of(
+      //   context,
+      // ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 

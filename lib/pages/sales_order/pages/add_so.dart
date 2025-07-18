@@ -65,7 +65,7 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
   bool _isDuplicateAllowed = false;
   List<DiscountCode> discountCodes = [];
   late String currency;
-  late double _exchangeRate;
+  double _exchangeRate = 1.0;
 
   @override
   void initState() {
@@ -98,9 +98,8 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
     if (widget.quotationData != null && widget.quotationListItem != null) {
       await _prefillFromQuotation();
     }
-    if (mounted) {
-      setState(() => _isLoading = false);
-    }
+
+    setState(() => _isLoading = false);
   }
 
   Future<void> _prefillFromQuotation() async {
@@ -192,7 +191,7 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
       if (domCurrency == null) throw Exception("Domestic currency not set");
 
       currency = domCurrency['domCurCode'] ?? 'INR';
-      _exchangeRate = await _service.getExchangeRate() ?? 1.0;
+      _exchangeRate = await _service.getExchangeRate();
     } catch (e) {
       debugPrint("Error loading exchange rate: $e");
       _exchangeRate = 1.0; // Default to 1.0 if there's an error
@@ -233,7 +232,7 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
       if (filePaths.isEmpty) return;
 
       final documentNo =
-          "$docYear/${documentDetail['groupCode'] ?? "SO"}/$locationCode/$salesOrderNumber/SALESORDER";
+          "$docYear/${documentDetail['groupCode'] ?? "SO"}/$locationCode/$salesOrderNumber/SALESORDERENTRY";
 
       final uploadSuccess = await _attachmentService.uploadAttachments(
         filePaths: filePaths,
@@ -248,12 +247,12 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
         userId: userId,
       );
 
-      if (!uploadSuccess) {
-        _showError("Sales Order saved, but attachment upload failed!");
-      }
+      // if (!uploadSuccess) {
+      //   _showError("Sales Order saved, but attachment upload failed!");
+      // }
     } catch (e) {
       debugPrint('Error uploading attachments: $e');
-      _showError("Sales Order saved, but attachment upload failed!");
+      // _showError("Sales Order saved, but attachment upload failed!");
     }
   }
 
@@ -304,18 +303,16 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
   }
 
   Future<void> _onOrderFromSelected(Customer customer) async {
-    if (mounted) {
-      setState(() {
-        selectedOrderFrom = customer;
-        orderFromController.text = customer.customerName;
-        billToController.text = customer.customerName;
-        selectedBillTo = customer;
-        quotationNumbers.clear();
-        selectedQuotationNumber = null;
-        quotationNumberController.clear();
-        items.clear();
-      });
-    }
+    setState(() {
+      selectedOrderFrom = customer;
+      orderFromController.text = customer.customerName;
+      billToController.text = customer.customerName;
+      selectedBillTo = customer;
+      quotationNumbers.clear();
+      selectedQuotationNumber = null;
+      quotationNumberController.clear();
+      items.clear();
+    });
 
     // Load quotation numbers if quotation reference is selected
     if (salesOrderReference == "With Quotation Reference") {
@@ -324,12 +321,10 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
   }
 
   Future<void> _onBillToSelected(Customer customer) async {
-    if (mounted) {
-      setState(() {
-        selectedBillTo = customer;
-        billToController.text = customer.customerName;
-      });
-    }
+    setState(() {
+      selectedBillTo = customer;
+      billToController.text = customer.customerName;
+    });
   }
 
   Future<void> _loadQuotationNumbers(String customerCode) async {
@@ -340,9 +335,7 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
 
       quotationNumbers = quotationListResponse.quotationDetails;
       quotationItemDetails = quotationListResponse.quotationItemDetails;
-      if (mounted) {
-        setState(() {});
-      }
+      setState(() {});
     } catch (e) {
       _showError("Error loading quotation numbers: ${e.toString()}");
     }
@@ -351,14 +344,12 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
   Future<void> _onQuotationNumberSelected(
     QuotationNumber quotationNumber,
   ) async {
-    if (mounted) {
-      setState(() {
-        selectedQuotationNumber = quotationNumber;
-        quotationNumberController.text = quotationNumber.qtnNumber;
-        _loadingQuotationDetails = true;
-        items.clear();
-      });
-    }
+    setState(() {
+      selectedQuotationNumber = quotationNumber;
+      quotationNumberController.text = quotationNumber.qtnNumber;
+      _loadingQuotationDetails = true;
+      items.clear();
+    });
 
     try {
       // Filter items for the selected quotation
@@ -369,20 +360,10 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
 
       // Build request body for fetching quotation details
       final requestBody = {
-        "DisplayMaxRecords": 1000,
-        "QuotationDetails": [
-          {"QuotationId": quotationNumber.quotationID},
-        ],
-        "ItemDetails":
-            selectedQuotationItems
-                .map(
-                  (item) => {
-                    "SalesItemCode": item.salesItemCode,
-                    "QuotationId": item.quotationId,
-                    "itmLineNo": item.itemLineNo,
-                  },
-                )
-                .toList(),
+        "QtnYear": quotationNumber.quotationYear,
+        "QtnGrp": quotationNumber.quotationGroup,
+        "QtnNumber": quotationNumber.quotationNumber,
+        "QtnSiteId": quotationNumber.quotationSiteId,
       };
 
       final quotationDetails = await _service.fetchQuotationDetails(
@@ -496,15 +477,12 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
         );
         lineNo++;
       }
-      if (mounted) {
-        setState(() {});
-      }
+
+      setState(() {});
     } catch (e) {
       _showError("Error loading quotation details: ${e.toString()}");
     } finally {
-      if (mounted) {
-        setState(() => _loadingQuotationDetails = false);
-      }
+      setState(() => _loadingQuotationDetails = false);
     }
   }
 
@@ -772,26 +750,25 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
             ),
       ),
     );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FocusScope.of(context).unfocus();
+    });
     if (result != null) {
-      if (mounted) {
-        setState(() {
-          result.lineNo = items.length + 1;
-          items.add(result);
-        });
-      }
+      setState(() {
+        result.lineNo = items.length + 1;
+        items.add(result);
+      });
     }
   }
 
   void _removeItem(int index) {
-    if (mounted) {
-      setState(() {
-        items.removeAt(index);
-        // Re-assign line numbers
-        for (int i = 0; i < items.length; i++) {
-          items[i].lineNo = i + 1;
-        }
-      });
-    }
+    setState(() {
+      items.removeAt(index);
+      // Re-assign line numbers
+      for (int i = 0; i < items.length; i++) {
+        items[i].lineNo = i + 1;
+      }
+    });
   }
 
   double _calculateTotalBasic() {
@@ -954,7 +931,7 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Unable to get current location. Please try again.'),
-          backgroundColor: Colors.red,
+          // backgroundColor: Colors.red,
         ),
       );
       return;
@@ -986,19 +963,19 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
               latitude: position.latitude,
             );
 
-            if (!locationSuccess) {
-              errorMessages.add('Location submission failed');
-            }
+            // if (!locationSuccess) {
+            //   errorMessages.add('Location submission failed');
+            // }
           } catch (e) {
             debugPrint('Location submission error: $e');
             locationSuccess = false;
-            errorMessages.add('Location submission failed: $e');
+            // errorMessages.add('Location submission failed: $e');
           }
         } else {
           locationSuccess = false;
-          errorMessages.add(
-            'Unable to get function ID for location submission',
-          );
+          // errorMessages.add(
+          //   'Unable to get function ID for location submission',
+          // );
         }
         // Upload attachments if any
         if (attachments.isNotEmpty) {
@@ -1020,22 +997,20 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
           );
 
           if (salesOrderDetails != null) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Sales Order created successfully!'),
-                ),
-              );
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Sales Order created successfully!'),
+              ),
+            );
 
-              // Navigate to SalesOrderDetailPage
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder:
-                      (context) =>
-                          SalesOrderDetailPage(salesOrder: salesOrderDetails),
-                ),
-              );
-            }
+            // Navigate to SalesOrderDetailPage
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder:
+                    (context) =>
+                        SalesOrderDetailPage(salesOrder: salesOrderDetails),
+              ),
+            );
           } else {
             _showError("Failed to fetch the created sales order details.");
           }
@@ -1166,16 +1141,14 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
               ? null
               : (val) {
                 if (val != null) {
-                  if (mounted) {
-                    setState(() {
-                      salesOrderReference = val;
-                      // Clear all related fields
-                      items.clear();
-                      quotationNumbers.clear();
-                      selectedQuotationNumber = null;
-                      quotationNumberController.clear();
-                    });
-                  }
+                  setState(() {
+                    salesOrderReference = val;
+                    // Clear all related fields
+                    items.clear();
+                    quotationNumbers.clear();
+                    selectedQuotationNumber = null;
+                    quotationNumberController.clear();
+                  });
 
                   // Load quotation numbers if customer is already selected and "With Quotation Reference" is chosen
                   if (val == "With Quotation Reference" &&
@@ -1224,46 +1197,9 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
     );
   }
 
-  // Widget _buildOrderFromField() {
-  //   return TypeAheadField<Customer>(
-  //     debounceDuration: const Duration(milliseconds: 400),
-  //     controller: orderFromController,
-  //     builder: (context, controller, focusNode) {
-  //       return TextFormField(
-  //         controller: controller,
-  //         focusNode: focusNode,
-  //         enabled: !_submitting,
-  //         decoration: const InputDecoration(
-  //           labelText: "Order From",
-  //           border: OutlineInputBorder(),
-  //         ),
-  //         validator:
-  //             (val) =>
-  //                 val == null || val.isEmpty ? "Order From is required" : null,
-  //       );
-  //     },
-  //     suggestionsCallback:
-  //         _submitting
-  //             ? (pattern) async => []
-  //             : (pattern) async {
-  //               if (pattern.length < 4) return [];
-  //               try {
-  //                 return await _service.fetchCustomerSuggestions(pattern);
-  //               } catch (e) {
-  //                 return [];
-  //               }
-  //             },
-  //     itemBuilder: (context, suggestion) {
-  //       return ListTile(
-  //         title: Text(suggestion.customerName),
-  //         subtitle: Text(suggestion.customerCode),
-  //       );
-  //     },
-  //     onSelected: _submitting ? null : _onOrderFromSelected,
-  //   );
-  // }
   Widget _buildOrderFromField() {
     bool prefilled = widget.quotationData != null;
+
     return TypeAheadField<Customer>(
       debounceDuration: const Duration(milliseconds: 400),
       controller: orderFromController,
@@ -1271,12 +1207,10 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
         return TextFormField(
           controller: controller,
           focusNode: focusNode,
-          enabled:
-              !prefilled && !_submitting, // Disable if prefilled or submitting
+          enabled: !prefilled && !_submitting,
           decoration: const InputDecoration(
             labelText: "Order From",
             border: OutlineInputBorder(),
-            hintStyle: TextStyle(color: Colors.red),
           ),
           validator:
               (val) =>

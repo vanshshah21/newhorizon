@@ -240,7 +240,9 @@ class QuotationService {
       "strDomCurrency": currency,
       "companyData": companyDetails,
       "printtype": "pdf",
+      "msctechspecifications": true,
       "reportselection": "withvalue",
+      "discountprint": "withoutdisc",
     };
 
     _dio.options.headers['Content-Type'] = 'application/json';

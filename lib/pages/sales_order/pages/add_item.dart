@@ -170,6 +170,7 @@ class _AddSalesOrderItemPageState extends State<AddSalesOrderItemPage> {
               child: Text(
                 discountCode.codeFullName,
                 style: const TextStyle(fontSize: 14),
+                overflow: TextOverflow.ellipsis,
               ),
             );
           }).toList(),
@@ -381,32 +382,67 @@ class _AddSalesOrderItemPageState extends State<AddSalesOrderItemPage> {
     );
   }
 
+  // Widget _buildRateStructureField() {
+  //   return DropdownButtonFormField<String>(
+  //     value: selectedRateStructure,
+  //     decoration: const InputDecoration(
+  //       labelText: "Rate Structure",
+  //       border: OutlineInputBorder(),
+  //     ),
+  //     isExpanded: true,
+  //     selectedItemBuilder: (context) {
+  //       return widget.rateStructures.map((rs) {
+  //         return SizedBox(
+  //           width: 200,
+  //           child: Text(
+  //             rs.rateStructFullName,
+  //             overflow: TextOverflow.ellipsis,
+  //             style: const TextStyle(color: Colors.black),
+  //           ),
+  //         );
+  //       }).toList();
+  //     },
+  //     items:
+  //         widget.rateStructures.map((rs) {
+  //           return DropdownMenuItem<String>(
+  //             value: rs.rateStructCode,
+  //             child: Text(
+  //               rs.rateStructFullName,
+  //               style: const TextStyle(fontSize: 14),
+  //             ),
+  //           );
+  //         }).toList(),
+  //     onChanged: (val) async {
+  //       setState(() {
+  //         selectedRateStructure = val;
+  //         _formDirty = true;
+  //       });
+  //       if (val != null) {
+  //         rateStructureRows = await widget.service.fetchRateStructureDetails(
+  //           val,
+  //         );
+  //       }
+  //     },
+  //     validator: (value) => value == null ? "Rate Structure is required" : null,
+  //   );
+  // }
   Widget _buildRateStructureField() {
     return DropdownButtonFormField<String>(
+      isDense: true,
+      isExpanded: true, // Key property to handle text overflow
       value: selectedRateStructure,
       decoration: const InputDecoration(
         labelText: "Rate Structure",
         border: OutlineInputBorder(),
       ),
-      isExpanded: true,
-      selectedItemBuilder: (context) {
-        return widget.rateStructures.map((rs) {
-          return SizedBox(
-            width: 200,
-            child: Text(
-              rs.rateStructFullName,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Colors.black),
-            ),
-          );
-        }).toList();
-      },
       items:
           widget.rateStructures.map((rs) {
             return DropdownMenuItem<String>(
               value: rs.rateStructCode,
               child: Text(
                 rs.rateStructFullName,
+                softWrap: true,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontSize: 14),
               ),
             );

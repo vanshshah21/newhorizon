@@ -465,11 +465,11 @@ class _ProformaInvoiceDetailsPageState
     }
 
     // If no tax from rate structure, use header tax
-    if (totalTax == 0) {
-      totalTax =
-          double.tryParse(details!.headerDetail['invTax']?.toString() ?? '0') ??
-          0;
-    }
+    // if (totalTax == 0) {
+    //   totalTax =
+    //       double.tryParse(details!.headerDetail['invTax']?.toString() ?? '0') ??
+    //       0;
+    // }
 
     return totalTax;
   }
@@ -726,11 +726,7 @@ class _ProformaInvoiceDetailsPageState
                   const Divider(thickness: 1),
                   _amountRow(
                     'Total Amount',
-                    double.tryParse(
-                          header['invAmount']?.toString() ??
-                              header['invDiscountValue']?.toString() ??
-                              '0',
-                        ) ??
+                    double.tryParse(header['invAmount']?.toString() ?? '0') ??
                         0,
                     isTotal: true,
                   ),

@@ -102,11 +102,12 @@ class _SupplierAmountBarChartCardContentState
               ),
             ),
             AspectRatio(
-              aspectRatio: 0.5,
+              aspectRatio: 0.8,
               child: _BarChart(
                 displayedData: displayedData,
                 maxY: maxY,
                 yAxisReservedSize: yAxisReservedSize,
+
                 touchedIndex: touchedIndex,
                 onTouched: _updateTouchedIndex,
               ),
@@ -232,7 +233,9 @@ class _BarChart extends StatelessWidget {
             axisNameWidget: Text("Amount (in Lakhs)"),
             sideTitles: SideTitles(
               showTitles: true,
-              reservedSize: yAxisReservedSize,
+              // interval: 100000,
+              // maxIncluded: true,
+              // reservedSize: yAxisReservedSize,
               getTitlesWidget: _leftTitlesWidget,
             ),
           ),

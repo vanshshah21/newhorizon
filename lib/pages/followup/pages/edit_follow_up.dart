@@ -447,6 +447,7 @@ class _EditFollowUpFormState extends State<EditFollowUpForm> {
         labelText: 'Salesman *',
         border: OutlineInputBorder(),
       ),
+      isExpanded: true,
       value:
           salesmanList.any(
                 (e) => e['salesmanCode'] == selectedSalesman?['salesmanCode'],
@@ -458,7 +459,10 @@ class _EditFollowUpFormState extends State<EditFollowUpForm> {
               .map(
                 (e) => DropdownMenuItem(
                   value: e,
-                  child: Text(e['salesManFullName']),
+                  child: Text(
+                    e['salesManFullName'],
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               )
               .toList(),
@@ -483,6 +487,7 @@ class _EditFollowUpFormState extends State<EditFollowUpForm> {
         labelText: 'Method *',
         border: OutlineInputBorder(),
       ),
+      isExpanded: true,
       value:
           methodList.any((e) => e['code'] == selectedMethod?['code'])
               ? selectedMethod
@@ -490,8 +495,13 @@ class _EditFollowUpFormState extends State<EditFollowUpForm> {
       items:
           methodList
               .map(
-                (e) =>
-                    DropdownMenuItem(value: e, child: Text(e['codeFullName'])),
+                (e) => DropdownMenuItem(
+                  value: e,
+                  child: Text(
+                    e['codeFullName'],
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               )
               .toList(),
       onChanged: (val) {
@@ -518,19 +528,23 @@ class _EditFollowUpFormState extends State<EditFollowUpForm> {
         labelText: 'Next Follow Up Salesman',
         border: OutlineInputBorder(),
       ),
+      isExpanded: true,
       value:
-          filteredList.any(
+          salesmanList.any(
                 (e) =>
                     e['salesmanCode'] == selectedNextSalesman?['salesmanCode'],
               )
               ? selectedNextSalesman
               : null,
       items:
-          filteredList
+          salesmanList
               .map(
                 (e) => DropdownMenuItem(
                   value: e,
-                  child: Text(e['salesManFullName']),
+                  child: Text(
+                    e['salesManFullName'],
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               )
               .toList(),

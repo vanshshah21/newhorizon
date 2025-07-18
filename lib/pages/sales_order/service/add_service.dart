@@ -191,12 +191,28 @@ class SalesOrderService {
     return QuotationListResponse.fromJson(response.data['data']);
   }
 
+  // Future<QuotationDetails> fetchQuotationDetails(
+  //   Map<String, dynamic> requestBody,
+  // ) async {
+  //   final endpoint = "/api/SalesOrder/salesOrderGetOpenQuotationDetailsForSO";
+
+  //   final response = await _dio.post("$_baseUrl$endpoint", data: requestBody);
+  //   debugPrint("Response: ${response.data}");
+  //   return QuotationDetails.fromJson(response.data['data']);
+  // }
+
   Future<QuotationDetails> fetchQuotationDetails(
     Map<String, dynamic> requestBody,
   ) async {
-    final endpoint = "/api/SalesOrder/salesOrderGetOpenQuotationDetailsForSO";
+    final locationId = locationDetails['id'];
+    final endpoint = "/api/Quotation/QuotationGetDetails";
 
-    final response = await _dio.post("$_baseUrl$endpoint", data: requestBody);
+    requestBody['UserLocations'] = locationId;
+
+    final response = await _dio.post(
+      "$_baseUrl$endpoint",
+      queryParameters: requestBody,
+    );
     debugPrint("Response: ${response.data}");
     return QuotationDetails.fromJson(response.data['data']);
   }

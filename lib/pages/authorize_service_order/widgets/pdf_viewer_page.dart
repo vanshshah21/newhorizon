@@ -81,7 +81,8 @@ class _ServiceOrderPdfLoaderPageState extends State<ServiceOrderPdfLoaderPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Service Order PDF')),
       body: PDF().fromUrl(
-        pdfUrl!,
+        // pdfUrl!,
+        '${pdfUrl!}?t=${DateTime.now().millisecondsSinceEpoch}',
         placeholder: (progress) => Center(child: Text('$progress %')),
         errorWidget: (error) => Center(child: Text(error.toString())),
       ),

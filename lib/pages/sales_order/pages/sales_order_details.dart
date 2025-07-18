@@ -982,7 +982,7 @@ class _SalesOrderDetailPageState extends State<SalesOrderDetailPage> {
         color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.1),
       ),
       child: ListTile(
-        leading: _getFileIcon(extension),
+        // leading: _getFileIcon(extension),
         title: Text(
           originalName,
           style: theme.textTheme.bodyMedium?.copyWith(
@@ -1002,21 +1002,21 @@ class _SalesOrderDetailPageState extends State<SalesOrderDetailPage> {
               ),
           ],
         ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              onPressed: () => _viewAttachment(attachment),
-              icon: const Icon(Icons.visibility),
-              tooltip: 'View',
-            ),
-            IconButton(
-              onPressed: () => _downloadAttachment(attachment),
-              icon: const Icon(Icons.download),
-              tooltip: 'Download',
-            ),
-          ],
-        ),
+        // trailing: Row(
+        //   mainAxisSize: MainAxisSize.min,
+        //   children: [
+        //     IconButton(
+        //       onPressed: () => _viewAttachment(attachment),
+        //       icon: const Icon(Icons.visibility),
+        //       tooltip: 'View',
+        //     ),
+        //     IconButton(
+        //       onPressed: () => _downloadAttachment(attachment),
+        //       icon: const Icon(Icons.download),
+        //       tooltip: 'Download',
+        //     ),
+        //   ],
+        // ),
       ),
     );
   }
