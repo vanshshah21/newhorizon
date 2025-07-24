@@ -65,6 +65,8 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
   String? _documentNo;
   late final String currency;
   int _amendmentSrNo = -1;
+  late final bool msctechspecifications;
+  bool _shouldBlockForm = false;
 
   @override
   void initState() {
@@ -108,6 +110,17 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
           salesPolicy['allowduplictae'] ??
           salesPolicy['allowduplicate'] ??
           false;
+      msctechspecifications =
+          salesPolicy['msctechspecifications'] == "True" ? true : false;
+
+      // Check if form should be blocked after loading sales policy
+      if (msctechspecifications == true) {
+        setState(() {
+          _shouldBlockForm = true;
+          _isLoading = false;
+        });
+        return; // Exit early, don't load prefill data
+      }
     } catch (e) {
       debugPrint("Error loading sales policy: $e");
       _isDuplicateAllowed = false;
@@ -311,13 +324,30 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
               }
             }
 
-            if (discountAmount! > 0) {
-              final basicAmount =
-                  (modelDetail['basicPriceSUOM']?.toDouble() ?? 0.0) *
-                  (modelDetail['qtySUOM']?.toDouble() ?? 0.0);
-              if (basicAmount > 0) {
-                discountType = "Value";
-                discountPercentage = (discountAmount / basicAmount) * 100;
+            if (originalData!.discountDetails != null &&
+                originalData!.discountDetails!.isNotEmpty) {
+              final itemDiscountDetail = originalData!.discountDetails!
+                  .firstWhere(
+                    (discount) =>
+                        discount['itmLineNo'] == modelDetail['itemLineNo'],
+                    orElse: () => <String, dynamic>{},
+                  );
+              if (itemDiscountDetail.isNotEmpty) {
+                discountCode = itemDiscountDetail['discountCode'];
+
+                // Check the original discount type from discount details
+                final originalDiscountType = itemDiscountDetail['discountType'];
+                if (originalDiscountType == 'Percentage') {
+                  discountType = "Percentage";
+                  discountPercentage =
+                      itemDiscountDetail['discountValue']?.toDouble();
+                } else if (originalDiscountType == 'Value' &&
+                    discountAmount! > 0) {
+                  discountType = "Value";
+                  final basicAmount =
+                      (modelDetail['basicPriceSUOM']?.toDouble() ?? 0.0) *
+                      (modelDetail['qtySUOM']?.toDouble() ?? 0.0);
+                }
               }
             }
 
@@ -349,7 +379,7 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
               uom: modelDetail['uom'] ?? 'NOS',
               discountType: discountType,
               discountPercentage: discountPercentage,
-              discountAmount: discountAmount > 0 ? discountAmount : null,
+              discountAmount: discountAmount! > 0 ? discountAmount : null,
               discountCode: discountCode, // Include discount code from API data
               rateStructure: modelDetail['rateStructureCode'] ?? '',
               taxAmount: taxAmount,
@@ -381,6 +411,52 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
         );
       }
     }
+  }
+
+  Widget _buildBlockedFormUI() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.web, size: 80, color: Colors.orange),
+            const SizedBox(height: 24),
+            const Text(
+              'Form Submission Required from Website',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'This quotation requires technical specifications that can only be submitted through the website. Please use the web portal to create this quotation.',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.black54,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.arrow_back),
+              label: const Text('Go Back'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _onCustomerSelected(Customer customer) async {
@@ -875,8 +951,8 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
       "subItemDetails": [],
       "standardTerms": [],
       "quotationRemarks": [],
-      "msctechspecifications": true,
-      "mscSameItemAllowMultitimeFlag": true,
+      "msctechspecifications": msctechspecifications,
+      "mscSameItemAllowMultitimeFlag": _isDuplicateAllowed,
     };
   }
 
@@ -1099,6 +1175,8 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
       body:
           _isLoading
               ? const Center(child: CircularProgressIndicator())
+              : _shouldBlockForm
+              ? _buildBlockedFormUI()
               : Form(
                 key: _formKey,
                 child: SingleChildScrollView(
@@ -1287,7 +1365,7 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
         return TextFormField(
           controller: controller,
           focusNode: focusNode,
-          enabled: !_submitting,
+          enabled: false,
           decoration: const InputDecoration(
             labelText: "Customer Name",
             border: OutlineInputBorder(),
@@ -1425,6 +1503,7 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
         border: OutlineInputBorder(),
       ),
       value: selectedInquiry,
+      isExpanded: true,
       items:
           inquiryList
               .map(
@@ -1432,6 +1511,7 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
                   value: inq,
                   child: Text(
                     "${inq.inquiryNumber} - ${inq.customerName}",
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(color: Colors.black),
                   ),
                 ),

@@ -33,6 +33,7 @@ import 'package:nhapp/pages/labour_po/labour_po_page.dart';
 import 'package:nhapp/pages/notifications/notification_page.dart';
 import 'package:nhapp/pages/purchase_order/purchase_order_screen.dart';
 import 'package:nhapp/pages/service_po/service_po_page.dart';
+import 'package:nhapp/utils/rightsChecker.dart';
 import 'package:nhapp/utils/storage_utils.dart';
 import 'package:nhapp/utils/theme.dart';
 import 'package:nhapp/utils/error_handler.dart';
@@ -859,6 +860,61 @@ class FavoritePages extends ChangeNotifier {
   }
 }
 
+// class MyFavouritesScreen extends StatefulWidget {
+//   const MyFavouritesScreen({super.key});
+
+//   @override
+//   MyFavouritesScreenState createState() => MyFavouritesScreenState();
+// }
+
+// class MyFavouritesScreenState extends State<MyFavouritesScreen> {
+//   final Map<String, String> routeToPageName = {
+//     '/purchase_orders': 'Purchase Orders',
+//     '/service_orders': 'Service Orders',
+//     '/labour_po': 'Labour PO',
+//     '/leads': 'Leads',
+//     '/follow_up': 'Follow Up',
+//     '/quotation': 'Quotation',
+//     '/sales_order': 'Sales Order',
+//     '/proforma_invoice': 'Proforma Invoice',
+//   };
+
+//   @override
+//   Widget build(BuildContext context) {
+//     final favoritePages = Provider.of<FavoritePages>(context);
+
+//     return Scaffold(
+//       appBar: AppBar(title: Text('My Favourites')),
+//       body: ListView.builder(
+//         itemCount: routeToPageName.length,
+//         itemBuilder: (context, index) {
+//           final routeName = routeToPageName.keys.elementAt(index);
+//           final pageName = routeToPageName[routeName] ?? routeName;
+
+//           return ListTile(
+//             title: Text(pageName),
+//             trailing: IconButton(
+//               icon: Icon(
+//                 favoritePages.isFavorite(routeName)
+//                     ? Icons.favorite
+//                     : Icons.favorite_border,
+//                 color: favoritePages.isFavorite(routeName) ? Colors.red : null,
+//               ),
+//               onPressed: () {
+//                 if (favoritePages.isFavorite(routeName)) {
+//                   favoritePages.removeFavorite(routeName);
+//                 } else {
+//                   favoritePages.addFavorite(routeName);
+//                 }
+//               },
+//             ),
+//           );
+//         },
+//       ),
+//     );
+//   }
+// }
+
 class MyFavouritesScreen extends StatefulWidget {
   const MyFavouritesScreen({super.key});
 
@@ -879,38 +935,209 @@ class MyFavouritesScreenState extends State<MyFavouritesScreen> {
   };
 
   @override
+  void initState() {
+    super.initState();
+    // Initialize rights when the screen loads
+    _initializeRights();
+  }
+
+  Future<void> _initializeRights() async {
+    await RightsChecker.initializeRights();
+    if (mounted) {
+      setState(() {}); // Refresh UI after rights are loaded
+    }
+  }
+
+  // Helper method to check if user has view rights for a feature
+  bool _canViewFeature(String pageName) {
+    switch (pageName) {
+      case 'Purchase Orders':
+        return RightsChecker.canView('Purchase Order');
+      case 'Service Orders':
+        return RightsChecker.canView('Service Order');
+      case 'Labour PO':
+        return RightsChecker.canView('Labour PO');
+      case 'Leads':
+        return RightsChecker.canView('Lead');
+      case 'Follow Up':
+        return RightsChecker.canView('Follow Up');
+      case 'Quotation':
+        return RightsChecker.canView('Quotation');
+      case 'Sales Order':
+        return RightsChecker.canView('Sales Order');
+      case 'Proforma Invoice':
+        return RightsChecker.canView('Proforma Invoice');
+      default:
+        return false;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final favoritePages = Provider.of<FavoritePages>(context);
 
-    return Scaffold(
-      appBar: AppBar(title: Text('My Favourites')),
-      body: ListView.builder(
-        itemCount: routeToPageName.length,
-        itemBuilder: (context, index) {
-          final routeName = routeToPageName.keys.elementAt(index);
-          final pageName = routeToPageName[routeName] ?? routeName;
+    // Filter routes based on user rights
+    final filteredRoutes =
+        routeToPageName.entries
+            .where((entry) => _canViewFeature(entry.value))
+            .toList();
 
-          return ListTile(
-            title: Text(pageName),
-            trailing: IconButton(
-              icon: Icon(
-                favoritePages.isFavorite(routeName)
-                    ? Icons.favorite
-                    : Icons.favorite_border,
-                color: favoritePages.isFavorite(routeName) ? Colors.red : null,
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Favourites'),
+        // Optional: Show lock icon if user has limited access
+        actions:
+            filteredRoutes.length < routeToPageName.length
+                ? [
+                  Padding(
+                    padding: const EdgeInsets.only(right: 16.0),
+                    child: Icon(
+                      Icons.lock_outline,
+                      color: Colors.grey[600],
+                      size: 20,
+                    ),
+                  ),
+                ]
+                : null,
+      ),
+      body:
+          filteredRoutes.isEmpty
+              ? _buildNoAccessWidget(context)
+              : ListView.builder(
+                itemCount: filteredRoutes.length,
+                itemBuilder: (context, index) {
+                  final entry = filteredRoutes[index];
+                  final routeName = entry.key;
+                  final pageName = entry.value;
+
+                  return Card(
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                    child: ListTile(
+                      leading: Icon(
+                        _getIconForRoute(routeName),
+                        color: Theme.of(context).primaryColor,
+                      ),
+                      title: Text(
+                        pageName,
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                      subtitle: Text(
+                        favoritePages.isFavorite(routeName)
+                            ? 'Added to favorites'
+                            : 'Add to favorites',
+                        style: TextStyle(
+                          color:
+                              favoritePages.isFavorite(routeName)
+                                  ? Colors.green[600]
+                                  : Colors.grey[600],
+                          fontSize: 12,
+                        ),
+                      ),
+                      trailing: IconButton(
+                        icon: Icon(
+                          favoritePages.isFavorite(routeName)
+                              ? Icons.favorite
+                              : Icons.favorite_border,
+                          color:
+                              favoritePages.isFavorite(routeName)
+                                  ? Colors.red
+                                  : Colors.grey[600],
+                        ),
+                        onPressed: () {
+                          if (favoritePages.isFavorite(routeName)) {
+                            favoritePages.removeFavorite(routeName);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  '$pageName removed from favorites',
+                                ),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          } else {
+                            favoritePages.addFavorite(routeName);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('$pageName added to favorites'),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                      onTap: () {
+                        // Optional: Navigate to the page when tapped
+                        Navigator.pushNamed(context, routeName);
+                      },
+                    ),
+                  );
+                },
               ),
-              onPressed: () {
-                if (favoritePages.isFavorite(routeName)) {
-                  favoritePages.removeFavorite(routeName);
-                } else {
-                  favoritePages.addFavorite(routeName);
-                }
-              },
+    );
+  }
+
+  Widget _buildNoAccessWidget(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.lock_outline, size: 80, color: Colors.grey[400]),
+            const SizedBox(height: 24),
+            Text(
+              'No Accessible Pages',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                color: Colors.grey[600],
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          );
-        },
+            const SizedBox(height: 12),
+            Text(
+              'You don\'t have permission to view any of the available pages. Contact your administrator for access.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              icon: const Icon(Icons.arrow_back),
+              label: const Text('Go Back'),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  IconData _getIconForRoute(String routeName) {
+    switch (routeName) {
+      case '/purchase_orders':
+        return Icons.shopping_cart;
+      case '/service_orders':
+        return Icons.build;
+      case '/labour_po':
+        return Icons.person_outline;
+      case '/leads':
+        return Icons.track_changes;
+      case '/follow_up':
+        return Icons.follow_the_signs;
+      case '/quotation':
+        return Icons.description;
+      case '/sales_order':
+        return Icons.receipt_long;
+      case '/proforma_invoice':
+        return Icons.article;
+      default:
+        return Icons.pageview;
+    }
   }
 }
 

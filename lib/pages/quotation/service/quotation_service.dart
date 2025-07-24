@@ -54,7 +54,6 @@ class QuotationService extends BaseService {
     if (domCurrency == null) throw Exception("Domestic currency not set");
 
     final currency = domCurrency['domCurCode'] ?? 'INR';
-
     final companyId = companyDetails['id'];
     final endpoint = "/api/Quotation/QuotationGetPrint";
 
@@ -72,7 +71,7 @@ class QuotationService extends BaseService {
       "strDomCurrency": currency,
       "companyData": companyDetails,
       "printtype": "pdf",
-      "msctechspecifications": true,
+      "msctechspecifications": false,
       "reportselection": "withvalue",
       "documentprint": "regular",
       "discountprint": "withoutdisc",

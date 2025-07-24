@@ -7,16 +7,16 @@ class AddSalesOrderItemPage extends StatefulWidget {
   final SalesOrderService service;
   final SalesOrderItem? item;
   final List<RateStructure> rateStructures;
-  final List<SalesOrderItem> existingItems; // Add this parameter
-  final bool isDuplicateAllowed; // Add this parameter
+  final List<SalesOrderItem> existingItems;
+  final bool isDuplicateAllowed;
 
   const AddSalesOrderItemPage({
     super.key,
     required this.service,
     this.item,
     required this.rateStructures,
-    required this.existingItems, // Add this
-    required this.isDuplicateAllowed, // Add this
+    required this.existingItems,
+    required this.isDuplicateAllowed,
   });
 
   @override
@@ -479,6 +479,111 @@ class _AddSalesOrderItemPageState extends State<AddSalesOrderItemPage> {
     );
   }
 
+  // Future<void> _addItem() async {
+  //   if (!_formKey.currentState!.validate()) return;
+
+  //   final qty = double.parse(qtyController.text);
+  //   final basicRate = double.parse(basicRateController.text);
+
+  //   double discountAmount = 0;
+  //   double? discountPercentage;
+
+  //   // Discount calculation logic - exactly same as ad_itm
+  //   if (discountType == "P") {
+  //     discountPercentage = double.parse(discountPercentageController.text);
+  //     final totalBeforeDiscount = basicRate * qty;
+  //     discountAmount = totalBeforeDiscount * (discountPercentage / 100);
+  //   } else if (discountType == "V") {
+  //     discountAmount = double.parse(discountAmountController.text);
+  //     final totalBeforeDiscount = basicRate * qty;
+  //     discountPercentage =
+  //         totalBeforeDiscount > 0
+  //             ? (discountAmount / totalBeforeDiscount) * 100
+  //             : 0;
+  //   }
+
+  //   setState(() => _isLoading = true);
+
+  //   try {
+  //     final totalBeforeDiscount = basicRate * qty;
+  //     final discountedValue = totalBeforeDiscount - discountAmount;
+
+  //     if (discountedValue < 0) {
+  //       throw Exception("Discount amount cannot be greater than total amount");
+  //     }
+
+  //     // Rate structure calculation - exactly same as ad_itm
+  //     final rateStructureDetails = widget.service.buildRateStructureDetails(
+  //       rateStructureRows,
+  //       selectedItem?.itemCode ?? "TEMP",
+  //       1,
+  //     );
+
+  //     final rateStructureResponse = await widget.service.calculateRateStructure(
+  //       discountedValue,
+  //       selectedRateStructure!,
+  //       rateStructureDetails,
+  //       selectedItem?.itemCode ?? "TEMP",
+  //     );
+
+  //     if (rateStructureResponse['success'] == true) {
+  //       final data = rateStructureResponse['data'];
+  //       final updatedRateStructureDetails =
+  //           data['listCalcRateReturnDetails'] ?? data['rateStructureDetails'];
+
+  //       double totalTax = 0.0;
+  //       if (updatedRateStructureDetails != null) {
+  //         for (final rateDetail in updatedRateStructureDetails) {
+  //           final rateAmount = (rateDetail['rateAmount'] ?? 0.0).toDouble();
+  //           totalTax += rateAmount;
+  //         }
+  //       }
+
+  //       final totalAmount = discountedValue + totalTax;
+
+  //       final item = SalesOrderItem(
+  //         itemName: itemNameController.text,
+  //         itemCode: selectedItem?.itemCode ?? "TEMP",
+  //         qty: qty,
+  //         basicRate: basicRate,
+  //         uom: selectedItem?.salesUOM ?? "NOS",
+  //         discountType: discountType,
+  //         discountPercentage: discountType == "P" ? discountPercentage : null,
+  //         discountAmount: discountAmount > 0 ? discountAmount : null,
+  //         discountCode: selectedDiscountCode?.code, // Add discount code
+  //         rateStructure: selectedRateStructure!,
+  //         taxAmount: totalTax,
+  //         totalAmount: totalAmount,
+  //         rateStructureRows:
+  //             updatedRateStructureDetails != null
+  //                 ? List<Map<String, dynamic>>.from(updatedRateStructureDetails)
+  //                 : rateStructureRows,
+  //         lineNo: 0, // will be set in main form
+  //         hsnCode: selectedItem?.hsnCode ?? '',
+  //       );
+
+  //       Navigator.pop(context, item);
+  //     } else {
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //         SnackBar(
+  //           content: Text(
+  //             "Error: ${rateStructureResponse['errorMessage'] ?? 'Calculation failed'}",
+  //           ),
+  //           backgroundColor: Colors.red,
+  //         ),
+  //       );
+  //     }
+  //   } catch (e, stackTrace) {
+  //     print("Error in _addItem: $e");
+  //     print("Stack trace: $stackTrace");
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       SnackBar(content: Text("Error calculating item: ${e.toString()}")),
+  //     );
+  //   } finally {
+  //     setState(() => _isLoading = false);
+  //   }
+  // }
+
   Future<void> _addItem() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -488,7 +593,19 @@ class _AddSalesOrderItemPageState extends State<AddSalesOrderItemPage> {
     double discountAmount = 0;
     double? discountPercentage;
 
-    // Discount calculation logic - exactly same as ad_itm
+    // Discount calculation logic (keep existing logic)
+    // if (discountType == "Percentage") {
+    //   discountPercentage = double.parse(discountPercentageController.text);
+    //   final totalBeforeDiscount = basicRate * qty;
+    //   discountAmount = totalBeforeDiscount * (discountPercentage / 100);
+    // } else if (discountType == "Value") {
+    //   discountAmount = double.parse(discountAmountController.text);
+    //   final totalBeforeDiscount = basicRate * qty;
+    //   discountPercentage =
+    //       totalBeforeDiscount > 0
+    //           ? (discountAmount / totalBeforeDiscount) * 100
+    //           : 0;
+    // }
     if (discountType == "P") {
       discountPercentage = double.parse(discountPercentageController.text);
       final totalBeforeDiscount = basicRate * qty;
@@ -512,7 +629,7 @@ class _AddSalesOrderItemPageState extends State<AddSalesOrderItemPage> {
         throw Exception("Discount amount cannot be greater than total amount");
       }
 
-      // Rate structure calculation - exactly same as ad_itm
+      // Rate structure calculation (keep existing logic)
       final rateStructureDetails = widget.service.buildRateStructureDetails(
         rateStructureRows,
         selectedItem?.itemCode ?? "TEMP",
@@ -529,7 +646,7 @@ class _AddSalesOrderItemPageState extends State<AddSalesOrderItemPage> {
       if (rateStructureResponse['success'] == true) {
         final data = rateStructureResponse['data'];
         final updatedRateStructureDetails =
-            data['listCalcRateReturnDetails'] ?? data['rateStructureDetails'];
+            data['FinalrateStructureData'] ?? data['rateStructureDetails'];
 
         double totalTax = 0.0;
         if (updatedRateStructureDetails != null) {
@@ -550,7 +667,7 @@ class _AddSalesOrderItemPageState extends State<AddSalesOrderItemPage> {
           discountType: discountType,
           discountPercentage: discountType == "P" ? discountPercentage : null,
           discountAmount: discountAmount > 0 ? discountAmount : null,
-          discountCode: selectedDiscountCode?.code, // Add discount code
+          discountCode: selectedDiscountCode?.code,
           rateStructure: selectedRateStructure!,
           taxAmount: totalTax,
           totalAmount: totalAmount,
@@ -558,7 +675,7 @@ class _AddSalesOrderItemPageState extends State<AddSalesOrderItemPage> {
               updatedRateStructureDetails != null
                   ? List<Map<String, dynamic>>.from(updatedRateStructureDetails)
                   : rateStructureRows,
-          lineNo: 0, // will be set in main form
+          lineNo: 0,
           hsnCode: selectedItem?.hsnCode ?? '',
         );
 

@@ -259,6 +259,12 @@ class QuotationItem {
   });
 
   Map<String, dynamic> toModelDetail() {
+    final DiscountAmt =
+        discountType == "P" || discountType == "Percentage"
+            ? (discountPercentage! / 100) * (basicRate * qty)
+            : discountType == "V" || discountType == "Value"
+            ? discountAmount ?? 0.0
+            : 0.0;
     return {
       "itemLineNo": lineNo,
       "customerCode": "",
@@ -267,9 +273,19 @@ class QuotationItem {
       "salesItemCode": itemCode,
       "qtyIUOM": qty,
       "basicPriceIUOM": basicRate,
-      "discountType": discountType,
-      "discountValue": discountPercentage ?? 0,
-      "discountAmt": (discountAmount ?? 0).toStringAsFixed(2),
+      "discountType":
+          discountType == "P" || discountType == "Percentage"
+              ? "Percentage"
+              : discountType == "V" || discountType == "Value"
+              ? "Value"
+              : "None",
+      "discountValue":
+          discountType == "P" || discountType == "Percentage"
+              ? discountPercentage?.toString() ?? 0.0
+              : discountType == "V" || discountType == "Value"
+              ? discountAmount?.toString() ?? 0.0
+              : 0.0,
+      "discountAmt": DiscountAmt,
       "qtySUOM": qty,
       "basicPriceSUOM": basicRate,
       "conversionFactor": 1,
@@ -308,13 +324,12 @@ class QuotationItem {
       "invoiceType": "Regular",
       "oldSalesItemCode": "",
       "oldInternalItemCode": "",
-      "itemAmountAfterDisc": (basicRate * qty) - (discountAmount ?? 0),
+      "itemAmountAfterDisc": (basicRate * qty) - (DiscountAmt ?? 0),
       "isGroupSpare": "",
       "hsnCode": hsnCode ?? "",
       "detaildescription": "",
       "loadRate": 0,
-      "netRate":
-          qty > 0 ? ((basicRate * qty) - (discountAmount ?? 0)) / qty : 0,
+      "netRate": qty > 0 ? ((basicRate * qty) - (DiscountAmt ?? 0)) / qty : 0,
     };
   }
 
@@ -327,14 +342,15 @@ class QuotationItem {
     return {
       "salesItemCode": itemCode,
       "currencyCode": currencyCode,
-      "discountCode":
-          discountCode ??
-          (discountType == "Percentage"
-              ? "DISC"
-              : "01"), // Use selected code or fallback
-      "discountType": discountType,
+      "discountCode": discountCode, // Use selected code or fallback
+      "discountType":
+          discountType == "P" || discountType == "Percentage"
+              ? "Percentage"
+              : discountType == "V" || discountType == "Value"
+              ? "Value"
+              : "None",
       "discountValue":
-          discountType == "Percentage"
+          discountType == "Percentage" || discountType == "P"
               ? (discountPercentage ?? 0) // Use percentage value
               : (discountAmount ?? 0), // Use absolute amount
       "amendSrNo": "0",

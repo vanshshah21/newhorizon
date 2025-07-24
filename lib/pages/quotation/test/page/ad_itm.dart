@@ -170,6 +170,7 @@ class _AddItemPageState extends State<AddItemPage> {
               child: Text(
                 discountCode.codeFullName,
                 style: const TextStyle(fontSize: 14),
+                overflow: TextOverflow.ellipsis,
               ),
             );
           }).toList(),
@@ -533,13 +534,10 @@ class _AddItemPageState extends State<AddItemPage> {
       isExpanded: true,
       selectedItemBuilder: (context) {
         return widget.rateStructures.map((rs) {
-          return SizedBox(
-            width: 200,
-            child: Text(
-              rs.rateStructFullName,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Colors.black),
-            ),
+          return Text(
+            rs.rateStructFullName,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Colors.black),
           );
         }).toList();
       },

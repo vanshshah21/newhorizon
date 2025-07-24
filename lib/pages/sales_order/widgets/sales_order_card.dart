@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:nhapp/pages/sales_order/models/sales_order_item.dart';
 import 'package:nhapp/pages/sales_order/pages/sales_order_details.dart';
+import 'package:nhapp/utils/rightsChecker.dart';
 import '../models/sales_order.dart';
 import 'package:nhapp/utils/format_utils.dart';
 
@@ -119,23 +120,30 @@ class _SalesOrderCardState extends State<SalesOrderCard>
     final so = widget.so;
     final theme = Theme.of(context);
 
+    // Check permissions
+    final canEdit = RightsChecker.canEdit('Sales Order');
+    final canDelete = RightsChecker.canDelete('Sales Order');
+    final canView = RightsChecker.canView('Sales Order');
+    final canPrint = RightsChecker.canPrint('Sales Order Print');
+
     // Build actions based on permissions
     final actions = <Widget>[
-      SlidableAction(
-        onPressed: (_) => widget.onPdfTap(),
-        backgroundColor: Colors.blue.shade600,
-        foregroundColor: Colors.white,
-        icon: Icons.picture_as_pdf_outlined,
-        label: 'PDF',
-        borderRadius: BorderRadius.horizontal(
-          left: const Radius.circular(12),
-          right:
-              (!so.isEdit && !so.isDelete)
-                  ? const Radius.circular(12)
-                  : Radius.zero,
+      if (canPrint)
+        SlidableAction(
+          onPressed: (_) => widget.onPdfTap(),
+          backgroundColor: Colors.blue.shade600,
+          foregroundColor: Colors.white,
+          icon: Icons.picture_as_pdf_outlined,
+          label: 'PDF',
+          borderRadius: BorderRadius.horizontal(
+            left: const Radius.circular(12),
+            right:
+                (!so.isEdit && !so.isDelete)
+                    ? const Radius.circular(12)
+                    : Radius.zero,
+          ),
         ),
-      ),
-      if (so.isEdit && widget.onEditTap != null)
+      if (so.isEdit && widget.onEditTap != null && canEdit)
         SlidableAction(
           onPressed: (_) => widget.onEditTap!(),
           backgroundColor: Colors.green.shade600,
@@ -147,7 +155,7 @@ class _SalesOrderCardState extends State<SalesOrderCard>
             right: !so.isDelete ? const Radius.circular(12) : Radius.zero,
           ),
         ),
-      if (so.isDelete && widget.onDeleteTap != null)
+      if (so.isDelete && widget.onDeleteTap != null && canDelete)
         SlidableAction(
           onPressed: (_) => widget.onDeleteTap!(),
           backgroundColor: Colors.red.shade600,
@@ -169,7 +177,7 @@ class _SalesOrderCardState extends State<SalesOrderCard>
       child: Card(
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         child: InkWell(
-          onTap: _navigateToDetails,
+          onTap: canView ? _navigateToDetails : null,
           borderRadius: BorderRadius.circular(12),
           child: Column(
             children: [

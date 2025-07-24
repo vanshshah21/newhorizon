@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:nhapp/pages/proforma_invoice/pages/add_proforma_invoice.dart';
 import 'package:nhapp/pages/quotation/service/quotation_service.dart';
 import 'package:nhapp/utils/map_utils.dart';
+import 'package:nhapp/utils/rightsChecker.dart';
 import 'package:nhapp/utils/storage_utils.dart';
 import 'package:nhapp/utils/theme.dart';
 import 'package:path_provider/path_provider.dart';
@@ -741,6 +742,10 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    final bool canAddSalesOrder = RightsChecker.canAdd('Sales Order');
+    final bool canAddProformaInvoice = RightsChecker.canAdd('Proforma Invoice');
+    final bool canViewPdf = RightsChecker.canPrint('Quotation Print');
+
     if (loading) {
       return Scaffold(
         appBar: AppBar(title: const Text('Quotation Details')),
@@ -752,8 +757,9 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
         appBar: AppBar(title: const Text('Quotation Details')),
         body: RefreshIndicator(
           onRefresh: () async {
-            await _fetchDetail();
-            await _fetchAttachments();
+            _fetchDetail();
+            _fetchAttachments();
+            _fetchLocationData();
           },
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -770,8 +776,9 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
         appBar: AppBar(title: const Text('Quotation Details')),
         body: RefreshIndicator(
           onRefresh: () async {
-            await _fetchDetail();
-            await _fetchAttachments();
+            _fetchDetail();
+            _fetchAttachments();
+            _fetchLocationData();
           },
           child: const SingleChildScrollView(
             physics: AlwaysScrollableScrollPhysics(),
@@ -894,35 +901,38 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
       appBar: AppBar(
         title: const Text('Details'),
         actions: [
-          IconButton(
-            icon:
-                _isDownloading
-                    ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                    : const Icon(Icons.download),
-            onPressed: _isDownloading ? null : _handleDownload,
-            tooltip: 'Download PDF',
-          ),
-          IconButton(
-            icon: const Icon(Icons.picture_as_pdf_outlined),
-            onPressed: _viewPdf,
-            tooltip: 'View PDF',
-          ),
-          IconButton(
-            icon:
-                _isSharing
-                    ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                    : const Icon(Icons.share),
-            onPressed: _isSharing ? null : _handleShare,
-            tooltip: 'Share PDF',
-          ),
+          if (canViewPdf)
+            IconButton(
+              icon:
+                  _isDownloading
+                      ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                      : const Icon(Icons.download),
+              onPressed: _isDownloading ? null : _handleDownload,
+              tooltip: 'Download PDF',
+            ),
+          if (canViewPdf)
+            IconButton(
+              icon: const Icon(Icons.picture_as_pdf_outlined),
+              onPressed: _viewPdf,
+              tooltip: 'View PDF',
+            ),
+          if (canViewPdf)
+            IconButton(
+              icon:
+                  _isSharing
+                      ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                      : const Icon(Icons.share),
+              onPressed: _isSharing ? null : _handleShare,
+              tooltip: 'Share PDF',
+            ),
           IconButton(
             onPressed: _isLoadingLocation ? null : _handleLocationButton,
             icon:
@@ -945,7 +955,11 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: _fetchDetail,
+        onRefresh: () async {
+          _fetchDetail();
+          _fetchAttachments();
+          _fetchLocationData();
+        },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
@@ -954,54 +968,56 @@ class _QuotationDetailPageState extends State<QuotationDetailPage> {
               if (_isAuthorized) ...[
                 Row(
                   children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: _navigateToAddSalesOrder,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Text('Sales Order'),
-                            SizedBox(width: 4),
-                            Icon(Icons.arrow_forward, size: 14),
-                          ],
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 8,
-                            horizontal: 2,
+                    if (canAddSalesOrder)
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _navigateToAddSalesOrder,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: const [
+                              Text('Sales Order'),
+                              SizedBox(width: 4),
+                              Icon(Icons.arrow_forward, size: 14),
+                            ],
                           ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.only(
-                              bottomLeft: Radius.circular(6),
-                              topLeft: Radius.circular(6),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 8,
+                              horizontal: 2,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.only(
+                                bottomLeft: Radius.circular(6),
+                                topLeft: Radius.circular(6),
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: _navigateToAddProformaInvoice,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: const [
-                            Text('Proforma Invoice'),
-                            SizedBox(width: 4),
-                            Icon(Icons.arrow_forward, size: 14),
-                          ],
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.black,
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.only(
-                              bottomRight: Radius.circular(6),
-                              topRight: Radius.circular(6),
+                    if (canAddProformaInvoice)
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: _navigateToAddProformaInvoice,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: const [
+                              Text('Proforma Invoice'),
+                              SizedBox(width: 4),
+                              Icon(Icons.arrow_forward, size: 14),
+                            ],
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.only(
+                                bottomRight: Radius.circular(6),
+                                topRight: Radius.circular(6),
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ],

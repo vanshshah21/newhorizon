@@ -54,6 +54,7 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
   // Store original invoice details
   ProformaInvoiceDetails? _originalInvoiceDetails;
   bool _isDuplicateAllowed = false;
+  bool _shouldBlockForm = false;
 
   late final double _exchangeRate;
 
@@ -309,7 +310,42 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
     }
   }
 
+  void _removeItem(int index) {
+    setState(() {
+      final removedItem = items[index];
+      items.removeAt(index);
+
+      // Remove associated rate structure details
+      _rsGrid.removeWhere((rs) => rs['xdtdtmcd'] == removedItem.itemCode);
+
+      // Remove associated discount details
+      _discountDetails.removeWhere(
+        (disc) => disc['itemCode'] == removedItem.itemCode,
+      );
+
+      // Re-assign line numbers
+      for (int i = 0; i < items.length; i++) {
+        items[i].lineNo = i + 1;
+
+        // Update refLine in rsGrid for remaining items
+        for (var rs in _rsGrid) {
+          if (rs['xdtdtmcd'] == items[i].itemCode) {
+            rs['refLine'] = i + 1;
+          }
+        }
+
+        // Update oditmlineno in discountDetails for remaining items
+        for (var disc in _discountDetails) {
+          if (disc['itemCode'] == items[i].itemCode) {
+            disc['oditmlineno'] = i + 1;
+          }
+        }
+      }
+    });
+  }
+
   Future<void> _onCustomerSelected(Customer customer) async {
+    FocusScope.of(context).unfocus();
     setState(() {
       selectedCustomer = customer;
       customerController.text = customer.custName;
@@ -538,6 +574,87 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
     }
   }
 
+  // Future<void> _showAddItemPage() async {
+  //   // Create the correct ProformaInvoiceService instance for AddItemPage
+  //   final addProformaService =
+  //       await AddProformaService.ProformaInvoiceService.create();
+
+  //   final result = await Navigator.push<ProformaItem>(
+  //     context,
+  //     MaterialPageRoute(
+  //       builder:
+  //           (context) => AddItemPage(
+  //             service: addProformaService, // Use the correct service type
+  //             rateStructures: rateStructures,
+  //             existingItems: items, // Pass existing items
+  //             isDuplicateAllowed: _isDuplicateAllowed, // Pass duplicate flag
+  //           ),
+  //     ),
+  //   );
+
+  //   // if (result != null) {
+  //   //   setState(() {
+  //   //     result.lineNo = items.length + 1;
+  //   //     items.add(result);
+  //   //   });
+  //   // }
+  //   WidgetsBinding.instance.addPostFrameCallback((_) {
+  //     FocusScope.of(context).unfocus();
+  //   });
+  //   if (result != null) {
+  //     setState(() {
+  //       // Set proper line number
+  //       result.lineNo = items.length + 1;
+  //       items.add(result);
+
+  //       // Append rate structure details if they exist (don't replace)
+  //       if (result.rateStructureRows != null &&
+  //           result.rateStructureRows!.isNotEmpty) {
+  //         final lineNo = result.lineNo;
+
+  //         // Add rate structure rows for this item
+  //         for (final row in result.rateStructureRows!) {
+  //           _rsGrid.add({
+  //             "docType": "PI",
+  //             "docSubType": "PI",
+  //             "xdtdtmcd": row['itemCode'],
+  //             "rateCode": row['rateCode'] ?? row['msprtcd'],
+  //             "rateStructCode": result.rateStructure,
+  //             "rateAmount": row['rateAmount'] ?? 0,
+  //             "amdSrNo": row['xdtdamdsrno'],
+  //             "perCValue": row['msprtval']?.toString() ?? "0.00",
+  //             "incExc": row['ie'] ?? row['mspincexc'],
+  //             "perVal": row['pv'] ?? row['mspperval'],
+  //             "appliedOn": row['mtrslvlno'] ?? "",
+  //             "pnyn": row['msppnyn'] == "True" || row['msppnyn'] == true,
+  //             "seqNo": row['mspseqno']?.toString() ?? "1",
+  //             "curCode": row['mprcurcode'] ?? "INR",
+  //             "fromLocationId": _service.locationDetails['id'] ?? 8,
+  //             "TaxTyp": row['mprtaxtyp'],
+  //             "refLine": lineNo,
+  //           });
+  //         }
+  //       }
+
+  //       // Append discount details if they exist
+  //       if (result.discountAmount != null && result.discountAmount! > 0) {
+  //         _discountDetails.add({
+  //           "itemCode": result.itemCode,
+  //           "currCode": currency,
+  //           // "discCode": result.discountCode,
+  //           "discType": result.discountType,
+  //           "discVal":
+  //               result.discountType == "P"
+  //                   ? result.discountPercentage ?? 0
+  //                   : result.discountAmount ?? 0,
+  //           "fromLocationId": _service.locationDetails['id'] ?? 8,
+  //           "oditmlineno": result.lineNo,
+  //         });
+  //       }
+  //     });
+  //   }
+  // }
+
   Future<void> _showAddItemPage() async {
     // Create the correct ProformaInvoiceService instance for AddItemPage
     final addProformaService =
@@ -556,12 +673,10 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
       ),
     );
 
-    // if (result != null) {
-    //   setState(() {
-    //     result.lineNo = items.length + 1;
-    //     items.add(result);
-    //   });
-    // }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FocusScope.of(context).unfocus();
+    });
+
     if (result != null) {
       setState(() {
         // Set proper line number
@@ -573,23 +688,24 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
             result.rateStructureRows!.isNotEmpty) {
           final lineNo = result.lineNo;
 
-          // Add rate structure rows for this item
+          // Add rate structure rows for this item - FIXED: Use result.itemCode instead of row['itemCode']
           for (final row in result.rateStructureRows!) {
             _rsGrid.add({
               "docType": "PI",
               "docSubType": "PI",
-              "xdtdtmcd": result.itemCode,
-              "rateCode": row['msprtcd'],
+              "xdtdtmcd":
+                  result.itemCode, // FIXED: Use result.itemCode consistently
+              "rateCode": row['rateCode'] ?? row['msprtcd'],
               "rateStructCode": result.rateStructure,
               "rateAmount": row['rateAmount'] ?? 0,
-              "amdSrNo": 0,
+              "amdSrNo": row['xdtdamdsrno'] ?? 0,
               "perCValue": row['msprtval']?.toString() ?? "0.00",
-              "incExc": row['mspincexc'],
-              "perVal": row['mspperval'],
+              "incExc": row['ie'] ?? row['mspincexc'],
+              "perVal": row['pv'] ?? row['mspperval'],
               "appliedOn": row['mtrslvlno'] ?? "",
               "pnyn": row['msppnyn'] == "True" || row['msppnyn'] == true,
               "seqNo": row['mspseqno']?.toString() ?? "1",
-              "curCode": row['mprcurcode'] ?? "INR",
+              "curCode": row['mprcurcode'] ?? currency,
               "fromLocationId": _service.locationDetails['id'] ?? 8,
               "TaxTyp": row['mprtaxtyp'],
               "refLine": lineNo,
@@ -602,7 +718,7 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
           _discountDetails.add({
             "itemCode": result.itemCode,
             "currCode": currency,
-            // "discCode": result.discountCode,
+            "discCode": "DISC", // FIXED: Add missing discCode
             "discType": result.discountType,
             "discVal":
                 result.discountType == "Percentage"
@@ -652,6 +768,162 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
     }
   }
 
+  // Map<String, dynamic> _buildSubmissionPayload() {
+  //   final userDetails = _service.userDetails;
+  //   final locationDetails = _service.locationDetails;
+  //   final financeDetails = _service.financeDetails;
+
+  //   if (userDetails?['id'] == null) throw Exception("User ID is null");
+  //   if (locationDetails['id'] == null) throw Exception("Location ID is null");
+  //   if (locationDetails['code'] == null)
+  //     throw Exception("Location code is null");
+  //   if (selectedCustomer == null) throw Exception("Customer is null");
+
+  //   List<Map<String, dynamic>> itemDetails = [];
+  //   List<Map<String, dynamic>> rsGrid = [];
+  //   List<Map<String, dynamic>> discountDetails = [];
+
+  //   final userId = userDetails!['id'] ?? 0;
+  //   final locationId = locationDetails['id'] ?? 0;
+  //   final locationCode = locationDetails['code'] ?? "";
+
+  //   final totalBasic = _calculateTotalBasic();
+  //   final totalDiscount = _calculateTotalDiscount();
+  //   final totalTax = _calculateTaxFromRateStructure();
+  //   final totalAmount = _calculateTotalAmount();
+
+  //   // Build item details
+  //   for (int i = 0; i < items.length; i++) {
+  //     final item = items[i];
+  //     final lineNo = i + 1;
+
+  //     final itemJson = item.toSubmissionJson(userId, locationId);
+  //     itemJson['lineNo'] = lineNo;
+  //     itemJson['seqNo'] = lineNo;
+  //     itemJson['fromLocationId'] = locationId;
+  //     if (selectPreference == "On Quotation") {
+  //       itemJson['ordYear'] = financeDetails['financialYear'];
+  //       itemJson['ordGroup'] = defaultQuotation!.groupCode;
+  //       itemJson['ordNumber'] = selectedQuotationNumber;
+  //     } else if (selectPreference == "On Sales Order") {
+  //       itemJson['ordYear'] = financeDetails['financialYear'];
+  //       itemJson['ordGroup'] = defaultSalesOrder!.groupCode;
+  //       itemJson['ordNumber'] = selectedSalesOrderNumber;
+  //     }
+  //     itemDetails.add(itemJson);
+  //   }
+
+  //   // Handle rsGrid and discountDetails based on preference
+  //   if (selectPreference == "On Quotation" ||
+  //       selectPreference == "On Sales Order") {
+  //     rsGrid =
+  //         _rsGrid.map((rs) {
+  //           final itemIndex = items.indexWhere(
+  //             (item) => item.itemCode == rs['xdtdtmcd'],
+  //           );
+  //           if (itemIndex != -1) {
+  //             rs['refLine'] = itemIndex + 1;
+  //           }
+  //           return Map<String, dynamic>.from(rs);
+  //         }).toList();
+
+  //     discountDetails =
+  //         _discountDetails.map((disc) {
+  //           final itemIndex = items.indexWhere(
+  //             (item) => item.itemCode == disc['itemCode'],
+  //           );
+  //           if (itemIndex != -1) {
+  //             disc['oditmlineno'] = itemIndex + 1;
+  //           }
+  //           return Map<String, dynamic>.from(disc);
+  //         }).toList();
+  //   } else {
+  //     // For "On Other" - build rsGrid and discountDetails from item data
+  //     for (int i = 0; i < items.length; i++) {
+  //       final item = items[i];
+  //       final lineNo = i + 1;
+
+  //       if (item.rateStructureRows != null) {
+  //         for (final row in item.rateStructureRows!) {
+  //           // Use the SAME structure as "On Quotation" and "On Sales Order"
+  //           rsGrid.add({
+  //             "docType": "PI",
+  //             "docSubType": "PI",
+  //             "docId": widget.invoice.id,
+  //             "xdtdtmcd":
+  //                 item.itemCode, // Map to item code (same as quotation/sales order)
+  //             "rateCode": row['msprtcd'] ?? row['rateCode'] ?? "",
+  //             "rateAmount": row['rateAmount'] ?? 0,
+  //             "amdSrNo": 0,
+  //             "perCValue": row['msprtval'] ?? row['perCValue'] ?? 0,
+  //             "incExc": row['mspincexc'] ?? row['ie'] ?? row['incExc'] ?? "",
+  //             "perVal":
+  //                 row['mspperval']?.toString() ??
+  //                 row['perVal']?.toString() ??
+  //                 "0",
+  //             "appliedOn": row['mtrslvlno'] ?? row['appliedOn'] ?? "",
+  //             "pnyn":
+  //                 row['msppnyn'] == "True" ||
+  //                 row['msppnyn'] == true ||
+  //                 row['pnyn'] == true,
+  //             "rateStructCode": item.rateStructure,
+  //             "seqNo": row['mspseqno'] ?? row['seqNo'] ?? 1,
+  //             "fromLocationId": locationId,
+  //             "py": 0,
+  //             "curCode": currency,
+  //             "taxTyp": row['mprtaxtyp'] ?? row['TaxTyp'] ?? "",
+  //             "refId": 0,
+  //             "percentage": 0,
+  //             "refLine": lineNo,
+  //           });
+  //         }
+  //       }
+
+  //       if (item.discountAmount != null && item.discountAmount! > 0) {
+  //         discountDetails.add({
+  //           "itemCode": item.itemCode,
+  //           "currCode": currency,
+  //           "discCode": "DISC",
+  //           "discType": item.discountType,
+  //           "discVal":
+  //               item.discountType == "Percentage"
+  //                   ? item.discountPercentage ?? 0
+  //                   : item.discountAmount ?? 0,
+  //           "fromLocationId": locationId,
+  //           "oditmlineno": lineNo,
+  //         });
+  //       }
+  //     }
+  //   }
+
+  //   final itemHeaderDetial = _buildItemHeaderDetail(
+  //     totalAmount,
+  //     totalTax,
+  //     totalDiscount,
+  //     userId,
+  //     locationId,
+  //     locationCode,
+  //   );
+
+  //   final transportDetail = _buildTransportDetail(userId);
+
+  //   return {
+  //     "action": "edit",
+  //     "ExchangeRate": _exchangeRate,
+  //     "autoNoRequired": "N",
+  //     "customerPoNumber": null,
+  //     "customerPoDate": null,
+  //     "itemHeaderDetial": itemHeaderDetial,
+  //     "itemDetail": itemDetails,
+  //     "rsGrid": rsGrid,
+  //     "discountDetail": discountDetails,
+  //     "standardTerms": [],
+  //     "transportDetail": transportDetail,
+  //     "chargesDetail": [],
+  //     "remark": [],
+  //   };
+  // }
+
   Map<String, dynamic> _buildSubmissionPayload() {
     final userDetails = _service.userDetails;
     final locationDetails = _service.locationDetails;
@@ -685,6 +957,8 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
       itemJson['lineNo'] = lineNo;
       itemJson['seqNo'] = lineNo;
       itemJson['fromLocationId'] = locationId;
+      itemJson['invId'] = widget.invoice.id; // FIXED: Add invId for edit
+
       if (selectPreference == "On Quotation") {
         itemJson['ordYear'] = financeDetails['financialYear'];
         itemJson['ordGroup'] = defaultQuotation!.groupCode;
@@ -700,15 +974,17 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
     // Handle rsGrid and discountDetails based on preference
     if (selectPreference == "On Quotation" ||
         selectPreference == "On Sales Order") {
+      // Use the populated _rsGrid and _discountDetails directly with proper refLine mapping
       rsGrid =
           _rsGrid.map((rs) {
             final itemIndex = items.indexWhere(
               (item) => item.itemCode == rs['xdtdtmcd'],
             );
-            if (itemIndex != -1) {
-              rs['refLine'] = itemIndex + 1;
-            }
-            return Map<String, dynamic>.from(rs);
+            final updatedRs = Map<String, dynamic>.from(rs);
+            updatedRs['docId'] = widget.invoice.id; // FIXED: Add docId for edit
+            updatedRs['refLine'] =
+                itemIndex != -1 ? itemIndex + 1 : (rs['refLine'] ?? 1);
+            return updatedRs;
           }).toList();
 
       discountDetails =
@@ -716,56 +992,63 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
             final itemIndex = items.indexWhere(
               (item) => item.itemCode == disc['itemCode'],
             );
-            if (itemIndex != -1) {
-              disc['oditmlineno'] = itemIndex + 1;
-            }
-            return Map<String, dynamic>.from(disc);
+            final updatedDisc = Map<String, dynamic>.from(disc);
+            updatedDisc['invId'] =
+                widget.invoice.id; // FIXED: Add invId for edit
+            updatedDisc['oditmlineno'] =
+                itemIndex != -1 ? itemIndex + 1 : (disc['oditmlineno'] ?? 1);
+            return updatedDisc;
           }).toList();
     } else {
-      // For "On Other" - build rsGrid and discountDetails from item data
-      for (int i = 0; i < items.length; i++) {
-        final item = items[i];
-        final lineNo = i + 1;
-
-        if (item.rateStructureRows != null) {
-          for (final row in item.rateStructureRows!) {
-            rsGrid.add({
+      // For "On Other" - build rsGrid and discountDetails from _rsGrid and _discountDetails
+      // FIXED: Use the populated _rsGrid and _discountDetails instead of rebuilding from items
+      rsGrid =
+          _rsGrid.map((rs) {
+            final itemIndex = items.indexWhere(
+              (item) => item.itemCode == rs['xdtdtmcd'],
+            );
+            return {
               "docType": "PI",
               "docSubType": "PI",
-              "xdtdtmcd": item.itemCode,
-              "rateCode": row['msprtcd'],
-              "rateStructCode": item.rateStructure,
-              "rateAmount": row['rateAmount'] ?? 0,
-              "amdSrNo": 0,
-              "perCValue": row['msprtval']?.toString() ?? "0.00",
-              "incExc": row['mspincexc'],
-              "perVal": row['mspperval'],
-              "appliedOn": row['mtrslvlno'] ?? "",
-              "pnyn": row['msppnyn'] == "True" || row['msppnyn'] == true,
-              "seqNo": row['mspseqno']?.toString() ?? "1",
-              "curCode": row['mprcurcode'] ?? "INR",
+              "docId": widget.invoice.id,
+              "xdtdtmcd": rs['xdtdtmcd'],
+              "rateCode": rs['rateCode'],
+              "rateAmount": rs['rateAmount'],
+              "amdSrNo": rs['amdSrNo'],
+              "perCValue": rs['perCValue'],
+              "incExc": rs['incExc'],
+              "perVal": rs['perVal']?.toString() ?? "0",
+              "appliedOn": rs['appliedOn'],
+              "pnyn": rs['pnyn'],
+              "rateStructCode": rs['rateStructCode'],
+              "seqNo": rs['seqNo'],
               "fromLocationId": locationId,
-              "TaxTyp": row['mprtaxtyp'],
-              "refLine": lineNo,
-            });
-          }
-        }
+              "py": 0,
+              "curCode": rs['curCode'] ?? currency,
+              "taxTyp": rs['TaxTyp'],
+              "refId": 0,
+              "percentage": 0,
+              "refLine": itemIndex != -1 ? itemIndex + 1 : (rs['refLine'] ?? 1),
+            };
+          }).toList();
 
-        if (item.discountAmount != null && item.discountAmount! > 0) {
-          discountDetails.add({
-            "itemCode": item.itemCode,
-            "currCode": currency,
-            "discCode": "DISC",
-            "discType": item.discountType,
-            "discVal":
-                item.discountType == "Percentage"
-                    ? item.discountPercentage ?? 0
-                    : item.discountAmount ?? 0,
-            "fromLocationId": locationId,
-            "oditmlineno": lineNo,
-          });
-        }
-      }
+      discountDetails =
+          _discountDetails.map((disc) {
+            final itemIndex = items.indexWhere(
+              (item) => item.itemCode == disc['itemCode'],
+            );
+            return {
+              "invId": widget.invoice.id,
+              "itemCode": disc['itemCode'],
+              "currCode": disc['currCode'],
+              "discCode": disc['discCode'],
+              "discType": disc['discType'],
+              "discVal": disc['discVal'],
+              "fromLocationId": locationId,
+              "oditmlineno":
+                  itemIndex != -1 ? itemIndex + 1 : (disc['oditmlineno'] ?? 1),
+            };
+          }).toList();
     }
 
     final itemHeaderDetial = _buildItemHeaderDetail(
@@ -780,9 +1063,9 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
     final transportDetail = _buildTransportDetail(userId);
 
     return {
-      "action": "update", // Changed from "add" to "update"
+      "action": "edit",
       "ExchangeRate": _exchangeRate,
-      "autoNoRequired": "N", // Changed from "Y" to "N" for edit
+      "autoNoRequired": "N",
       "customerPoNumber": null,
       "customerPoDate": null,
       "itemHeaderDetial": itemHeaderDetial,
@@ -843,8 +1126,8 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
               : selectPreference == "On Sales Order"
               ? "O"
               : "T",
-      "invDiscountType": discountType,
-      "invDiscountValue": totalDiscount.toStringAsFixed(2),
+      "invDiscountType": "None",
+      "invDiscountValue": 0,
       "invFromLocationId": locationId,
       "invCreatedUserId": userId,
       "invCurrCode": currency,
@@ -1333,6 +1616,41 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
     );
   }
 
+  // Widget _buildItemsList() {
+  //   return Column(
+  //     crossAxisAlignment: CrossAxisAlignment.start,
+  //     children: [
+  //       const Text(
+  //         "Items:",
+  //         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+  //       ),
+  //       const SizedBox(height: 8),
+  //       ListView.builder(
+  //         shrinkWrap: true,
+  //         physics: const NeverScrollableScrollPhysics(),
+  //         itemCount: items.length,
+  //         itemBuilder: (context, index) {
+  //           final item = items[index];
+  //           return Card(
+  //             child: ListTile(
+  //               title: Text(item.itemName),
+  //               subtitle: Text(
+  //                 "Code: ${item.itemCode}\n"
+  //                 "Qty: ${item.qty.toStringAsFixed(2)} ${item.uom}\n"
+  //                 "Rate: ₹${item.basicRate.toStringAsFixed(2)}\n"
+  //                 "Basic Amount: ₹${(item.basicRate * item.qty).toStringAsFixed(2)}\n"
+  //                 "Discount: ₹${(item.discountAmount ?? 0.0).toStringAsFixed(2)}\n"
+  //                 "Tax: ₹${(item.taxAmount ?? 0.0).toStringAsFixed(2)}\n"
+  //                 "Total: ₹${item.totalAmount.toStringAsFixed(2)}",
+  //               ),
+  //               isThreeLine: true,
+  //             ),
+  //           );
+  //         },
+  //       ),
+  //     ],
+  //   );
+  // }
   Widget _buildItemsList() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1361,6 +1679,14 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
                   "Total: ₹${item.totalAmount.toStringAsFixed(2)}",
                 ),
                 isThreeLine: true,
+                trailing:
+                    selectPreference == "On Other"
+                        ? IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () => _removeItem(index),
+                          tooltip: 'Delete Item',
+                        )
+                        : null,
               ),
             );
           },

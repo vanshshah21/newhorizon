@@ -51,6 +51,8 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
   late double _exchangeRate;
   String currency = "";
   List<Map<String, dynamic>> rateStructureDetails = [];
+  late final msctechspecifications;
+  bool _shouldBlockForm = false;
 
   @override
   void initState() {
@@ -68,6 +70,15 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
     await _loadDocumentDetail();
     await _loadSalesPolicy();
     await _getExchangeRate();
+
+    // Check if form should be blocked after loading sales policy
+    if (msctechspecifications == true) {
+      setState(() {
+        _shouldBlockForm = true;
+        _isLoading = false;
+      });
+      return; // Exit early, don't load prefill data
+    }
 
     // Prefill data if initial data is provided
     if (widget.initialData != null) {
@@ -223,6 +234,8 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
           salesPolicy['allowduplictae'] ??
           salesPolicy['allowduplicate'] ??
           false;
+      msctechspecifications =
+          salesPolicy['msctechspecifications'] == "True" ? true : false;
     } catch (e) {
       debugPrint("Error loading sales policy: $e");
       _isDuplicateAllowed = false; // Default to not allowing duplicates
@@ -312,6 +325,52 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
                     salesmanName: '',
                     salesManFullName: 'Not Assigned',
                   ),
+    );
+  }
+
+  Widget _buildBlockedFormUI() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.web, size: 80, color: Colors.orange),
+            const SizedBox(height: 24),
+            const Text(
+              'Form Submission Required from Website',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'This quotation requires technical specifications that can only be submitted through the website. Please use the web portal to create this quotation.',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.black54,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.arrow_back),
+              label: const Text('Go Back'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -552,6 +611,7 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
       // Add model detail
       final modelDetail = item.toModelDetail();
       modelDetail['customerCode'] = selectedCustomer?.customerCode ?? "";
+      modelDetail["status"] = "O";
       modelDetails.add(modelDetail);
 
       // Add discount detail if applicable
@@ -647,7 +707,7 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
       "subItemDetails": [],
       "standardTerms": [],
       "quotationRemarks": [],
-      "msctechspecifications": true,
+      "msctechspecifications": msctechspecifications,
       "mscSameItemAllowMultitimeFlag": _isDuplicateAllowed,
     };
   }
@@ -941,6 +1001,8 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
       body:
           _isLoading
               ? const Center(child: CircularProgressIndicator())
+              : _shouldBlockForm
+              ? _buildBlockedFormUI()
               : Form(
                 key: _formKey,
                 child: SingleChildScrollView(
@@ -1295,12 +1357,16 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
         border: OutlineInputBorder(),
       ),
       value: selectedInquiry,
+      isExpanded: true,
       items:
           inquiryList
               .map(
                 (inq) => DropdownMenuItem<Inquiry>(
                   value: inq,
-                  child: Text("${inq.inquiryNumber} - ${inq.customerName}"),
+                  child: Text(
+                    "${inq.inquiryNumber} - ${inq.customerName}",
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               )
               .toList(),

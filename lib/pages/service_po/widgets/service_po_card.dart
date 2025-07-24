@@ -96,6 +96,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:nhapp/pages/service_po/models/service_po_data.dart';
 import 'package:nhapp/utils/format_utils.dart';
+import 'package:nhapp/utils/rightsChecker.dart';
 
 class ServicePOCard extends StatefulWidget {
   final ServicePOData po;
@@ -118,18 +119,20 @@ class _ServicePOCardState extends State<ServicePOCard> {
 
   @override
   Widget build(BuildContext context) {
+    final bool canPrint = RightsChecker.canPrint('Service Order Print');
     return Slidable(
       key: ValueKey(widget.po.id),
       endActionPane: ActionPane(
         motion: const DrawerMotion(),
         children: [
-          SlidableAction(
-            onPressed: (_) => widget.onPdfTap(),
-            backgroundColor: Colors.blue,
-            foregroundColor: Colors.white,
-            icon: Icons.picture_as_pdf,
-            label: 'PDF',
-          ),
+          if (canPrint)
+            SlidableAction(
+              onPressed: (_) => widget.onPdfTap(),
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+              icon: Icons.picture_as_pdf,
+              label: 'PDF',
+            ),
         ],
       ),
       child: Card(

@@ -326,6 +326,7 @@ class ProformaItem {
   final String discountType;
   final double? discountPercentage;
   final double? discountAmount;
+  final String? discountCode;
   final String rateStructure;
   final double? taxAmount;
   final double totalAmount;
@@ -342,6 +343,7 @@ class ProformaItem {
     required this.discountType,
     this.discountPercentage,
     this.discountAmount,
+    this.discountCode,
     required this.rateStructure,
     this.taxAmount,
     required this.totalAmount,
@@ -362,7 +364,8 @@ class ProformaItem {
       "piAdv": 0,
       "rtnAmt": 0,
       "currCd": "INR",
-      "createdBy": 2,
+      "discountCode": discountCode,
+      "createdBy": userId,
       "netDiscountRate": discountedRate, // value per item after discount
       "discOrdRate": basicRate,
       "lineNo": lineNo,

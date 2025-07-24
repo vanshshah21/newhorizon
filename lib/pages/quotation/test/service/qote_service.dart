@@ -382,11 +382,13 @@ class QuotationService {
     final domCurrency = await StorageUtils.readJson('domestic_currency');
     if (domCurrency == null) throw Exception("Domestic currency not set");
 
+    final exchangeRate = await getExchangeRate();
+
     final currency = domCurrency['domCurCode'] ?? 'INR';
     const endpoint = "/api/Quotation/CalcRateStructure";
     final body = {
       "ItemAmount": itemAmount,
-      "ExchangeRt": "1",
+      "ExchangeRt": exchangeRate.toString(),
       "DomCurrency": currency,
       "CurrencyCode": currency,
       "DiscType": "",

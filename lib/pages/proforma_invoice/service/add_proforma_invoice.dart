@@ -360,42 +360,27 @@ class ProformaInvoiceService {
     }
   }
 
-  /// NEW: Build RateStructureDetails for CalcRateStructure API
   List<Map<String, dynamic>> buildRateStructureDetails(
     List<Map<String, dynamic>> rateStructureRows,
     String itemCode,
     int itmModelRefNo,
   ) {
-    final templist =
-        rateStructureRows
-            .where((x) => (x['itmModelRefNo'] ?? 1) == itmModelRefNo)
-            .toList();
-
-    return templist.map((item) {
+    return rateStructureRows.map((item) {
       return {
-        'rateCode': item['rateCode'] ?? item['msprtcd'],
-        'rateDesc': item['rateDesc'] ?? item['mprrtdesc'],
-        'ie': item['incExc'] ?? item['mspincexc'],
-        'pv': item['perValueCode'] ?? item['mspperval'],
-        'applicableOn': item['applicableOn'] ?? item['mtrslvlno'] ?? "",
-        'appOnDisplay': item['appOnDisplay'] ?? item['mspappondesc'] ?? "",
-        'taxValue':
-            item['taxValue']?.toString() ??
-            item['msprtval']?.toString() ??
-            "0.00",
-        'prevTaxValue':
-            item['taxValue']?.toString() ??
-            item['msprtval']?.toString() ??
-            "0.00",
-        'postnonpost':
-            item['pNYN'] ??
-            item['msppnyn'] == "True" || item['msppnyn'] == true,
+        'rateCode': item['msprtcd'] ?? '',
+        'rateDesc': item['mprrtdesc'] ?? '',
+        'ie': item['mspincexc'] ?? '',
+        'pv': item['mspperval'] ?? '',
+        'applicableOn': item['mtrslvlno'] ?? "",
+        'appOnDisplay': item['mspappondesc'] ?? "",
+        'taxValue': item['msprtval']?.toString() ?? "0.00",
+        'prevTaxValue': item['msprtval']?.toString() ?? "0.00",
+        'postnonpost': item['msppnyn'] == "True" || item['msppnyn'] == true,
         'rateAmount': 0.00,
-        'currencyCode': item['curCode'] ?? item['mprcurcode'] ?? "INR",
+        'currencyCode': item['mprcurcode'] ?? "INR",
         'itmModelRefNo': itmModelRefNo,
-        'sequenceNo':
-            item['seqNo']?.toString() ?? item['mspseqno']?.toString() ?? "1",
-        'taxType': item['taxType'] ?? item['mprtaxtyp'],
+        'sequenceNo': item['mspseqno']?.toString() ?? "1",
+        'taxType': item['mprtaxtyp'] ?? '',
         'itemCode': itemCode,
         'uniqueno': 0,
       };

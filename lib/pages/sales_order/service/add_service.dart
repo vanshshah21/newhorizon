@@ -317,7 +317,7 @@ class SalesOrderService {
         'rateAmount': 0.00,
         'currencyCode': item['mprcurcode'] ?? "INR",
         'itmModelRefNo': itmModelRefNo,
-        'sequenceNo': item['mspseqno']?.toString() ?? "1",
+        'sequenceNo': int.parse(item['mspseqno']?.toString() ?? "0"),
         'taxType': item['mprtaxtyp'] ?? '',
         'itemCode': itemCode,
         'uniqueno': 0,
@@ -358,7 +358,85 @@ class SalesOrderService {
         "$_baseUrl$endpoint?RateStructureCode=$rateStructureCode",
         data: body,
       );
-      return response.data;
+      print("API Response: ${response.data}"); // Debug log
+
+      final responseData = response.data;
+
+      // Process the response to map calculated amounts
+      if (responseData['success'] == true && responseData['data'] != null) {
+        final data = responseData['data'];
+
+        // Get the calculated rate amounts from listCalcRateReturnDetails
+        final listCalcRateReturnDetails =
+            data['listCalcRateReturnDetails'] as List?;
+
+        if (listCalcRateReturnDetails != null &&
+            listCalcRateReturnDetails.isNotEmpty) {
+          // Create updated rate structure details based on original input + calculated amounts
+          List<Map<String, dynamic>> updatedRateStructureDetails = [];
+
+          for (final originalDetail in rateStructureDetails) {
+            final originalRateCode = originalDetail['rateCode'];
+
+            // Find matching calculated detail
+            final calculatedDetail = listCalcRateReturnDetails.firstWhere(
+              (calc) => calc['rateCode'] == originalRateCode,
+              orElse: () => null,
+            );
+
+            // Create updated detail
+            final updatedDetail = Map<String, dynamic>.from(originalDetail);
+
+            if (calculatedDetail != null) {
+              final calcRateAmount = calculatedDetail['rateAmount'] ?? 0.0;
+              final calcRateAmountRounded =
+                  calculatedDetail['rateAmountRounded'] ?? 0.0;
+
+              // Use rounded amount if available, otherwise use regular amount
+              updatedDetail['rateAmount'] =
+                  calcRateAmountRounded > 0
+                      ? calcRateAmountRounded
+                      : calcRateAmount;
+
+              print(
+                "Updated rateCode $originalRateCode with amount: ${updatedDetail['rateAmount']}",
+              ); // Debug log
+            } else {
+              updatedDetail['rateAmount'] = 0.0;
+              print(
+                "No calculated amount found for rateCode: $originalRateCode",
+              ); // Debug log
+            }
+
+            updatedRateStructureDetails.add(updatedDetail);
+          }
+
+          // Update the response data with processed rate structure details
+          data['rateStructureDetails'] = updatedRateStructureDetails;
+          data['FinalrateStructureData'] = updatedRateStructureDetails;
+
+          print(
+            "Final processed rate structure details: $updatedRateStructureDetails",
+          ); // Debug log
+        } else {
+          // No calculations available, use original structure with zero amounts
+          final updatedRateStructureDetails =
+              rateStructureDetails.map((detail) {
+                final updatedDetail = Map<String, dynamic>.from(detail);
+                updatedDetail['rateAmount'] = 0.0;
+                return updatedDetail;
+              }).toList();
+
+          data['rateStructureDetails'] = updatedRateStructureDetails;
+          data['FinalrateStructureData'] = updatedRateStructureDetails;
+
+          print(
+            "No listCalcRateReturnDetails found, using zero amounts",
+          ); // Debug log
+        }
+      }
+
+      return responseData;
     } catch (e) {
       throw Exception("Failed to calculate rate structure: $e");
     }

@@ -8,6 +8,7 @@ import 'package:nhapp/pages/leads/pages/lead_pdf_loader_page.dart';
 import 'package:nhapp/pages/leads/services/lead_attachment_service.dart';
 import 'package:nhapp/utils/format_utils.dart';
 import 'package:nhapp/utils/map_utils.dart';
+import 'package:nhapp/utils/rightsChecker.dart';
 import 'package:nhapp/utils/storage_utils.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -673,6 +674,9 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final borderColor = theme.dividerColor;
+    final bool canPrint = RightsChecker.canPrint('Inquiry Print');
+    final bool canAddFollowup = RightsChecker.canAdd('Follow Up');
+    final bool canAddQuotation = RightsChecker.canAdd('Quotation');
 
     if (error != null) {
       return Scaffold(
@@ -743,39 +747,42 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _buildActionButton(
-                        onPressed: _isDownloading ? null : _handleDownload,
-                        icon:
-                            _isDownloading
-                                ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                                : const Icon(Icons.download, size: 20),
-                        label: 'Download',
-                      ),
-                      _buildActionButton(
-                        onPressed: _viewPdf,
-                        icon: const Icon(Icons.picture_as_pdf, size: 20),
-                        label: 'View PDF',
-                      ),
-                      _buildActionButton(
-                        onPressed: _isSharing ? null : _handleShare,
-                        icon:
-                            _isSharing
-                                ? const SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                                : const Icon(Icons.share, size: 20),
-                        label: 'Share',
-                      ),
+                      if (canPrint)
+                        _buildActionButton(
+                          onPressed: _isDownloading ? null : _handleDownload,
+                          icon:
+                              _isDownloading
+                                  ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                  : const Icon(Icons.download, size: 20),
+                          label: 'Download',
+                        ),
+                      if (canPrint)
+                        _buildActionButton(
+                          onPressed: _viewPdf,
+                          icon: const Icon(Icons.picture_as_pdf, size: 20),
+                          label: 'View PDF',
+                        ),
+                      if (canPrint)
+                        _buildActionButton(
+                          onPressed: _isSharing ? null : _handleShare,
+                          icon:
+                              _isSharing
+                                  ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                  : const Icon(Icons.share, size: 20),
+                          label: 'Share',
+                        ),
                       _buildActionButton(
                         onPressed:
                             _isLoadingLocation ? null : _handleLocationButton,
@@ -847,54 +854,56 @@ class _InquiryDetailsPageState extends State<InquiryDetailsPage> {
               // ),
               Row(
                 children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _navigateToFollowUp,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Text('Follow Up'),
-                          SizedBox(width: 4),
-                          Icon(Icons.arrow_forward, size: 14),
-                        ],
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 8,
-                          horizontal: 2,
+                  if (canAddFollowup)
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _navigateToFollowUp,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Text('Follow Up'),
+                            SizedBox(width: 4),
+                            Icon(Icons.arrow_forward, size: 14),
+                          ],
                         ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.only(
-                            bottomLeft: Radius.circular(6),
-                            topLeft: Radius.circular(6),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 8,
+                            horizontal: 2,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.only(
+                              bottomLeft: Radius.circular(6),
+                              topLeft: Radius.circular(6),
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _navigateToQuotation,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
-                          Text('Quotation'),
-                          SizedBox(width: 4),
-                          Icon(Icons.arrow_forward, size: 14),
-                        ],
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.only(
-                            bottomRight: Radius.circular(6),
-                            topRight: Radius.circular(6),
+                  if (canAddQuotation)
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _navigateToQuotation,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Text('Quotation'),
+                            SizedBox(width: 4),
+                            Icon(Icons.arrow_forward, size: 14),
+                          ],
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.only(
+                              bottomRight: Radius.circular(6),
+                              topRight: Radius.circular(6),
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
                 ],
               ),
 

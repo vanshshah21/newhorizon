@@ -91,7 +91,7 @@ class _ProformaInvoiceCardState extends State<ProformaInvoiceCard>
                   : Radius.zero,
         ),
       ),
-      if (pi.isEdit && widget.onEditTap != null)
+      if (pi.rowStatus.toLowerCase() != "d")
         SlidableAction(
           onPressed: (_) => widget.onEditTap!(),
           backgroundColor: Colors.green.shade600,
@@ -103,7 +103,7 @@ class _ProformaInvoiceCardState extends State<ProformaInvoiceCard>
             right: !pi.isDelete ? const Radius.circular(12) : Radius.zero,
           ),
         ),
-      if (pi.isDelete != "1" || widget.onDeleteTap != null)
+      if (pi.rowStatus.toLowerCase() != "d")
         SlidableAction(
           onPressed: (_) => widget.onDeleteTap!(),
           backgroundColor: Colors.red.shade600,
@@ -206,7 +206,7 @@ class _ProformaInvoiceCardState extends State<ProformaInvoiceCard>
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                if (pi.isEdit)
+                                if (pi.rowStatus.toLowerCase() != "d")
                                   Container(
                                     margin: const EdgeInsets.only(left: 4),
                                     padding: const EdgeInsets.all(4),
@@ -220,7 +220,7 @@ class _ProformaInvoiceCardState extends State<ProformaInvoiceCard>
                                       color: Colors.green.shade700,
                                     ),
                                   ),
-                                if (pi.isDelete)
+                                if (pi.rowStatus.toLowerCase() != "d")
                                   Container(
                                     margin: const EdgeInsets.only(left: 4),
                                     padding: const EdgeInsets.all(4),

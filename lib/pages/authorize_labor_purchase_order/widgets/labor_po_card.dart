@@ -3,6 +3,7 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:nhapp/pages/authorize_labor_purchase_order/model/labor_po_data.dart';
 import 'package:nhapp/utils/call_utils.dart';
 import 'package:nhapp/utils/format_utils.dart';
+import 'package:nhapp/utils/rightsChecker.dart';
 
 class LaborPOCard extends StatelessWidget {
   final LaborPOData po;
@@ -26,6 +27,16 @@ class LaborPOCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final hasPhone = po.mobile?.isNotEmpty ?? false;
+
+    // Check user rights for Labour PO
+    final canPrint = RightsChecker.hasRight(
+      'Labour PO Print',
+      RightsChecker.PRINT,
+    );
+    final canAuthorize = RightsChecker.hasRight(
+      'Labour PO',
+      RightsChecker.AUTHORIZE,
+    );
 
     Widget cardContent = Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -149,7 +160,7 @@ class LaborPOCard extends StatelessWidget {
             const SizedBox(height: 8),
 
             // Action hint - only show when not in checkbox mode
-            if (!showCheckbox)
+            if (!showCheckbox && (canPrint || canAuthorize))
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -168,42 +179,117 @@ class LaborPOCard extends StatelessWidget {
                   ),
                 ],
               ),
+
+            if (!showCheckbox && !canPrint && !canAuthorize)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  vertical: 8,
+                  horizontal: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.errorContainer.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: theme.colorScheme.error.withOpacity(0.3),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.lock_outline,
+                      size: 16,
+                      color: theme.colorScheme.error,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'No action permissions',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.error,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
     );
 
+    List<SlidableAction> actions = [];
+
+    if (canPrint) {
+      actions.add(
+        SlidableAction(
+          onPressed: (_) => onPdfTap(),
+          backgroundColor: Colors.blue.shade600,
+          foregroundColor: Colors.white,
+          icon: Icons.picture_as_pdf_outlined,
+          label: 'PDF',
+          borderRadius: BorderRadius.horizontal(
+            left: actions.isEmpty ? const Radius.circular(12) : Radius.zero,
+            right: const Radius.circular(12),
+          ),
+        ),
+      );
+    }
+
+    if (canAuthorize) {
+      actions.add(
+        SlidableAction(
+          onPressed: (_) => onAuthorizeTap(),
+          backgroundColor: Colors.green.shade600,
+          foregroundColor: Colors.white,
+          icon: Icons.check_circle_outline,
+          label: 'Authorize',
+          borderRadius: BorderRadius.horizontal(
+            left: actions.isEmpty ? const Radius.circular(12) : Radius.zero,
+            right: const Radius.circular(12),
+          ),
+        ),
+      );
+    }
+
     // If showing checkboxes, disable sliding actions
-    if (showCheckbox) {
+    if (showCheckbox || (!canPrint && !canAuthorize)) {
       return cardContent;
     }
 
+    // return Slidable(
+    //   key: ValueKey(po.id),
+    //   endActionPane: ActionPane(
+    //     motion: const DrawerMotion(),
+    //     children: [
+    //       SlidableAction(
+    //         onPressed: (_) => onPdfTap(),
+    //         backgroundColor: Colors.blue.shade600,
+    //         foregroundColor: Colors.white,
+    //         icon: Icons.picture_as_pdf_outlined,
+    //         label: 'PDF',
+    //         borderRadius: const BorderRadius.horizontal(
+    //           left: Radius.circular(12),
+    //         ),
+    //       ),
+    //       SlidableAction(
+    //         onPressed: (_) => onAuthorizeTap(),
+    //         backgroundColor: Colors.green.shade600,
+    //         foregroundColor: Colors.white,
+    //         icon: Icons.check_circle_outline,
+    //         label: 'Authorize',
+    //         borderRadius: const BorderRadius.horizontal(
+    //           right: Radius.circular(12),
+    //         ),
+    //       ),
+    //     ],
+    //   ),
+    //   child: cardContent,
+    // );
     return Slidable(
       key: ValueKey(po.id),
       endActionPane: ActionPane(
         motion: const DrawerMotion(),
-        children: [
-          SlidableAction(
-            onPressed: (_) => onPdfTap(),
-            backgroundColor: Colors.blue.shade600,
-            foregroundColor: Colors.white,
-            icon: Icons.picture_as_pdf_outlined,
-            label: 'PDF',
-            borderRadius: const BorderRadius.horizontal(
-              left: Radius.circular(12),
-            ),
-          ),
-          SlidableAction(
-            onPressed: (_) => onAuthorizeTap(),
-            backgroundColor: Colors.green.shade600,
-            foregroundColor: Colors.white,
-            icon: Icons.check_circle_outline,
-            label: 'Authorize',
-            borderRadius: const BorderRadius.horizontal(
-              right: Radius.circular(12),
-            ),
-          ),
-        ],
+        children: actions,
       ),
       child: cardContent,
     );

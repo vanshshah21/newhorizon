@@ -66,6 +66,8 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
   List<DiscountCode> discountCodes = [];
   late String currency;
   double _exchangeRate = 1.0;
+  late final bool msctechspecifications;
+  bool _shouldBlockForm = false;
 
   @override
   void initState() {
@@ -83,6 +85,14 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
     await _loadDocumentDetail();
     await _loadSalesPolicy();
     await _getExchangeRate();
+    // Check if form should be blocked after loading sales policy
+    if (msctechspecifications == true) {
+      setState(() {
+        _shouldBlockForm = true;
+        _isLoading = false;
+      });
+      return; // Exit early, don't load prefill data
+    }
     if (_autogenerateoafonsalesorder) {
       final oafGroupCodes = await _service.fetchOAFGroupCodes();
       if (oafGroupCodes.isNotEmpty) {
@@ -263,17 +273,63 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
           salesPolicy['allowduplictae'] ??
           salesPolicy['allowduplicate'] ??
           false;
-      final autogenerateoafonsalesorder = await StorageUtils.readJson(
-        'salesPolicy',
-      );
+
+      msctechspecifications =
+          salesPolicy['msctechspecifications'] == "True" ? true : false;
       _autogenerateoafonsalesorder =
-          autogenerateoafonsalesorder['autogenerateoafonsalesorder'] ??
-          autogenerateoafonsalesorder['autogenerateoafonso'] ??
+          salesPolicy['autogenerateoafonsalesorder'] ??
+          salesPolicy['autogenerateoafonso'] ??
           false;
     } catch (e) {
       debugPrint("Error loading sales policy: $e");
       _isDuplicateAllowed = false; // Default to not allowing duplicates
     }
+  }
+
+  Widget _buildBlockedFormUI() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.web, size: 80, color: Colors.orange),
+            const SizedBox(height: 24),
+            const Text(
+              'Form Submission Required from Website',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'This Sales Order requires technical specifications that can only be submitted through the website. Please use the web portal to create this Sales Order.',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.black54,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.arrow_back),
+              label: const Text('Go Back'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _loadFinancePeriod() async {
@@ -394,38 +450,40 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
             final discValue = (discountDetail['discountValue'] ?? 0).toDouble();
             discountCode = discountDetail['discountCode'];
 
-            if (discType == 'P' && discValue > 0) {
+            if ((discType == 'P' || discType == 'Percentage') &&
+                discValue > 0) {
               discountType = 'Percentage';
               discountPercentage = discValue;
               final basicAmount =
                   (detail['basicPriceSUOM'] ?? 0).toDouble() *
                   (detail['qtySUOM'] ?? 0).toDouble();
               discountAmount = basicAmount * (discValue / 100);
-            } else if (discType == 'V' && discValue > 0) {
+            } else if ((discType == 'V' || discType == 'Value') &&
+                discValue > 0) {
               discountType = 'Value';
               discountAmount = discValue;
-              final basicAmount =
-                  (detail['basicPriceSUOM'] ?? 0).toDouble() *
-                  (detail['qtySUOM'] ?? 0).toDouble();
-              discountPercentage =
-                  basicAmount > 0 ? (discValue / basicAmount) * 100 : 0;
+              // final basicAmount =
+              //     (detail['basicPriceSUOM'] ?? 0).toDouble() *
+              //     (detail['qtySUOM'] ?? 0).toDouble();
+              // discountPercentage =
+              //     basicAmount > 0 ? (discValue / basicAmount) * 100 : 0;
             }
           }
         }
 
         // Fallback: check if discount is in the model detail itself
-        if (discountType == "None" && detail['discountAmt'] != null) {
-          final discAmt = (detail['discountAmt'] ?? 0).toDouble();
-          if (discAmt > 0) {
-            discountType = 'Value';
-            discountAmount = discAmt;
-            final basicAmount =
-                (detail['basicPriceSUOM'] ?? 0).toDouble() *
-                (detail['qtySUOM'] ?? 0).toDouble();
-            discountPercentage =
-                basicAmount > 0 ? (discAmt / basicAmount) * 100 : 0;
-          }
-        }
+        // if (discountType == "None" && detail['discountAmt'] != null) {
+        //   final discAmt = (detail['discountAmt'] ?? 0).toDouble();
+        //   if (discAmt > 0) {
+        //     discountType = 'Value';
+        //     discountAmount = discAmt;
+        //     final basicAmount =
+        //         (detail['basicPriceSUOM'] ?? 0).toDouble() *
+        //         (detail['qtySUOM'] ?? 0).toDouble();
+        //     discountPercentage =
+        //         basicAmount > 0 ? (discAmt / basicAmount) * 100 : 0;
+        //   }
+        // }
 
         // Calculate amounts
         final basicRate = (detail['basicPriceSUOM'] ?? 0).toDouble();
@@ -733,7 +791,7 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
       "projectLotDetails": [],
       "equipmentAttributeDetails": [],
       "technicalspec": [],
-      "msctechspecifications": true,
+      "msctechspecifications": msctechspecifications,
     };
   }
 
@@ -1057,6 +1115,8 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
       body:
           _isLoading
               ? const Center(child: CircularProgressIndicator())
+              : _shouldBlockForm
+              ? _buildBlockedFormUI()
               : Form(
                 key: _formKey,
                 child: SingleChildScrollView(

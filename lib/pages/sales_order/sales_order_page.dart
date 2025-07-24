@@ -97,6 +97,7 @@ import 'package:nhapp/pages/sales_order/models/sales_order.dart';
 import 'package:nhapp/pages/sales_order/pages/so_pdf_page.dart';
 import 'package:nhapp/pages/sales_order/service/sales_order_service.dart';
 import 'package:nhapp/pages/sales_order/widgets/sales_order_infinite_list_tab.dart';
+import 'package:nhapp/utils/rightsChecker.dart';
 
 class SalesOrderListPage extends StatefulWidget {
   const SalesOrderListPage({super.key});
@@ -131,6 +132,7 @@ class SalesOrderListPageState extends State<SalesOrderListPage> {
 
   @override
   Widget build(BuildContext context) {
+    final bool canAdd = RightsChecker.canAdd('Sales Order');
     return Scaffold(
       appBar: AppBar(title: const Text('Sales Orders')),
       body: SalesOrderInfiniteListTab(
@@ -139,7 +141,7 @@ class SalesOrderListPageState extends State<SalesOrderListPage> {
         onPdfTap: handlePdfTap,
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _navigateToAddSalesOrder(),
+        onPressed: canAdd ? () => _navigateToAddSalesOrder() : null,
         child: const Icon(Icons.add),
         tooltip: 'Add Sales Order',
       ),

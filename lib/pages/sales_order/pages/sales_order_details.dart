@@ -9,6 +9,7 @@ import 'package:nhapp/pages/sales_order/service/sales_order_service.dart';
 import 'package:nhapp/pages/sales_order/service/so_attachment.dart';
 import 'package:nhapp/utils/format_utils.dart';
 import 'package:nhapp/utils/map_utils.dart';
+import 'package:nhapp/utils/rightsChecker.dart';
 import 'package:nhapp/utils/storage_utils.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -528,6 +529,9 @@ class _SalesOrderDetailPageState extends State<SalesOrderDetailPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    final bool canPrint = RightsChecker.canPrint('Sales Order Print');
+    final bool canAddProformaInvoice = RightsChecker.canAdd('Proforma Invoice');
+
     if (loading) {
       return Scaffold(
         appBar: AppBar(title: const Text('Sales Order Details')),
@@ -576,35 +580,38 @@ class _SalesOrderDetailPageState extends State<SalesOrderDetailPage> {
       appBar: AppBar(
         title: const Text('Sales Order Details'),
         actions: [
-          IconButton(
-            icon:
-                _isDownloading
-                    ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                    : const Icon(Icons.download),
-            onPressed: _isDownloading ? null : _handleDownload,
-            tooltip: 'Download PDF',
-          ),
-          IconButton(
-            icon: const Icon(Icons.picture_as_pdf_outlined),
-            onPressed: _viewPdf,
-            tooltip: 'View PDF',
-          ),
-          IconButton(
-            icon:
-                _isSharing
-                    ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                    : const Icon(Icons.share),
-            onPressed: _isSharing ? null : _handleShare,
-            tooltip: 'Share PDF',
-          ),
+          if (canPrint)
+            IconButton(
+              icon:
+                  _isDownloading
+                      ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                      : const Icon(Icons.download),
+              onPressed: _isDownloading ? null : _handleDownload,
+              tooltip: 'Download PDF',
+            ),
+          if (canPrint)
+            IconButton(
+              icon: const Icon(Icons.picture_as_pdf_outlined),
+              onPressed: _viewPdf,
+              tooltip: 'View PDF',
+            ),
+          if (canPrint)
+            IconButton(
+              icon:
+                  _isSharing
+                      ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                      : const Icon(Icons.share),
+              onPressed: _isSharing ? null : _handleShare,
+              tooltip: 'Share PDF',
+            ),
           IconButton(
             onPressed: _isLoadingLocation ? null : _handleLocationButton,
             icon:
@@ -637,7 +644,7 @@ class _SalesOrderDetailPageState extends State<SalesOrderDetailPage> {
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              if (canCreateProformaInvoice) ...[
+              if (canCreateProformaInvoice && canAddProformaInvoice) ...[
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(

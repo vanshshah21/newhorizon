@@ -3288,7 +3288,7 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
       "subItemDetails": [],
       "standardTerms": [],
       "quotationRemarks": [],
-      "msctechspecifications": true,
+      "msctechspecifications": false,
       "mscSameItemAllowMultitimeFlag": true,
     };
   }

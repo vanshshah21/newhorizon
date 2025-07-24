@@ -287,7 +287,7 @@ class QuotationPayload {
     "SubItemDetails": subItemDetails,
     "TermDetails": termDetails,
     "UserId": userId,
-    "msctechspecifications": msctechspecifications,
+    "msctechspecifications": false,
     "technicalspec": technicalspec,
   };
 }

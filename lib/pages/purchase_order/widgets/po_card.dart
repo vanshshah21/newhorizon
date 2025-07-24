@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:nhapp/pages/purchase_order/model/po_data.dart';
 import 'package:nhapp/utils/format_utils.dart';
+import 'package:nhapp/utils/rightsChecker.dart';
 
 class POCard extends StatefulWidget {
   final POData po;
@@ -26,19 +27,22 @@ class _POCardState extends State<POCard> {
 
   @override
   Widget build(BuildContext context) {
+    final bool canPrint = RightsChecker.canPrint('Purchase Order Print');
+
     return Slidable(
       key: ValueKey(widget.po.id),
       endActionPane: ActionPane(
         extentRatio: 0.25,
         motion: const DrawerMotion(),
         children: [
-          SlidableAction(
-            onPressed: (_) => widget.onPdfTap(),
-            backgroundColor: Colors.blue,
-            foregroundColor: Colors.white,
-            icon: Icons.picture_as_pdf_rounded,
-            label: 'PDF',
-          ),
+          if (canPrint)
+            SlidableAction(
+              onPressed: (_) => widget.onPdfTap(),
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+              icon: Icons.picture_as_pdf_rounded,
+              label: 'PDF',
+            ),
         ],
       ),
       child: ExpansionTile(

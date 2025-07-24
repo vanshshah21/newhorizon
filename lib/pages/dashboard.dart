@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' as intl;
 import 'package:nhapp/pages/total_sales_region_wise.dart';
 import 'package:nhapp/utils/format_utils.dart';
+import 'package:nhapp/utils/rightsChecker.dart';
 import 'package:nhapp/utils/token_utils.dart';
 import 'package:nhapp/utils/storage_utils.dart';
 import 'package:nhapp/widgets/Dashboard/Functional/purchase_amount_month_wise.dart';
@@ -50,7 +51,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         });
         return;
       }
-
+      await RightsChecker.initializeRights();
       await Future.wait([
         _fetchFNYear(),
         _fetchFunctionalDashboardData(),
@@ -234,27 +235,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
         backgroundColor: const Color(0xFFFFFFFF),
         appBar: AppBar(
           title: const Text('Dashboard'),
-          bottom: const TabBar(
+          bottom: TabBar(
             isScrollable: false,
             tabs: [
-              Tab(child: Text('Functional')),
-              Tab(child: Text('Director')),
-              Tab(child: Text('Total Sales Regionwise')),
+              if (RightsChecker.canPrint('Functional Dashboard'))
+                Tab(child: Text('Functional')),
+              if (RightsChecker.canPrint('Director Dashboard'))
+                Tab(child: Text('Director')),
+              if (RightsChecker.canPrint('Total Sales Region wise'))
+                Tab(child: Text('Total Sales Region wise')),
             ],
           ),
         ),
         body: TabBarView(
           physics: const NeverScrollableScrollPhysics(),
           children: [
-            isLoadingFunctional
-                ? const Center(child: CircularProgressIndicator())
-                : FunctionalTabView(data: dashboardData),
-            isLoadingDirector
-                ? const Center(child: CircularProgressIndicator())
-                : DirectoralTabView(data: directorData),
-            isLoadingSales
-                ? const Center(child: CircularProgressIndicator())
-                : const TotalSalesRegionWisePage(),
+            if (RightsChecker.canPrint('Functional Dashboard'))
+              isLoadingFunctional
+                  ? const Center(child: CircularProgressIndicator())
+                  : FunctionalTabView(data: dashboardData),
+            if (RightsChecker.canPrint('Director Dashboard'))
+              isLoadingDirector
+                  ? const Center(child: CircularProgressIndicator())
+                  : DirectoralTabView(data: directorData),
+            if (RightsChecker.canPrint('Total Sales Region wise'))
+              isLoadingSales
+                  ? const Center(child: CircularProgressIndicator())
+                  : const TotalSalesRegionWisePage(),
           ],
         ),
       ),

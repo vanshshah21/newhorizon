@@ -5,6 +5,7 @@ import 'package:nhapp/pages/proforma_invoice/pages/edit_proforma_invoice.dart';
 import 'package:nhapp/pages/proforma_invoice/pages/proforma_invoice_pdf_loader_page.dart';
 import 'package:nhapp/pages/proforma_invoice/service/proforma_invoice_service.dart';
 import 'package:nhapp/pages/proforma_invoice/widgets/proforma_invoice_infinite_list.dart';
+import 'package:nhapp/utils/rightsChecker.dart';
 
 // class ProformaInvoiceListPage extends StatefulWidget {
 //   const ProformaInvoiceListPage({super.key});
@@ -291,6 +292,9 @@ class _ProformaInvoiceListPageState extends State<ProformaInvoiceListPage> {
 
   @override
   Widget build(BuildContext context) {
+    final bool canCreateProformaInvoice = RightsChecker.canAdd(
+      'Proforma Invoice',
+    );
     return Scaffold(
       appBar: AppBar(title: const Text('Proforma Invoices')),
       body: ProformaInvoiceInfiniteList(
@@ -301,15 +305,18 @@ class _ProformaInvoiceListPageState extends State<ProformaInvoiceListPage> {
         onDeleteTap: (invoice) => handleDeleteTap(context, invoice),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final result = await Navigator.pushNamed(
-            context,
-            '/add_proforma_invoice',
-          );
-          if (result == true) {
-            _listKey.currentState?.refresh();
-          }
-        },
+        onPressed:
+            canCreateProformaInvoice
+                ? () async {
+                  final result = await Navigator.pushNamed(
+                    context,
+                    '/add_proforma_invoice',
+                  );
+                  if (result == true) {
+                    _listKey.currentState?.refresh();
+                  }
+                }
+                : null,
         tooltip: 'Add Proforma Invoice',
         child: const Icon(Icons.add),
       ),

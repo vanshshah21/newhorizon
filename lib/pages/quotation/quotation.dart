@@ -58,6 +58,7 @@ import 'package:nhapp/pages/quotation/test/page/ad_qote.dart';
 import 'package:nhapp/pages/quotation/test/page/edit_qote.dart';
 import 'package:nhapp/pages/quotation/widgets/quotation_infinite_list.dart';
 import 'package:nhapp/utils/error_handler.dart';
+import 'package:nhapp/utils/rightsChecker.dart';
 
 class QuotationListPage extends StatelessWidget {
   final QuotationService service = QuotationService();
@@ -69,48 +70,12 @@ class QuotationListPage extends StatelessWidget {
     BuildContext context,
     QuotationListItem quotation,
   ) async {
-    // Show loading indicator
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => QuotationPdfLoaderPage(quotation: quotation),
+      ),
     );
-
-    try {
-      // Pre-fetch PDF URL to check if it's available
-      await service.fetchQuotationPdfUrl(quotation);
-
-      // Close loading dialog
-      if (context.mounted) {
-        Navigator.pop(context);
-
-        // Navigate to PDF viewer
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => QuotationPdfLoaderPage(quotation: quotation),
-          ),
-        );
-      }
-    } catch (e) {
-      // Close loading dialog
-      if (context.mounted) {
-        Navigator.pop(context);
-
-        // Show error message
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to load PDF: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            action: SnackBarAction(
-              label: 'Retry',
-              textColor: Colors.white,
-              onPressed: () => handlePdfTap(context, quotation),
-            ),
-          ),
-        );
-      }
-    }
   }
 
   Future<void> handleEditQuotation(
@@ -191,6 +156,7 @@ class QuotationListPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool canCreateQuotation = RightsChecker.canAdd('Quotation');
     return Scaffold(
       appBar: AppBar(title: const Text('Quotations List')),
       body: QuotationInfiniteList(
@@ -200,7 +166,7 @@ class QuotationListPage extends StatelessWidget {
         onEditTap: (quotation) => handleEditQuotation(context, quotation),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _openAddQuotation(context),
+        onPressed: canCreateQuotation ? () => _openAddQuotation(context) : null,
         tooltip: 'Create Quotation',
         child: const Icon(Icons.add),
       ),

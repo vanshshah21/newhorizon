@@ -151,4 +151,45 @@ class LoginService {
       throw Exception('Failed to get company year data: $e');
     }
   }
+
+  Future<Map<String, dynamic>> getSalesPolicy() async {
+    try {
+      final url = await StorageUtils.readValue("url");
+      final companyDetails = await StorageUtils.readJson("selected_company");
+      if (url == null || companyDetails == null) {
+        throw Exception("URL or company details not found");
+      }
+
+      final tokenDetails = await StorageUtils.readJson("session_token");
+      if (tokenDetails == null) {
+        throw Exception("Session token not found");
+      }
+
+      final companyId = companyDetails['id'];
+      final token = tokenDetails['token']['value'];
+      final companyCode = companyDetails['code'];
+      const endpoint = "/api/Login/GetSalesPolicyDetails";
+
+      _dio.options.headers['Content-Type'] = 'application/json';
+      _dio.options.headers['Accept'] = 'application/json';
+      _dio.options.headers['Authorization'] = 'Bearer $token';
+      _dio.options.headers['CompanyId'] = companyId.toString();
+
+      final response = await _dio.get(
+        'http://$url$endpoint',
+        queryParameters: {"companyCode": companyCode},
+      );
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        await StorageUtils.writeJson(
+          'sales_policy',
+          response.data['data']['salesPolicyResultModel'][0],
+        );
+        return response.data['data']['salesPolicyResultModel'][0]
+            as Map<String, dynamic>;
+      }
+      return {};
+    } catch (e) {
+      rethrow;
+    }
+  }
 }

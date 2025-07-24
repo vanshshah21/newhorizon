@@ -110,6 +110,7 @@ import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:nhapp/pages/quotation/pages/quotation_detail.dart';
 import 'package:nhapp/utils/format_utils.dart';
+import 'package:nhapp/utils/rightsChecker.dart';
 import '../models/quotation_list_item.dart';
 
 class QuotationCard extends StatefulWidget {
@@ -181,22 +182,27 @@ class _QuotationCardState extends State<QuotationCard>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    final bool canPrint = RightsChecker.canPrint('Quotation Print');
+    final bool canEdit = RightsChecker.canEdit('Quotation');
+    final bool canView = RightsChecker.canView('Quotation');
+
     return Slidable(
       key: ValueKey(widget.quotation.qtnID),
       endActionPane: ActionPane(
         motion: const DrawerMotion(),
         children: [
-          SlidableAction(
-            onPressed: (_) => widget.onPdfTap(),
-            backgroundColor: Colors.blue.shade600,
-            foregroundColor: Colors.white,
-            icon: Icons.picture_as_pdf_outlined,
-            label: 'PDF',
-            borderRadius: const BorderRadius.horizontal(
-              left: Radius.circular(12),
+          if (canPrint)
+            SlidableAction(
+              onPressed: (_) => widget.onPdfTap(),
+              backgroundColor: Colors.blue.shade600,
+              foregroundColor: Colors.white,
+              icon: Icons.picture_as_pdf_outlined,
+              label: 'PDF',
+              borderRadius: const BorderRadius.horizontal(
+                left: Radius.circular(12),
+              ),
             ),
-          ),
-          if (widget.quotation.isEdit)
+          if (widget.quotation.isEdit && canEdit)
             SlidableAction(
               onPressed: (_) => widget.onEditTap(),
               backgroundColor: Colors.green.shade600,
@@ -209,15 +215,20 @@ class _QuotationCardState extends State<QuotationCard>
       child: Card(
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         child: InkWell(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder:
-                    (_) => QuotationDetailPage(quotation: widget.quotation),
-              ),
-            );
-          },
+          onTap:
+              canView
+                  ? () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (_) => QuotationDetailPage(
+                              quotation: widget.quotation,
+                            ),
+                      ),
+                    );
+                  }
+                  : null,
           borderRadius: BorderRadius.circular(12),
           child: Column(
             children: [

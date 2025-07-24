@@ -62,6 +62,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   bool _submitting = false;
   late final Map<String, dynamic> _selectedProformaInvoice;
   late final double _exchangeRate;
+  bool _shouldBlockForm = false;
 
   final List<String> preferenceOptions = [
     "On Quotation",
@@ -457,6 +458,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   //   }
   // }
   Future<void> _onCustomerSelected(Customer customer) async {
+    FocusScope.of(context).unfocus();
     setState(() {
       selectedCustomer = customer;
       customerController.text = customer.custName;
@@ -501,7 +503,6 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   Future<void> _onQuotationSelected(String? quotationNumber) async {
     if (quotationNumber == null) return;
 
-    // Find the selected quotation to get its srNo
     final selectedQuotation = quotationNumbers.firstWhere(
       (q) => q.number == quotationNumber,
       orElse: () => throw Exception("Selected quotation not found"),
@@ -510,7 +511,6 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
     setState(() {
       selectedQuotationNumber = quotationNumber;
       selectedQuotationSrNo = selectedQuotation.srNo;
-
       items.clear();
       _rsGrid.clear();
       _discountDetails.clear();
@@ -522,32 +522,99 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
         quotationNumber,
         selectedQuotationSrNo,
       );
+
       items = [];
       _rsGrid = [];
       _discountDetails = [];
 
       int lineNo = 1;
       for (final item in details.itemDetail) {
-        // Use maxInvoiceQty if qty is 0
-        final quantity =
+        // Calculate qty first - FIXED
+        final qty =
             (item['qty'] ?? 0).toDouble() == 0.0
                 ? (item['maxInvoiceQty'] ?? 0).toDouble()
                 : (item['qty'] ?? 0).toDouble();
+
+        // Discount calculation - FIXED
+        String discountType = "None";
+        double? discountPercentage;
+        double? discountAmount;
+
+        if (details.discountDetail != null &&
+            details.discountDetail!.isNotEmpty) {
+          final disc = details.discountDetail!.firstWhere(
+            (d) =>
+                d['discitem'] == item['itemCode'] ||
+                d['itemCode'] == item['itemCode'],
+            orElse: () => {},
+          );
+          if (disc.isNotEmpty) {
+            // Fixed field mappings based on actual structure
+            final discType = disc['disctype'] ?? 'N';
+            final discDesc = disc['discdisc'] ?? '';
+            final discVal = (disc['discvalue'] ?? 0).toDouble();
+
+            // Check for percentage discount
+            if ((discType == 'P' || discDesc.toLowerCase() == 'percentage') &&
+                discVal > 0) {
+              discountType = 'Percentage';
+              discountPercentage = discVal;
+              final basicAmount =
+                  (item['itemRate'] ?? 0).toDouble() *
+                  qty; // Use calculated qty
+              discountAmount = basicAmount * (discVal / 100);
+            }
+            // Check for value discount
+            else if ((discType == 'V' || discDesc.toLowerCase() == 'value') &&
+                discVal > 0) {
+              discountType = 'Value';
+              discountAmount = discVal;
+            }
+          }
+        }
+
+        // Calculate basic and discounted amounts
+        final basicRate = (item['itemRate'] ?? 0).toDouble();
+        final basicAmount = basicRate * qty;
+        final discountedAmount = basicAmount - (discountAmount ?? 0);
+
+        // Tax calculation from rate structure - FIXED
+        double taxAmount = 0.0;
+        List<Map<String, dynamic>> rateStructureRows = [];
+        if (details.rateStructDetail != null) {
+          rateStructureRows =
+              details.rateStructDetail!
+                  .where(
+                    (rs) =>
+                        rs['xdtdtmcd'] == item['itemCode'] ||
+                        rs['dtmCode'] == item['itemCode'],
+                  )
+                  .toList();
+          for (final rs in rateStructureRows) {
+            final rateAmount =
+                rs['rateAmount'] is String
+                    ? double.tryParse(rs['rateAmount']) ?? 0.0
+                    : rs['rateAmount']?.toDouble() ?? 0.0;
+            taxAmount += rateAmount;
+          }
+        }
+
+        final totalAmount = discountedAmount + taxAmount;
 
         items.add(
           ProformaItem(
             itemName: item['itemName'] ?? '',
             itemCode: item['itemCode'] ?? '',
-            qty: quantity,
-            basicRate: (item['itemRate'] ?? 0).toDouble(),
+            qty: qty,
+            basicRate: basicRate,
             uom: item['suom'] ?? 'NOS',
-            discountType: (item['discountAmount'] ?? 0) > 0 ? 'Value' : 'None',
-            discountAmount: (item['discountAmount'] ?? 0).toDouble(),
-            discountPercentage: null,
+            discountType: discountType,
+            discountAmount: discountAmount,
+            discountPercentage: discountPercentage,
             rateStructure: item['rateStructureCode'] ?? '',
-            taxAmount: (item['totalTax'] ?? 0).toDouble(),
-            totalAmount: (item['totalValue'] ?? 0).toDouble(),
-            rateStructureRows: null,
+            taxAmount: taxAmount,
+            totalAmount: totalAmount,
+            rateStructureRows: rateStructureRows,
             lineNo: lineNo,
             hsnAccCode: item['hsnAccCode'] ?? '',
           ),
@@ -555,47 +622,49 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
         lineNo++;
       }
 
-      // Populate rsGrid from response
+      // Map rsGrid and discountDetails - FIXED field mappings
       if (details.rateStructDetail != null) {
         for (final rs in details.rateStructDetail!) {
           _rsGrid.add({
             "docType": "PI",
             "docSubType": "PI",
-            "xdtdtmcd": rs['xdtdtmcd'] ?? '',
+            "xdtdtmcd": rs['xdtdtmcd'] ?? rs['dtmCode'] ?? '',
             "rateCode": rs['rateCode'] ?? '',
-            "rateStructCode": rs['rateStructCode'] ?? '',
+            "rateStructCode":
+                rs['rateStructCode'] ?? rs['rateStructureCode'] ?? '',
             "rateAmount": rs['rateAmount'] ?? 0,
-            "amdSrNo": rs['amdSrNo'] ?? 0,
-            "perCValue": rs['perCValue']?.toString() ?? "0.00",
+            "amdSrNo": rs['amdSrNo'] ?? rs['srNo'] ?? 0,
+            "perCValue":
+                rs['perCValue']?.toString() ??
+                rs['taxValue']?.toString() ??
+                "0.00",
             "incExc": rs['incExc'] ?? '',
-            "perVal": rs['perVal'] ?? 0,
-            "appliedOn": rs['appliedOn'] ?? "",
-            "pnyn": rs['pnyn'] ?? false,
+            "perVal": rs['perVal'] ?? rs['taxValue'] ?? 0,
+            "appliedOn": rs['appliedOn'] ?? rs['applicableOnCode'] ?? "",
+            "pnyn": rs['pnyn'] ?? rs['pNYN'] ?? false,
             "seqNo": rs['seqNo']?.toString() ?? "1",
-            "curCode": rs['curCode'] ?? "INR",
+            "curCode": rs['curCode'] ?? currency,
             "fromLocationId": locationDetails?['id'] ?? 8,
-            "TaxTyp": rs['TaxTyp'] ?? '',
-            "refLine": rs['refLine'] ?? 0,
+            "TaxTyp": rs['TaxTyp'] ?? rs['taxType'] ?? '',
+            "refLine": rs['refLine'] ?? rs['itmModelRefNo'] ?? 0,
           });
         }
       }
 
-      // Populate discountDetail from response
       if (details.discountDetail != null) {
         for (final disc in details.discountDetail!) {
           _discountDetails.add({
-            "itemCode": disc['itemCode'] ?? '',
-            "currCode": disc['currCode'] ?? "INR",
-            "discCode": disc['discCode'] ?? "01",
-            "discType": disc['discType'] ?? '',
-            "discVal": disc['discVal'] ?? 0,
+            "itemCode": disc['itemCode'] ?? disc['discitem'] ?? '',
+            "currCode": disc['currCode'] ?? disc['disccurr'] ?? currency,
+            "discCode": disc['discCode'] ?? disc['disccode'] ?? "01",
+            "discType": disc['discType'] ?? disc['disctype'] ?? '',
+            "discVal": disc['discVal'] ?? disc['discvalue'] ?? 0,
             "fromLocationId": locationDetails?['id'] ?? 8,
-            "oditmlineno": disc['oditmlineno'] ?? 0,
+            "oditmlineno": disc['oditmlineno'] ?? disc['itmModelRefNo'] ?? 0,
           });
         }
       }
 
-      // Store the full response for later use
       _quotationResponse = details;
       setState(() => _isLoading = false);
     } catch (e) {
@@ -816,10 +885,113 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   //   }
   // }
 
+  // Future<void> _onSalesOrderSelected(String? salesOrderNumber) async {
+  //   if (salesOrderNumber == null) return;
+
+  //   // Find the selected sales order to get its srNo
+  //   final selectedSalesOrder = salesOrderNumbers.firstWhere(
+  //     (so) => so.number == salesOrderNumber,
+  //     orElse: () => throw Exception("Selected sales order not found"),
+  //   );
+
+  //   setState(() {
+  //     selectedSalesOrderNumber = salesOrderNumber;
+  //     selectedSalesOrderSrNo = selectedSalesOrder.srNo;
+  //     items.clear();
+  //     _rsGrid.clear();
+  //     _discountDetails.clear();
+  //     _isLoading = true;
+  //   });
+
+  //   try {
+  //     final details = await _service.fetchSalesOrderDetails(
+  //       salesOrderNumber,
+  //       selectedSalesOrderSrNo,
+  //     );
+  //     items = [];
+  //     _rsGrid = [];
+  //     _discountDetails = [];
+
+  //     int lineNo = 1;
+  //     for (final item in details.itemDetail) {
+  //       // Use maxInvoiceQty if qty is 0
+  //       final quantity =
+  //           (item['qty'] ?? 0).toDouble() == 0.0
+  //               ? (item['maxInvoiceQty'] ?? 0).toDouble()
+  //               : (item['qty'] ?? 0).toDouble();
+
+  //       items.add(
+  //         ProformaItem(
+  //           itemName: item['itemName'] ?? '',
+  //           itemCode: item['itemCode'] ?? '',
+  //           qty: quantity,
+  //           basicRate: (item['itemRate'] ?? 0).toDouble(),
+  //           uom: item['suom'] ?? 'NOS',
+  //           discountType: (item['discountAmount'] ?? 0) > 0 ? 'Value' : 'None',
+  //           discountAmount: (item['discountAmount'] ?? 0).toDouble(),
+  //           discountPercentage: null,
+  //           rateStructure: item['rateStructureCode'] ?? '',
+  //           taxAmount: (item['totalTax'] ?? 0).toDouble(),
+  //           totalAmount: (item['totalValue'] ?? 0).toDouble(),
+  //           rateStructureRows: null,
+  //           lineNo: lineNo,
+  //           hsnAccCode: item['hsnAccCode'] ?? '',
+  //         ),
+  //       );
+  //       lineNo++;
+  //     }
+
+  //     // Populate rsGrid from response
+  //     if (details.rateStructDetail != null) {
+  //       for (final rs in details.rateStructDetail!) {
+  //         _rsGrid.add({
+  //           "docType": "PI",
+  //           "docSubType": "PI",
+  //           "xdtdtmcd": rs['xdtdtmcd'] ?? '',
+  //           "rateCode": rs['rateCode'] ?? '',
+  //           "rateStructCode": rs['rateStructCode'] ?? '',
+  //           "rateAmount": rs['rateAmount'] ?? 0,
+  //           "amdSrNo": rs['amdSrNo'] ?? 0,
+  //           "perCValue": rs['perCValue']?.toString() ?? "0.00",
+  //           "incExc": rs['incExc'] ?? '',
+  //           "perVal": rs['perVal'] ?? 0,
+  //           "appliedOn": rs['appliedOn'] ?? "",
+  //           "pnyn": rs['pnyn'] ?? false,
+  //           "seqNo": rs['seqNo']?.toString() ?? "1",
+  //           "curCode": rs['curCode'] ?? currency ?? "INR",
+  //           "fromLocationId": locationDetails?['id'] ?? 8,
+  //           "TaxTyp": rs['TaxTyp'] ?? '',
+  //           "refLine": rs['refLine'] ?? 0,
+  //         });
+  //       }
+  //     }
+
+  //     // Populate discountDetail from response
+  //     if (details.discountDetail != null) {
+  //       for (final disc in details.discountDetail!) {
+  //         _discountDetails.add({
+  //           "itemCode": disc['itemCode'] ?? '',
+  //           "currCode": disc['currCode'] ?? currency ?? "INR",
+  //           "discCode": disc['discCode'] ?? "01",
+  //           "discType": disc['discType'] ?? '',
+  //           "discVal": disc['discVal'] ?? 0,
+  //           "fromLocationId": locationDetails?['id'],
+  //           "oditmlineno": disc['oditmlineno'] ?? 0,
+  //         });
+  //       }
+  //     }
+
+  //     // Store the full response for later use
+  //     _salesOrderResponse = details;
+  //     setState(() => _isLoading = false);
+  //   } catch (e) {
+  //     setState(() => _isLoading = false);
+  //     _showError("Failed to load sales order details: ${e.toString()}");
+  //   }
+  // }
   Future<void> _onSalesOrderSelected(String? salesOrderNumber) async {
     if (salesOrderNumber == null) return;
 
-    // Find the selected sales order to get its srNo
     final selectedSalesOrder = salesOrderNumbers.firstWhere(
       (so) => so.number == salesOrderNumber,
       orElse: () => throw Exception("Selected sales order not found"),
@@ -837,34 +1009,87 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
     try {
       final details = await _service.fetchSalesOrderDetails(
         salesOrderNumber,
-        selectedQuotationSrNo,
+        selectedSalesOrderSrNo,
       );
+
       items = [];
       _rsGrid = [];
       _discountDetails = [];
 
       int lineNo = 1;
       for (final item in details.itemDetail) {
-        // Use maxInvoiceQty if qty is 0
-        final quantity =
+        // Discount calculation - FIXED
+        String discountType = "None";
+        double? discountPercentage;
+        double? discountAmount;
+
+        if (details.discountDetail != null &&
+            details.discountDetail!.isNotEmpty) {
+          final disc = details.discountDetail!.firstWhere(
+            (d) =>
+                d['itemCode'] == item['itemCode'] ||
+                d['discitem'] == item['itemCode'],
+            orElse: () => {},
+          );
+          if (disc.isNotEmpty) {
+            final discType = disc['discType'] ?? disc['disctype'] ?? 'N';
+            final discVal =
+                (disc['discVal'] ?? disc['discvalue'] ?? 0).toDouble();
+
+            if ((discType == 'P' || discType == 'Percentage') && discVal > 0) {
+              discountType = 'Percentage';
+              discountPercentage = discVal;
+              final basicAmount =
+                  (item['itemRate'] ?? 0).toDouble() *
+                  (item['qty'] ?? 0).toDouble();
+              discountAmount = basicAmount * (discVal / 100);
+            } else if ((discType == 'V' || discType == 'Value') &&
+                discVal > 0) {
+              discountType = 'Value';
+              discountAmount = discVal;
+            }
+          }
+        }
+
+        // Calculate basic and discounted amounts
+        final basicRate = (item['itemRate'] ?? 0).toDouble();
+        final qty =
             (item['qty'] ?? 0).toDouble() == 0.0
                 ? (item['maxInvoiceQty'] ?? 0).toDouble()
                 : (item['qty'] ?? 0).toDouble();
+        final basicAmount = basicRate * qty;
+        final discountedAmount = basicAmount - (discountAmount ?? 0);
+
+        // Tax calculation from rate structure
+        double taxAmount = 0.0;
+        List<Map<String, dynamic>> rateStructureRows = [];
+        if (details.rateStructDetail != null) {
+          rateStructureRows =
+              details.rateStructDetail!
+                  .where((rs) => rs['xdtdtmcd'] == item['itemCode'])
+                  .toList();
+          for (final rs in rateStructureRows) {
+            final rateAmount = (rs['rateAmount'] ?? 0).toDouble();
+            taxAmount += rateAmount;
+          }
+        }
+
+        final totalAmount = discountedAmount + taxAmount;
 
         items.add(
           ProformaItem(
             itemName: item['itemName'] ?? '',
-            itemCode: item['itemCode'] ?? '',
-            qty: quantity,
-            basicRate: (item['itemRate'] ?? 0).toDouble(),
+            itemCode: item['itemCode'] ?? item['qoItemCode'] ?? '',
+            qty: qty,
+            basicRate: basicRate,
             uom: item['suom'] ?? 'NOS',
-            discountType: (item['discountAmount'] ?? 0) > 0 ? 'Value' : 'None',
-            discountAmount: (item['discountAmount'] ?? 0).toDouble(),
-            discountPercentage: null,
+            discountType: discountType,
+            discountAmount: discountAmount,
+            discountPercentage: discountPercentage,
             rateStructure: item['rateStructureCode'] ?? '',
-            taxAmount: (item['totalTax'] ?? 0).toDouble(),
-            totalAmount: (item['totalValue'] ?? 0).toDouble(),
-            rateStructureRows: null,
+            taxAmount: taxAmount,
+            totalAmount: totalAmount,
+            rateStructureRows: rateStructureRows,
             lineNo: lineNo,
             hsnAccCode: item['hsnAccCode'] ?? '',
           ),
@@ -872,47 +1097,47 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
         lineNo++;
       }
 
-      // Populate rsGrid from response
+      // Map rsGrid and discountDetails
       if (details.rateStructDetail != null) {
         for (final rs in details.rateStructDetail!) {
           _rsGrid.add({
             "docType": "PI",
             "docSubType": "PI",
-            "xdtdtmcd": rs['xdtdtmcd'] ?? '',
+            "xdtdtmcd": rs['dtmCode'] ?? rs['xdtdtmcd'] ?? '',
             "rateCode": rs['rateCode'] ?? '',
-            "rateStructCode": rs['rateStructCode'] ?? '',
+            "rateStructCode":
+                rs['rateStructureCode'] ?? rs['rateStructCode'] ?? '',
             "rateAmount": rs['rateAmount'] ?? 0,
             "amdSrNo": rs['amdSrNo'] ?? 0,
-            "perCValue": rs['perCValue']?.toString() ?? "0.00",
+            "perCValue":
+                rs['taxValue'] ?? rs['perCValue']?.toString() ?? "0.00",
             "incExc": rs['incExc'] ?? '',
             "perVal": rs['perVal'] ?? 0,
-            "appliedOn": rs['appliedOn'] ?? "",
-            "pnyn": rs['pnyn'] ?? false,
+            "appliedOn": rs['applicableOn'] ?? rs['appliedOn'] ?? "",
+            "pnyn": rs['pNYN'] ?? rs['pnyn'] ?? false,
             "seqNo": rs['seqNo']?.toString() ?? "1",
-            "curCode": rs['curCode'] ?? currency ?? "INR",
+            "curCode": rs['curCode'] ?? currency,
             "fromLocationId": locationDetails?['id'] ?? 8,
             "TaxTyp": rs['TaxTyp'] ?? '',
-            "refLine": rs['refLine'] ?? 0,
+            "refLine": rs['itmModelRefNo'] ?? rs['refLine'] ?? 0,
           });
         }
       }
 
-      // Populate discountDetail from response
       if (details.discountDetail != null) {
         for (final disc in details.discountDetail!) {
           _discountDetails.add({
-            "itemCode": disc['itemCode'] ?? '',
-            "currCode": disc['currCode'] ?? currency ?? "INR",
-            "discCode": disc['discCode'] ?? "01",
-            "discType": disc['discType'] ?? '',
-            "discVal": disc['discVal'] ?? 0,
-            "fromLocationId": locationDetails?['id'],
-            "oditmlineno": disc['oditmlineno'] ?? 0,
+            "itemCode": disc['itemCode'] ?? disc['discitem'] ?? '',
+            "currCode": disc['currCode'] ?? disc['disccurr'] ?? currency,
+            "discCode": disc['discCode'] ?? disc['disccode'] ?? "01",
+            "discType": disc['discType'] ?? disc['disctype'] ?? '',
+            "discVal": disc['discVal'] ?? disc['discvalue'] ?? 0,
+            "fromLocationId": locationDetails?['id'] ?? 8,
+            "oditmlineno": disc['oditmlineno'] ?? disc['itmModelRefNo'] ?? 0,
           });
         }
       }
 
-      // Store the full response for later use
       _salesOrderResponse = details;
       setState(() => _isLoading = false);
     } catch (e) {
@@ -934,7 +1159,9 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
             ),
       ),
     );
-
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FocusScope.of(context).unfocus();
+    });
     if (result != null) {
       setState(() {
         result.lineNo = items.length + 1;
@@ -1279,15 +1506,15 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
           "docId": 0,
           "xdtdtmcd": rs['xdtdtmcd'] ?? "",
           "rateCode": rs['rateCode'] ?? "",
-          "rateAmount": rs['rateAmount'] ?? 0,
+          "rateAmount": double.parse(rs['rateAmount']?.toString() ?? "0"),
           "amdSrNo": rs['amdSrNo'] ?? 0,
-          "perCValue": rs['perCValue'] ?? 0,
-          "incExc": rs['incExc'] ?? "",
-          "perVal": rs['perVal']?.toString() ?? "0",
-          "appliedOn": rs['appliedOn'] ?? "",
+          "perCValue": rs['taxValue'] ?? rs['perCValue'] ?? 0,
+          "incExc": rs['incExc'] ?? rs['ie'] ?? "",
+          "perVal": rs['perVal']?.toString() ?? rs['pv'] ?? "0",
+          "AppliedOn": rs['appOnDisplay'] ?? rs['appliedOn'] ?? "",
           "pnyn": rs['pnyn'] ?? false,
           "rateStructCode": rs['rateStructCode'] ?? "",
-          "seqNo": rs['seqNo'] ?? 1,
+          "seqNo": rs['seqNo'] ?? rs["sequenceNo"] ?? 1,
           "fromLocationId": locationId,
           "py": 0,
           "curCode": rs['curCode'] ?? currency,
@@ -1313,16 +1540,25 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
               "rateCode": row['msprtcd'] ?? row['rateCode'] ?? "",
               "rateAmount": row['rateAmount'] ?? 0,
               "amdSrNo": 0,
-              "perCValue": row['msprtval'] ?? row['perCValue'] ?? 0,
+              "perCValue":
+                  row['taxValue'] ?? row['msprtval'] ?? row['perCValue'] ?? 0,
               "incExc": row['mspincexc'] ?? row['ie'] ?? "",
               "perVal":
+                  row['pv'] ??
                   row['mspperval']?.toString() ??
                   row['perVal']?.toString() ??
                   "0",
-              "appliedOn": row['mtrslvlno'] ?? row['appliedOn'] ?? "",
+              "appliedOn":
+                  row['appOnDisplay'] ??
+                  row['mtrslvlno'] ??
+                  row['appliedOn'] ??
+                  "",
               "pnyn": row['msppnyn'] == "True" || row['msppnyn'] == true,
               "rateStructCode": item.rateStructure,
-              "seqNo": int.tryParse(row['mspseqno']?.toString() ?? '1') ?? 1,
+              "seqNo":
+                  row["sequenceNo"] ??
+                  int.tryParse(row['mspseqno']?.toString() ?? '1') ??
+                  1,
               "fromLocationId": locationId,
               "py": 0,
               "curCode": currency,
@@ -1336,10 +1572,11 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
       }
     }
 
-    // Build discountDetail list (ProformaDiscountDetail)
+    // Build discountDetail list (ProformaDiscountDetail) - FIXED
     List<Map<String, dynamic>> discountDetail = [];
     if (selectPreference == "On Quotation" ||
         selectPreference == "On Sales Order") {
+      // Use pre-populated discount details from quotation/sales order response
       for (final disc in _discountDetails) {
         final itemIndex = items.indexWhere(
           (item) => item.itemCode == disc['itemCode'],
@@ -1364,16 +1601,24 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
         final lineNo = i + 1;
 
         if (item.discountAmount != null && item.discountAmount! > 0) {
+          // Determine discount type code
+          String discType = "";
+          double discVal = 0.0;
+
+          if (item.discountType == "Percentage") {
+            discType = "Percentage";
+            discVal = item.discountPercentage ?? 0.0;
+          } else if (item.discountType == "Value") {
+            discType = "Value";
+            discVal = item.discountAmount ?? 0.0;
+          }
+
           discountDetail.add({
-            "invId": 0,
             "itemCode": item.itemCode,
             "currCode": currency,
-            "discCode": "DISC",
-            "discType": item.discountType,
-            "discVal":
-                item.discountType == "Percentage"
-                    ? (item.discountPercentage ?? 0)
-                    : (item.discountAmount ?? 0),
+            "discCode": item.discountCode,
+            "discType": discType,
+            "discVal": discVal,
             "fromLocationId": locationId,
             "oditmlineno": lineNo,
           });
@@ -1510,6 +1755,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
       "invValue": netAmount, // Keep as decimal
       "invAmount": finalAmount, // Keep as decimal
       "invTax": totalTax, // Keep as decimal
+      "invRoValue": finalAmount.round(),
       "invType": "M",
       "invCustCode": selectedCustomer!.custCode,
       "invStatus": "O",
@@ -1519,8 +1765,8 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
               : selectPreference == "On Sales Order"
               ? "O"
               : "T",
-      "invDiscountType": discountType,
-      "invDiscountValue": totalDiscount, // Keep as decimal
+      "invDiscountType": "",
+      "invDiscountValue": 0.0,
       "invFromLocationId": locationId,
       "invCreatedUserId": userId,
       "invCurrCode": currency,

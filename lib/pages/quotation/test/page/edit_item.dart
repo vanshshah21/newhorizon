@@ -80,11 +80,13 @@ class _EditItemPageState extends State<EditItemPage> {
     }
 
     // Set discount values based on type
-    if (widget.item.discountType == "P" &&
+    if ((widget.item.discountType == "P" ||
+            widget.item.discountType == "Percentage") &&
         widget.item.discountPercentage != null) {
       discountPercentageController.text =
           widget.item.discountPercentage!.toString();
-    } else if (widget.item.discountType == "V" &&
+    } else if ((widget.item.discountType == "V" ||
+            widget.item.discountType == "Value") &&
         widget.item.discountAmount != null) {
       discountAmountController.text = widget.item.discountAmount!.toString();
     }
@@ -178,10 +180,10 @@ class _EditItemPageState extends State<EditItemPage> {
         selectedRateStructure != widget.item.rateStructure ||
         (selectedDiscountCode?.code ?? '') !=
             (widget.item.discountCode ?? '') ||
-        (discountType == "P" &&
+        ((discountType == "P" || discountType == "Percentage") &&
             discountPercentageController.text !=
                 (widget.item.discountPercentage?.toString() ?? '')) ||
-        (discountType == "V" &&
+        ((discountType == "V" || discountType == "Value") &&
             discountAmountController.text !=
                 (widget.item.discountAmount?.toString() ?? ''));
   }
@@ -240,11 +242,13 @@ class _EditItemPageState extends State<EditItemPage> {
                         _buildDiscountCodeField(),
                         const SizedBox(height: 16),
                         _buildDiscountTypeField(),
-                        if (discountType == "P") ...[
+                        if ((discountType == "P" ||
+                            discountType == "Percentage")) ...[
                           const SizedBox(height: 16),
                           _buildDiscountPercentageField(),
                         ],
-                        if (discountType == "V") ...[
+                        if ((discountType == "V" ||
+                            discountType == "Value")) ...[
                           const SizedBox(height: 16),
                           _buildDiscountAmountField(),
                         ],
@@ -308,6 +312,7 @@ class _EditItemPageState extends State<EditItemPage> {
               value: discountCode,
               child: Text(
                 discountCode.codeFullName,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontSize: 14),
               ),
             );
@@ -463,7 +468,7 @@ class _EditItemPageState extends State<EditItemPage> {
   // }
   Widget _buildDiscountTypeField() {
     // Ensure the value is valid and matches one of the dropdown items
-    if (!["None", "P", "V"].contains(discountType)) {
+    if (!["None", "P", "V", "Percentage", "Value"].contains(discountType)) {
       discountType = "None"; // Default to "None" if the value is invalid
     }
 
@@ -475,8 +480,8 @@ class _EditItemPageState extends State<EditItemPage> {
       ),
       items: [
         DropdownMenuItem(value: "None", child: Text("None")),
-        DropdownMenuItem(value: "P", child: Text("Percentage")),
-        DropdownMenuItem(value: "V", child: Text("Value")),
+        DropdownMenuItem(value: "Percentage", child: Text("Percentage")),
+        DropdownMenuItem(value: "Value", child: Text("Value")),
       ],
       onChanged: (val) {
         if (val != null) {
@@ -501,7 +506,7 @@ class _EditItemPageState extends State<EditItemPage> {
       ),
       onChanged: (_) => _setDirty(),
       validator: (value) {
-        if (discountType == "P") {
+        if (discountType == "P" || discountType == "Percentage") {
           if (value == null || value.isEmpty) {
             return "Discount Percentage is required";
           }
@@ -525,14 +530,14 @@ class _EditItemPageState extends State<EditItemPage> {
       ),
       onChanged: (_) => _setDirty(),
       validator: (value) {
-        if (discountType == "V") {
+        if (discountType == "V" || discountType == "Value") {
           if (value == null || value.isEmpty) {
             return "Discount Amount is required";
           }
           final disc = double.tryParse(value);
           final rate = double.tryParse(basicRateController.text) ?? 0;
           if (disc == null || disc >= rate) {
-            return "Discount must be less than Basic Rate";
+            return "Discount must be less than Total Basic Rate";
           }
         }
         return null;
@@ -626,13 +631,10 @@ class _EditItemPageState extends State<EditItemPage> {
       isExpanded: true,
       selectedItemBuilder: (context) {
         return uniqueRateStructureList.map((rs) {
-          return SizedBox(
-            width: 200,
-            child: Text(
-              rs.rateStructFullName,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Colors.black),
-            ),
+          return Text(
+            rs.rateStructFullName,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Colors.black),
           );
         }).toList();
       },
@@ -703,12 +705,12 @@ class _EditItemPageState extends State<EditItemPage> {
     double discountAmount = 0;
     double? discountPercentage;
 
-    if (discountType == "P") {
+    if (discountType == "Percentage" || discountType == "P") {
       discountPercentage = double.parse(discountPercentageController.text);
       discountAmount = (basicRate * qty) * (discountPercentage / 100);
-    } else if (discountType == "V") {
+    } else if (discountType == "Value" || discountType == "V") {
       discountAmount = double.parse(discountAmountController.text);
-      discountPercentage = (discountAmount / (basicRate * qty)) * 100;
+      // discountPercentage = (discountAmount / (basicRate * qty)) * 100;
     }
 
     setState(() => _isLoading = true);
@@ -768,7 +770,10 @@ class _EditItemPageState extends State<EditItemPage> {
           basicRate: basicRate,
           uom: selectedItem?.salesUOM ?? widget.item.uom,
           discountType: discountType,
-          discountPercentage: discountType == "P" ? discountPercentage : null,
+          discountPercentage:
+              discountType == "P" || discountType == "Percentage"
+                  ? discountPercentage
+                  : null,
           discountAmount: discountAmount > 0 ? discountAmount : null,
           discountCode: selectedDiscountCode?.code, // Include discount code
           rateStructure: selectedRateStructure!,

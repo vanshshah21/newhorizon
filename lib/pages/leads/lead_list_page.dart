@@ -5,6 +5,7 @@ import 'package:nhapp/pages/leads/pages/lead_pdf_loader_page.dart';
 import 'package:nhapp/pages/leads/services/lead_service.dart';
 import 'package:nhapp/pages/leads/widgets/lead_infinite_list.dart';
 import 'package:nhapp/utils/error_handler.dart';
+import 'package:nhapp/utils/rightsChecker.dart';
 
 class LeadListPage extends StatefulWidget {
   const LeadListPage({super.key});
@@ -80,6 +81,7 @@ class _LeadListPageState extends State<LeadListPage> {
 
   @override
   Widget build(BuildContext context) {
+    final canAddLead = RightsChecker.canAdd('Lead');
     return Scaffold(
       appBar: AppBar(title: const Text('Leads List')),
       body: LeadInfiniteList(
@@ -88,11 +90,14 @@ class _LeadListPageState extends State<LeadListPage> {
         onPdfTap: (lead) => handlePdfTap(context, lead),
         onDeleteTap: (lead) => handleDeleteTap(context, lead),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _openAddLead,
-        tooltip: 'Add Lead',
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton:
+          canAddLead
+              ? FloatingActionButton(
+                onPressed: _openAddLead,
+                tooltip: 'Add Lead',
+                child: const Icon(Icons.add),
+              )
+              : null,
     );
   }
 }

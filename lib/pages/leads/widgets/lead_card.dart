@@ -5,6 +5,7 @@ import 'package:nhapp/pages/leads/models/lead_data.dart';
 import 'package:nhapp/pages/leads/pages/edit_lead_page.dart';
 import 'package:nhapp/pages/leads/pages/lead_details_page.dart';
 import 'package:nhapp/utils/format_utils.dart';
+import 'package:nhapp/utils/rightsChecker.dart';
 
 class LeadCard extends StatefulWidget {
   final LeadData lead;
@@ -27,6 +28,12 @@ class _LeadCardState extends State<LeadCard>
   bool _expanded = false;
   late final AnimationController _animationController;
   late final Animation<double> _expandAnimation;
+
+  bool get canDeleteLeads =>
+      RightsChecker.hasRight('Lead', RightsChecker.DELETE);
+  bool get canEditLeads => RightsChecker.canEdit('Lead');
+  bool get canPrintLeads =>
+      RightsChecker.hasRight('Inquiry Print', RightsChecker.PRINT);
 
   List<double> _amounts = [];
   bool _isCalculating = false;
@@ -98,15 +105,18 @@ class _LeadCardState extends State<LeadCard>
     final theme = Theme.of(context);
 
     final actions = <Widget>[
-      SlidableAction(
-        onPressed: (_) => widget.onPdfTap(),
-        backgroundColor: Colors.blue.shade600,
-        foregroundColor: Colors.white,
-        icon: Icons.picture_as_pdf_outlined,
-        label: 'PDF',
-        borderRadius: const BorderRadius.horizontal(left: Radius.circular(12)),
-      ),
-      if (lead.isEdit)
+      if (canPrintLeads)
+        SlidableAction(
+          onPressed: (_) => widget.onPdfTap(),
+          backgroundColor: Colors.blue.shade600,
+          foregroundColor: Colors.white,
+          icon: Icons.picture_as_pdf_outlined,
+          label: 'PDF',
+          borderRadius: const BorderRadius.horizontal(
+            left: Radius.circular(12),
+          ),
+        ),
+      if (lead.isEdit && canEditLeads)
         SlidableAction(
           onPressed: (_) {
             Navigator.push(
@@ -119,7 +129,7 @@ class _LeadCardState extends State<LeadCard>
           icon: Icons.edit_outlined,
           label: 'Edit',
         ),
-      if (lead.isDelete)
+      if (lead.isDelete && canDeleteLeads)
         SlidableAction(
           onPressed: (_) => widget.onDeleteTap(),
           backgroundColor: Colors.red.shade600,

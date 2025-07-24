@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 import 'package:nhapp/utils/paging_extensions.dart';
 import 'package:nhapp/utils/error_handler.dart';
+import 'package:nhapp/utils/rightsChecker.dart';
 import '../models/lead_data.dart';
 import '../services/lead_service.dart';
 import 'lead_card.dart';
@@ -31,6 +32,9 @@ class LeadInfiniteListState extends State<LeadInfiniteList>
   late final PagingController<int, LeadData> _pagingController;
   final TextEditingController _searchController = TextEditingController();
   String? _currentSearchValue;
+
+  // Check user rights
+  bool get canViewLeads => RightsChecker.canView('Lead');
 
   void refresh() {
     _pagingController.refresh();
@@ -78,6 +82,34 @@ class LeadInfiniteListState extends State<LeadInfiniteList>
   @override
   Widget build(BuildContext context) {
     super.build(context); // for AutomaticKeepAliveClientMixin
+
+    if (!canViewLeads) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.lock_outline, size: 64, color: Colors.grey[400]),
+            const SizedBox(height: 16),
+            Text(
+              'Access Denied',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                color: Colors.grey[600],
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'You don\'t have permission to view leads.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
     return RefreshIndicator(
       onRefresh: () async {
         _pagingController.refresh();

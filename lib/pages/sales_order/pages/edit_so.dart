@@ -65,6 +65,7 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
   bool _isDuplicateAllowed = false;
   late double _exchangeRate;
   int _amendmentSrNo = -1;
+  bool _shouldBlockForm = false;
 
   // Quotation related fields - Updated to match add_so.dart
   List<QuotationNumber> quotationNumbers = [];
@@ -76,6 +77,7 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
   Map<String, dynamic>? salesOrderDetails;
   String originalOrderId = "";
   String currency = "INR";
+  late final bool msctechspecifications;
 
   @override
   void initState() {
@@ -94,6 +96,14 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
     await _loadSalesPolicy();
     await _loadAttachments();
     await _getExchangeRate();
+    // Check if form should be blocked after loading sales policy
+    if (msctechspecifications == true) {
+      setState(() {
+        _shouldBlockForm = true;
+        _isLoading = false;
+      });
+      return; // Exit early, don't load prefill data
+    }
     setState(() => _isLoading = false);
   }
 
@@ -108,6 +118,8 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
           salesPolicy['allowduplictae'] ??
           salesPolicy['allowduplicate'] ??
           false;
+      msctechspecifications =
+          salesPolicy['msctechspecifications'] == "True" ? true : false;
     } catch (e) {
       debugPrint("Error loading sales policy: $e");
       _isDuplicateAllowed = false; // Default to not allowing duplicates
@@ -172,6 +184,52 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
 
   Future<void> _loadRateStructures() async {
     rateStructures = await _service.fetchRateStructures();
+  }
+
+  Widget _buildBlockedFormUI() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.web, size: 80, color: Colors.orange),
+            const SizedBox(height: 24),
+            const Text(
+              'Form Submission Required from Website',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'This Sales Order requires technical specifications that can only be submitted through the website. Please use the web portal to edit this Sales Order.',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.black54,
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.arrow_back),
+              label: const Text('Go Back'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _loadSalesOrderDetails() async {
@@ -1232,7 +1290,7 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
       "projectLotDetails": [],
       "equipmentAttributeDetails": [],
       "technicalspec": [],
-      "msctechspecifications": true,
+      "msctechspecifications": false,
     };
   }
 
@@ -1414,6 +1472,8 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
       body:
           _isLoading
               ? const Center(child: CircularProgressIndicator())
+              : _shouldBlockForm
+              ? _buildBlockedFormUI()
               : Form(
                 key: _formKey,
                 child: SingleChildScrollView(
@@ -1484,25 +1544,25 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
                 ),
               )
               .toList(),
-      onChanged:
-          _submitting
-              ? null
-              : (val) {
-                if (val != null) {
-                  setState(() {
-                    salesOrderReference = val;
-                    // Clear quotation data when switching
-                    if (val == "Without Quotation Reference") {
-                      quotationNumbers.clear();
-                      quotationItemDetails.clear();
-                      selectedQuotationNumber = null;
-                      quotationNumberController.clear();
-                    } else if (selectedOrderFrom != null) {
-                      _loadQuotationNumbers(selectedOrderFrom!.customerCode);
-                    }
-                  });
-                }
-              },
+      onChanged: null,
+      // _submitting
+      //     ? null
+      //     : (val) {
+      //       if (val != null) {
+      //         setState(() {
+      //           salesOrderReference = val;
+      //           // Clear quotation data when switching
+      //           if (val == "Without Quotation Reference") {
+      //             quotationNumbers.clear();
+      //             quotationItemDetails.clear();
+      //             selectedQuotationNumber = null;
+      //             quotationNumberController.clear();
+      //           } else if (selectedOrderFrom != null) {
+      //             _loadQuotationNumbers(selectedOrderFrom!.customerCode);
+      //           }
+      //         });
+      //       }
+      //     },
       validator:
           (val) => val == null ? "Sales Order Reference is required" : null,
     );
@@ -1516,7 +1576,7 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
         return TextFormField(
           controller: controller,
           focusNode: focusNode,
-          enabled: !_submitting,
+          enabled: false,
           decoration: const InputDecoration(
             labelText: "Order From",
             border: OutlineInputBorder(),

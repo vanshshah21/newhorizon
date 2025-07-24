@@ -326,8 +326,8 @@ class QuotationDetails {
     return QuotationDetails(
       modelDetails: List<Map<String, dynamic>>.from(json['modelDetails'] ?? []),
       discountDetail:
-          json['discountDetail'] != null
-              ? List<Map<String, dynamic>>.from(json['discountDetail'])
+          json['discountDetails'] != null
+              ? List<Map<String, dynamic>>.from(json['discountDetails'])
               : null,
       quotationDetails:
           json['quotationDetails'] != null
@@ -397,6 +397,12 @@ class SalesOrderItem {
   });
 
   Map<String, dynamic> toModelDetail() {
+    final DiscountAmt =
+        discountType == "P" || discountType == "Percentage"
+            ? (discountPercentage! / 100) * (basicRate * qty)
+            : discountType == "V" || discountType == "Value"
+            ? discountAmount ?? 0.0
+            : 0.0;
     return {
       "itemLineNo": lineNo,
       "DocType": "O",
@@ -406,9 +412,19 @@ class SalesOrderItem {
       "salesItemCode": itemCode,
       "qtyIUOM": qty.toStringAsFixed(4),
       "basicPriceIUOM": basicRate,
-      "discountType": discountType,
-      "discountValue": discountPercentage ?? 0,
-      "discountAmt": (discountAmount ?? 0).toStringAsFixed(4),
+      "discountType":
+          discountType == "P" || discountType == "Percentage"
+              ? "Percentage"
+              : discountType == "V" || discountType == "Value"
+              ? "Value"
+              : "None",
+      "discountValue":
+          discountType == "P" || discountType == "Percentage"
+              ? discountPercentage?.toString() ?? 0.0
+              : discountType == "V" || discountType == "Value"
+              ? discountAmount?.toString() ?? 0.0
+              : 0.0,
+      "discountAmt": DiscountAmt,
       "qtySUOM": qty,
       "basicPriceSUOM": basicRate,
       "conversionFactor": 1,
@@ -451,7 +467,7 @@ class SalesOrderItem {
       "oldIORef": 0,
       "oldSalesItemCode": "",
       "oldInternalItemCode": "",
-      "itemAmountAfterDisc": (basicRate * qty) - (discountAmount ?? 0),
+      "itemAmountAfterDisc": (basicRate * qty) - (DiscountAmt ?? 0),
       "isGroupSpare": "",
       "subProjectId": 0,
       "sectionId": 0,
@@ -462,8 +478,7 @@ class SalesOrderItem {
       "detaildescription": "",
       "printseq": "",
       "loadRate": 0,
-      "netRate":
-          qty > 0 ? ((basicRate * qty) - (discountAmount ?? 0)) / qty : 0,
+      "netRate": qty > 0 ? ((basicRate * qty) - (DiscountAmt ?? 0)) / qty : 0,
     };
   }
 
@@ -476,14 +491,15 @@ class SalesOrderItem {
     return {
       "salesItemCode": itemCode,
       "currencyCode": currencyCode,
-      "discountCode":
-          discountCode ??
-          (discountType == "Percentage"
-              ? "DISC"
-              : "01"), // Use selected code or fallback
-      "discountType": discountType,
+      "discountCode": discountCode, // Use selected code or fallback
+      "discountType":
+          discountType == "P" || discountType == "Percentage"
+              ? "Percentage"
+              : discountType == "V" || discountType == "Value"
+              ? "Value"
+              : "None",
       "discountValue":
-          discountType == "Percentage"
+          discountType == "Percentage" || discountType == "P"
               ? (discountPercentage ?? 0) // Use percentage value
               : (discountAmount ?? 0), // Use absolute amount
       "amendYear": "",
@@ -510,16 +526,25 @@ class SalesOrderItem {
             "rateCode": row['rateCode'] ?? '', // XDTDRATECD
             "incOrExc": row['ie'] ?? 'E', // XDTDINCEXC
             "perOrVal": row['pv'] ?? 'V', // XDTDPERVAL
-            "taxValue": (row['taxValue'] ?? 0.0).toDouble(), // XDTDPERCVAL
-            "applicationOn": row['applicableOn'] ?? '', // XDTDAPPON
+            "taxValue":
+                row['taxValue'] is String
+                    ? double.parse(row['taxValue'])
+                    : (row['taxValue'] ?? 0.0), // XDTDPERCVAL
+            "ApplicationOn":
+                row['appOnDisplay'] ??
+                row['applicationOn'] ??
+                row['applicableOn'] ??
+                '', // XDTDAPPON
             "currencyCode": "INR", // XDTDCURCODE, MPRCURCODE
             "sequenceNo": row['sequenceNo'] ?? 0, // XDTDSEQNO
             "postNonPost": row['postnonpost'] ?? true, // XDTDPNYN
             "taxType": row['mprtaxtyp'] ?? '', // XDTDTAXTYP, MPRTAXTYP
             "rateSturctureCode": rateStructure, // XDTDRTSTRCD
             "rateAmount":
-                (row['rateAmount'] ?? 0.0)
-                    .toDouble(), // XDTDRATEAMT - This is the calculated amount
+                row['rateAmount'] is String
+                    ? double.parse(row['rateAmount'])
+                    : (row['rateAmount'] ?? 0.0)
+                        as double, // XDTDRATEAMT - This is the calculated amount
             "amendSrNo": 0, // XDTDAMDSRNO
             // Additional fields that might be needed for processing
             "itmModelRefNo": lineNo,

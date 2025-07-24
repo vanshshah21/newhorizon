@@ -230,18 +230,20 @@ class QuotationService {
     final body = {
       "AutoId": qtn.qtnID,
       "DocType": "SQ",
+      "FormID": "06104",
+      "GSTDateTimeTemp": "01/07/2017",
       "LocCode": qtn.siteCode,
       "QtnGrp": qtn.qtnGroup,
       "QtnNo": qtn.qtnNumber,
       "QtnYear": qtn.qtnYear,
       "intCompId": companyId,
       "intSiteId": qtn.siteId,
-      "documentprint": "regular",
       "strDomCurrency": currency,
       "companyData": companyDetails,
       "printtype": "pdf",
-      "msctechspecifications": true,
+      "msctechspecifications": false,
       "reportselection": "withvalue",
+      "documentprint": "regular",
       "discountprint": "withoutdisc",
     };
 

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:nhapp/utils/map_utils.dart';
+import 'package:nhapp/utils/rightsChecker.dart';
 import 'package:nhapp/utils/storage_utils.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:path_provider/path_provider.dart';
@@ -450,31 +451,6 @@ class _ProformaInvoiceDetailsPageState
     }
   }
 
-  // Calculate tax amount from rate structure details
-  double _calculateTotalTaxAmount() {
-    if (details?.gridDetail == null) return 0;
-
-    final gridDetail = details!.gridDetail;
-    final rateStructDetail = gridDetail['rateStructDetail'] as List? ?? [];
-
-    double totalTax = 0;
-    for (var rateDetail in rateStructDetail) {
-      final rateAmount =
-          double.tryParse(rateDetail['rateAmount']?.toString() ?? '0') ?? 0;
-      totalTax += rateAmount;
-    }
-
-    // If no tax from rate structure, use header tax
-    // if (totalTax == 0) {
-    //   totalTax =
-    //       double.tryParse(details!.headerDetail['invTax']?.toString() ?? '0') ??
-    //       0;
-    // }
-
-    return totalTax;
-  }
-
-  // Calculate basic amount from items
   double _calculateBasicAmount() {
     if (details?.gridDetail == null) return 0;
 
@@ -487,45 +463,42 @@ class _ProformaInvoiceDetailsPageState
       basicAmount += qty * rate;
     }
 
-    // If no items, use header basic amount
-    if (basicAmount == 0) {
-      basicAmount =
-          double.tryParse(
-            details!.headerDetail['invBacAmount']?.toString() ?? '0',
-          ) ??
-          0;
-    }
-
     return basicAmount;
   }
 
-  // Calculate discount amount
   double _calculateDiscountAmount() {
     if (details?.gridDetail == null) return 0;
 
     final items = details!.gridDetail['itemDetail'] as List? ?? [];
-    double discountAmount = 0;
+    double totalDiscount = 0;
 
     for (var item in items) {
-      discountAmount +=
+      totalDiscount +=
           double.tryParse(item['discountAmount']?.toString() ?? '0') ?? 0;
     }
 
-    // If no discount from items, use header discount
-    // if (discountAmount == 0) {
-    //   discountAmount =
-    //       double.tryParse(
-    //         details!.headerDetail['invDiscountValue']?.toString() ?? '0',
-    //       ) ??
-    //       0;
-    // }
+    return totalDiscount;
+  }
 
-    return discountAmount;
+  double _calculateTotalTaxAmount() {
+    if (details?.gridDetail == null) return 0;
+
+    final rateStructDetail =
+        details!.gridDetail['rateStructDetail'] as List? ?? [];
+    double totalTax = 0;
+
+    for (var rateDetail in rateStructDetail) {
+      totalTax +=
+          double.tryParse(rateDetail['rateAmount']?.toString() ?? '0') ?? 0;
+    }
+
+    return totalTax;
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final bool canPrint = RightsChecker.canPrint('Proforma Invoice Print');
 
     if (isLoading) {
       return Scaffold(
@@ -577,35 +550,38 @@ class _ProformaInvoiceDetailsPageState
       appBar: AppBar(
         title: const Text('Proforma Details'),
         actions: [
-          IconButton(
-            icon:
-                _isDownloading
-                    ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                    : const Icon(Icons.download),
-            onPressed: _isDownloading ? null : _handleDownload,
-            tooltip: 'Download PDF',
-          ),
-          IconButton(
-            icon: const Icon(Icons.picture_as_pdf_outlined),
-            onPressed: _viewPdf,
-            tooltip: 'View PDF',
-          ),
-          IconButton(
-            icon:
-                _isSharing
-                    ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                    : const Icon(Icons.share),
-            onPressed: _isSharing ? null : _handleShare,
-            tooltip: 'Share PDF',
-          ),
+          if (canPrint)
+            IconButton(
+              icon:
+                  _isDownloading
+                      ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                      : const Icon(Icons.download),
+              onPressed: _isDownloading ? null : _handleDownload,
+              tooltip: 'Download PDF',
+            ),
+          if (canPrint)
+            IconButton(
+              icon: const Icon(Icons.picture_as_pdf_outlined),
+              onPressed: _viewPdf,
+              tooltip: 'View PDF',
+            ),
+          if (canPrint)
+            IconButton(
+              icon:
+                  _isSharing
+                      ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                      : const Icon(Icons.share),
+              onPressed: _isSharing ? null : _handleShare,
+              tooltip: 'Share PDF',
+            ),
           IconButton(
             icon: const Icon(Icons.location_on),
             onPressed: _isLoadingLocation ? null : _handleLocationButton,
@@ -726,8 +702,9 @@ class _ProformaInvoiceDetailsPageState
                   const Divider(thickness: 1),
                   _amountRow(
                     'Total Amount',
-                    double.tryParse(header['invAmount']?.toString() ?? '0') ??
-                        0,
+                    _calculateBasicAmount() +
+                        _calculateTotalTaxAmount() +
+                        _calculateDiscountAmount(),
                     isTotal: true,
                   ),
                 ],
@@ -821,6 +798,30 @@ class _ProformaInvoiceDetailsPageState
     );
   }
 
+  // Widget _amountRow(String label, dynamic value, {bool isTotal = false}) {
+  //   return Padding(
+  //     padding: const EdgeInsets.symmetric(vertical: 6),
+  //     child: Row(
+  //       children: [
+  //         Expanded(
+  //           child: Text(
+  //             label,
+  //             style: TextStyle(
+  //               fontWeight: isTotal ? FontWeight.bold : FontWeight.w500,
+  //             ),
+  //           ),
+  //         ),
+  //         Text(
+  //           value is num ? value.toStringAsFixed(2) : value.toString(),
+  //           style: TextStyle(
+  //             fontWeight: FontWeight.bold,
+  //             fontSize: isTotal ? 16 : 14,
+  //           ),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
   Widget _amountRow(String label, dynamic value, {bool isTotal = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
