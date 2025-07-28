@@ -360,13 +360,13 @@ class _RecentInquiryPageState extends State<RecentInquiryPage> {
           _showSnackBar(validationError);
           return;
         }
-        // setState(() {
-        //   _fromDate = picked;
-        //   // Reset To Date if it's before the new From Date
-        //   if (_toDate != null && _toDate!.isBefore(picked)) {
-        //     _toDate = null;
-        //   }
-        // });
+        setState(() {
+          _fromDate = picked;
+          // Reset To Date if it's before the new From Date
+          if (_toDate != null && _toDate!.isBefore(picked)) {
+            _toDate = null;
+          }
+        });
       } else {
         final validationError = _validateToDate(picked);
         if (validationError != null) {
