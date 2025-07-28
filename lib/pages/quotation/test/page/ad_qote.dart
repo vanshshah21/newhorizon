@@ -52,7 +52,9 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
   String currency = "";
   List<Map<String, dynamic>> rateStructureDetails = [];
   late final msctechspecifications;
+  late final istechnicalspecreq;
   bool _shouldBlockForm = false;
+  DateTime? inquiryDate;
 
   @override
   void initState() {
@@ -72,7 +74,7 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
     await _getExchangeRate();
 
     // Check if form should be blocked after loading sales policy
-    if (msctechspecifications == true) {
+    if (istechnicalspecreq == true) {
       setState(() {
         _shouldBlockForm = true;
         _isLoading = false;
@@ -236,6 +238,7 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
           false;
       msctechspecifications =
           salesPolicy['msctechspecifications'] == "True" ? true : false;
+      istechnicalspecreq = salesPolicy['istechnicalspecreq'];
     } catch (e) {
       debugPrint("Error loading sales policy: $e");
       _isDuplicateAllowed = false; // Default to not allowing duplicates
@@ -385,6 +388,7 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
     // Fetch inquiry details and populate items
     final detail = await _service.fetchInquiryDetail(inquiry.inquiryId);
     if (detail != null && detail['itemDetails'] != null) {
+      inquiryDate = DateTime.parse(detail['inquiryDetails'][0]['inquiryDate']);
       int lineNo = 1;
       for (final item in detail['itemDetails']) {
         // Calculate discount details
@@ -672,7 +676,10 @@ class _AddQuotationPageState extends State<AddQuotationPage> {
         "customerInqRefNo": "",
         "customerInqRefDate": "",
         "customerName": selectedCustomer?.customerName ?? "",
-        "inquiryDate": null,
+        "inquiryDate":
+            inquiryDate != null
+                ? FormatUtils.formatDateForApi(inquiryDate!)
+                : null,
         "quotationSiteId": locationId.toString(),
         "quotationSiteCode": locationCode,
         "quotationId": 0,

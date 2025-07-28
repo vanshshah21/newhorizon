@@ -281,13 +281,16 @@ class LeadFormService {
       final companyDetails = await StorageUtils.readJson('selected_company');
       if (companyDetails == null) throw Exception("Company not set");
 
+      final locationDetails = await StorageUtils.readJson('selected_location');
+      if (locationDetails == null) throw Exception("Location not set");
+
       final tokenDetails = await StorageUtils.readJson('session_token');
       if (tokenDetails == null) throw Exception("Session token not found");
       final apiLeadDate = leadDate.toIso8601String();
       final InquiryNumber = isAutoNumberGenerated ? 0 : leadNumber;
       final autoNumber = isAutoNumberGenerated ? "Y" : "N";
       final isLocRequired = isLocationRequired ? "Y" : "N";
-      final locationId = companyDetails['locationId'] ?? '';
+      final locationId = locationDetails['id'] ?? '';
       final companyId = companyDetails['id'] ?? '';
 
       await _setupHeaders();
@@ -301,9 +304,10 @@ class LeadFormService {
         "IsAutoNumberGenerated": autoNumber,
         "SiteReq": isLocRequired,
         "IsAutorisationRequired": isAutorisationRequired,
-        "XININQSTAT": null,
+        "XININQSTAT": 'O',
         "CompanyID": companyId,
         "LocationID": locationId,
+        "LocationName": locationDetails['name'] ?? '',
         "InqEntryModel": {
           "InquiryID": 0,
           "CustomerCode": customer.customerCode,
@@ -316,14 +320,14 @@ class LeadFormService {
           "SalesmanCode": salesman.salesmanCode,
           "SalesRegionCode": region.code,
           "InquirySource": source.code,
-          "Remarks": null,
+          "Remarks": "",
           "NextFollowup": null,
           "TenderNumber": null,
           "EMDRequiredDate": null,
           "EMDAmount": 0,
           "EMDEndDate": null,
-          "InquiryRefNumber": null,
-          "InquiryStatus": "O",
+          "InquiryRefNumber": "",
+          "InquiryStatus": "Open",
           "SalesmanName": salesman.salesManFullName,
           "LocationCode": locationCode,
           "SalesRegionCodeDesc": region.codeFullName,
@@ -335,37 +339,69 @@ class LeadFormService {
           "ItemName": null,
           "ConsultantCode": null,
           "ConsultantName": null,
+          // "InqEntryItemModel":
+          //     items
+          //         .map(
+          //           (e) => {
+          //             "ModelNo": null,
+          //             "SalesItemCode": e.item.itemCode,
+          //             "UOM": e.item.salesUOM,
+          //             "ItemQty": e.qty,
+          //             "BasicPrice": e.rate,
+          //             "Application": null,
+          //             "PDO": null,
+          //             "InquiryStatus": "O",
+          //             "XIMFUGID": null,
+          //             "CurrencyCode": null,
+          //             "ItemName": e.item.itemName,
+          //             "SalesItemType": null,
+          //             "Precision": null,
+          //             "CustomerPoItemSrNo": null,
+          //             "CustomerItemCode": null,
+          //             "CustomerItemName": null,
+          //             "LnNumber": 0,
+          //             "ApplicationCode": null,
+          //             "ProductSize": null,
+          //             "InvoiceType": null,
+          //             "AllowChange": false,
+          //             "DispatchWithoutMfg": false,
+          //           },
+          //         )
+          //         .toList(),
           "InqEntryItemModel":
               items
+                  .asMap()
+                  .entries
                   .map(
-                    (e) => {
-                      "ModelNo": null,
-                      "SalesItemCode": e.item.itemCode,
-                      "UOM": e.item.salesUOM,
-                      "ItemQty": e.qty,
-                      "BasicPrice": e.rate,
+                    (entry) => {
+                      "ModelNo": entry.value.item.msimodelno,
+                      "SalesItemCode": entry.value.item.itemCode,
+                      "UOM": entry.value.item.salesUOM,
+                      "ItemQty": entry.value.qty,
+                      "BasicPrice": entry.value.rate,
                       "Application": null,
                       "PDO": null,
-                      "InquiryStatus": "O",
+                      "InquiryStatus": "Open",
                       "XIMFUGID": null,
-                      "CurrencyCode": null,
-                      "ItemName": e.item.itemName,
-                      "SalesItemType": null,
-                      "Precision": null,
+                      "CurrencyCode": customer.currency,
+                      "ItemName": entry.value.item.itemName,
+                      "SalesItemType": entry.value.item.salesItemType,
+                      "Precision": "0",
                       "CustomerPoItemSrNo": null,
                       "CustomerItemCode": null,
                       "CustomerItemName": null,
-                      "LnNumber": 0,
+                      "LnNumber": entry.key + 1,
                       "ApplicationCode": null,
-                      "ProductSize": null,
-                      "InvoiceType": null,
-                      "AllowChange": false,
-                      "DispatchWithoutMfg": false,
+                      "ProductSize": entry.value.item.productSpareSize,
+                      "InvoiceType": entry.value.item.ximinvtyp,
+                      "AllowChange": entry.value.item.allowchng,
+                      "DispatchWithoutMfg": entry.value.item.mimdispwomfg == 1,
+                      "lineNo": entry.key + 1,
                     },
                   )
                   .toList(),
           "EquipmentAttributeDetails": [],
-          "inqkndattControl": null,
+          "inqkndattControl": "",
         },
       };
       debugPrint("Creating Lead Entry with body: ${body.toString()}");

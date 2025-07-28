@@ -169,7 +169,7 @@ class _DispatchAmountByMonthsChartState
                               meta: meta,
                               child: Text(
                                 widget.chartdata[index]['month'] ?? '',
-                                style: const TextStyle(fontSize: 12),
+                                style: const TextStyle(fontSize: 10),
                               ),
                             );
                           },

@@ -75,6 +75,9 @@ class QuotationService extends BaseService {
       "reportselection": "withvalue",
       "documentprint": "regular",
       "discountprint": "withoutdisc",
+      "disctype": "withoutdisc",
+      "periodtype": "day",
+      "repSelection": "All",
     };
 
     return executeRequest<String>(

@@ -66,7 +66,9 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
   late final String currency;
   int _amendmentSrNo = -1;
   late final bool msctechspecifications;
+  late final bool istechnicalspecreq;
   bool _shouldBlockForm = false;
+  DateTime? inquiryDate;
 
   @override
   void initState() {
@@ -113,8 +115,10 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
       msctechspecifications =
           salesPolicy['msctechspecifications'] == "True" ? true : false;
 
+      istechnicalspecreq = salesPolicy['istechnicalspecreq'];
+
       // Check if form should be blocked after loading sales policy
-      if (msctechspecifications == true) {
+      if (istechnicalspecreq == true) {
         setState(() {
           _shouldBlockForm = true;
           _isLoading = false;
@@ -515,6 +519,9 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
     // Fetch inquiry details and populate items
     final detail = await _service.fetchInquiryDetail(inquiry.inquiryId);
     if (detail != null && detail['itemDetails'] != null) {
+      inquiryDate =
+          DateTime.tryParse(detail['inquiryDetails'][0]['inquiryDate'] ?? '') ??
+          DateTime.now();
       int lineNo = 1;
       for (final item in detail['itemDetails']) {
         // Calculate discount details
@@ -817,8 +824,6 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
     final companyId = _service.companyId;
     final docYear = _financeDetails?['financialYear'] ?? "";
 
-    _amendmentSrNo = _amendmentSrNo + 1;
-
     // Build model details
     List<Map<String, dynamic>> modelDetails = [];
     List<Map<String, dynamic>> discountDetails = [];
@@ -898,7 +903,7 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
             .toStringAsFixed(2),
         "exchangeRate": _exchangeRate ?? 1.0,
         "discountType": "None",
-        "discountAmount": "0",
+        "discountAmount": 0,
         "modValue": 0,
         "subject": subjectController.text,
         "kindAttentionName": "",
@@ -909,7 +914,10 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
         "customerInqRefNo": "",
         "customerInqRefDate": "",
         "customerName": selectedCustomer?.customerName ?? "",
-        "inquiryDate": null,
+        "inquiryDate":
+            inquiryDate != null
+                ? FormatUtils.formatDateForApi(inquiryDate!)
+                : null,
         "quotationSiteId":
             originalQuotationDetail?['quotationSiteId'] ?? locationId,
         "quotationSiteCode": locationCode,
@@ -927,18 +935,23 @@ class _EditQuotationPageState extends State<EditQuotationPage> {
         "contactNo": "",
         "submittedDate": null,
         "isBudgetaryQuotation": false,
-        "quotationStatus": "NS",
+        "quotationStatus": "",
         "QuotationAmendDate":
-            _amendmentSrNo == -1
-                ? null
-                : FormatUtils.formatDateForApi(DateTime.now()),
+            originalQuotationDetail!['quotationAmendDate'] ??
+            originalQuotationDetail['QuotationAmendDate'] ??
+            "",
         "currencyCode": currency,
         "agentCode": "",
-        "quotationTypeConfig": "N",
+        "quotationTypeConfig":
+            originalQuotationDetail?['quotationTypeConfig'] ?? "",
         "reasonCode": "",
         "consultantCode": "",
         "billToCustomerCode": selectedBillToCustomer?.customerCode ?? "",
-        "amendmentSrNo": _amendmentSrNo.toString(),
+        "amendmentSrNo":
+            originalQuotationDetail?['amendmentSrNo'] ??
+            originalQuotationDetail['amendSrNo'] ??
+            _amendmentSrNo ??
+            0,
         "xqdbookcd": "",
       },
       "modelDetails": modelDetails,

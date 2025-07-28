@@ -45,7 +45,7 @@ class SalesOrderAttachmentService {
     required String ioSiteCode,
     required String ioNumber,
   }) async {
-    final documentNo = "$ioYear/$ioGroup/$ioSiteCode/$ioNumber/SALESORDERENTRY";
+    final documentNo = "$ioYear/$ioGroup/$ioSiteCode/$ioNumber";
     return fetchAttachments(
       baseUrl: baseUrl,
       documentNo: documentNo,

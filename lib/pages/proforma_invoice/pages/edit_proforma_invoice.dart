@@ -1185,6 +1185,7 @@ class _EditProformaInvoiceFormState extends State<EditProformaInvoiceForm> {
   //   }
   // }
   Future<void> _submitProformaInvoice() async {
+    FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
 
     if (!_validateForm()) return;

@@ -234,6 +234,10 @@ class _EditLeadPageState extends State<EditLeadPage> {
           customerCode: detail.customerCode,
           customerName: detail.customerName,
           customerFullName: detail.customerFullName,
+          currency:
+              detail.inqEntryItemModel.isNotEmpty
+                  ? detail.inqEntryItemModel.first.currencyCode
+                  : 'INR',
         );
         _customerController.text = detail.customerFullName;
         _selectedSource = _sources.firstWhere(
@@ -258,6 +262,12 @@ class _EditLeadPageState extends State<EditLeadPage> {
                   itemName: item.itemName,
                   salesUOM: item.uom,
                   salesItemFullName: "${item.salesItemCode} - ${item.itemName}",
+                  salesItemType: item.salesItemType ?? '',
+                  productSpareSize: item.productSize ?? '',
+                  ximinvtyp: item.invoiceType ?? 'Regular',
+                  allowchng: item.allowChange,
+                  mimdispwomfg: item.dispatchWithoutMfg ? 1 : 0,
+                  msimodelno: item.modelNo ?? '',
                 ),
                 qty: item.itemQty,
                 rate: item.basicPrice,

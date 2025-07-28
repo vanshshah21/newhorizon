@@ -62,7 +62,6 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   bool _submitting = false;
   late final Map<String, dynamic> _selectedProformaInvoice;
   late final double _exchangeRate;
-  bool _shouldBlockForm = false;
 
   final List<String> preferenceOptions = [
     "On Quotation",
@@ -1848,6 +1847,7 @@ class _AddProformaInvoiceFormState extends State<AddProformaInvoiceForm> {
   //   }
   // }
   Future<void> _submitProformaInvoice() async {
+    FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
 
     if (!_validateForm()) return;

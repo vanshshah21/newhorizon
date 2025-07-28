@@ -67,6 +67,7 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
   late String currency;
   double _exchangeRate = 1.0;
   late final bool msctechspecifications;
+  late final bool istechnicalspecreq;
   bool _shouldBlockForm = false;
 
   @override
@@ -86,7 +87,7 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
     await _loadSalesPolicy();
     await _getExchangeRate();
     // Check if form should be blocked after loading sales policy
-    if (msctechspecifications == true) {
+    if (istechnicalspecreq == true) {
       setState(() {
         _shouldBlockForm = true;
         _isLoading = false;
@@ -242,7 +243,7 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
       if (filePaths.isEmpty) return;
 
       final documentNo =
-          "$docYear/${documentDetail['groupCode'] ?? "SO"}/$locationCode/$salesOrderNumber/SALESORDERENTRY";
+          "$docYear/${documentDetail['groupCode'] ?? "SO"}/$locationCode/$salesOrderNumber";
 
       final uploadSuccess = await _attachmentService.uploadAttachments(
         filePaths: filePaths,
@@ -280,6 +281,7 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
           salesPolicy['autogenerateoafonsalesorder'] ??
           salesPolicy['autogenerateoafonso'] ??
           false;
+      istechnicalspecreq = salesPolicy['istechnicalspecreq'];
     } catch (e) {
       debugPrint("Error loading sales policy: $e");
       _isDuplicateAllowed = false; // Default to not allowing duplicates
@@ -925,6 +927,7 @@ class _AddSalesOrderPageState extends State<AddSalesOrderPage> {
   }
 
   Future<void> _submitSalesOrder() async {
+    FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
     if (selectedOrderFrom == null) {
       _showError("Please select Order From customer");

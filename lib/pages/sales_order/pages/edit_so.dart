@@ -66,6 +66,7 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
   late double _exchangeRate;
   int _amendmentSrNo = -1;
   bool _shouldBlockForm = false;
+  bool _autogenerateoafonsalesorder = false;
 
   // Quotation related fields - Updated to match add_so.dart
   List<QuotationNumber> quotationNumbers = [];
@@ -73,11 +74,16 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
   QuotationNumber? selectedQuotationNumber;
   bool _loadingQuotationDetails = false;
 
+  // OAF Group related fields
+  List<Map<String, dynamic>> oafGroupCodes = [];
+  Map<String, dynamic>? selectedOAFGroup;
+
   // Sales Order details
   Map<String, dynamic>? salesOrderDetails;
   String originalOrderId = "";
   String currency = "INR";
   late final bool msctechspecifications;
+  late final bool istechnicalspecreq;
 
   @override
   void initState() {
@@ -97,13 +103,24 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
     await _loadAttachments();
     await _getExchangeRate();
     // Check if form should be blocked after loading sales policy
-    if (msctechspecifications == true) {
+    if (istechnicalspecreq == true) {
       setState(() {
         _shouldBlockForm = true;
         _isLoading = false;
       });
       return; // Exit early, don't load prefill data
     }
+
+    // Load OAF Group Codes if auto-generation is enabled
+    final oafGroupCodes = await _service.fetchOAFGroupCodes();
+    if (oafGroupCodes.isNotEmpty) {
+      _financeDetails?['oafGroupCodes'] = oafGroupCodes;
+      this.oafGroupCodes = oafGroupCodes;
+      if (oafGroupCodes.length == 1) {
+        selectedOAFGroup = oafGroupCodes.first;
+      }
+    }
+
     setState(() => _isLoading = false);
   }
 
@@ -120,6 +137,7 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
           false;
       msctechspecifications =
           salesPolicy['msctechspecifications'] == "True" ? true : false;
+      istechnicalspecreq = salesPolicy['istechnicalspecreq'];
     } catch (e) {
       debugPrint("Error loading sales policy: $e");
       _isDuplicateAllowed = false; // Default to not allowing duplicates
@@ -146,8 +164,7 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
       final groupCode = widget.ioGroup;
       final locationCode = widget.ioSiteCode;
 
-      _documentNo =
-          "$docYear/$groupCode/$locationCode/${widget.ioNumber}/SALESORDERENTRY";
+      _documentNo = "$docYear/$groupCode/$locationCode/${widget.ioNumber}";
 
       final attachments = await _attachmentService.fetchSalesOrderAttachments(
         baseUrl: baseUrl,
@@ -262,6 +279,12 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
     // Set basic sales order details
     originalOrderId = soDetails['orderId'].toString();
     _amendmentSrNo = soDetails['amendSrNO'] ?? 0;
+
+    // Set OAF Group if available (don't create field, just store the value)
+    if (soDetails['oafGroup'] != null &&
+        soDetails['oafGroup'].toString().isNotEmpty) {
+      selectedOAFGroup = {'groupCode': soDetails['oafGroup'].toString()};
+    }
 
     // Set customer details
     selectedOrderFrom = Customer(
@@ -1189,6 +1212,8 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
                     selectedQuotationNumber != null
                 ? selectedQuotationNumber!.quotationNumber
                 : "",
+        "OAFGroup":
+            selectedOAFGroup != null ? selectedOAFGroup!['groupCode'] : "",
         "quotationDate":
             salesOrderReference == "With Quotation Reference" &&
                     selectedQuotationNumber != null
@@ -1295,6 +1320,7 @@ class _EditSalesOrderPageState extends State<EditSalesOrderPage> {
   }
 
   Future<void> _updateSalesOrder() async {
+    FocusScope.of(context).unfocus();
     if (!_formKey.currentState!.validate()) return;
     if (selectedOrderFrom == null) {
       _showError("Please select Order From customer");

@@ -1032,8 +1032,8 @@ class _AddFollowUpFormState extends State<AddFollowUpForm> {
                 firstDate: followUpDate,
               ),
               // Uncomment the next line if attachments are needed
-              // const SizedBox(height: 16),
-              // _buildAttachmentPicker(),
+              const SizedBox(height: 16),
+              _buildAttachmentPicker(),
               const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
